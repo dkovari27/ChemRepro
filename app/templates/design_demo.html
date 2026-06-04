@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% block title %}Scoring Design Demo — ChemRepro{% endblock %}
+
+{% block content %}
+
+<div class="mb-8 text-center">
+  <p class="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full inline-block px-3 py-1 mb-3">Dev design preview</p>
+  <h1 class="text-2xl font-bold text-slate-800">Scoring display — Option A vs Option D</h1>
+  <p class="text-slate-500 text-sm mt-1">Same 7 fake reviews, two different ways to display the score on a paper card.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     OPTION A — Single averaged score, hover for breakdown
+═══════════════════════════════════════════════════════════ -->
+
+<div class="mb-12">
+  <div class="flex items-center gap-3 mb-4">
+    <span class="text-xs font-bold bg-brand text-white rounded px-2 py-1 tracking-wide">OPTION A</span>
+    <p class="text-slate-600 text-sm">Single score (outcome mapped 1–5, averaged). Hover the score to see the breakdown.</p>
+  </div>
+
+  <!-- Paper card — Option A -->
+  <a href="/paper/{{ paper.doi }}"
+     class="block bg-white border border-slate-200 rounded-xl p-4 hover:border-brand hover:shadow-sm transition-all max-w-3xl">
+    <div class="flex items-center gap-4">
+
+      <div class="flex-1 min-w-0">
+        <p class="font-medium text-slate-800 text-sm leading-snug mb-0.5">{{ paper.title }}</p>
+        <p class="text-xs text-slate-500 truncate mb-0.5">{{ display_authors }}</p>
+        <p class="text-xs text-slate-400 truncate">
+          {{ paper.journal }}
+          {% if paper.year %}&middot; {{ paper.year }}{% endif %}
+          &middot; <span class="font-mono">{{ paper.doi }}</span>
+        </p>
+      </div>
+
+      <!-- Score with hover breakdown -->
+      <div class="shrink-0 text-center w-24 group relative cursor-default" onclick="return false;">
+        <div class="text-xl font-bold text-slate-700">★ {{ score_a }}</div>
+        <div class="text-xs text-slate-400">{{ total }} ratings</div>
+
+        <!-- Hover tooltip -->
+        <div class="absolute right-0 top-full mt-2 hidden group-hover:block
+                    bg-white border border-slate-200 rounded-xl shadow-lg p-4 w-56 z-20 text-left">
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Outcome breakdown</p>
+          <div class="space-y-2">
+            {% set bar_colours = {
+              'extended':               'bg-green-500',
+              'repro_extension_failed': 'bg-blue-400',
+              'reproduced':             'bg-sky-400',
+              'no_extension':           'bg-orange-400',
+              'no_repro':               'bg-red-400'
+            } %}
+            {% for outcome, label in outcome_labels.items() %}
+            {% set count = breakdown.get(outcome, 0) %}
+            {% if count > 0 %}
+            <div>
+              <div class="flex justify-between text-xs mb-0.5">
+                <span class="text-slate-600 leading-tight">{{ label }}</span>
+                <span class="font-semibold text-slate-700 shrink-0 ml-2">{{ count }}</span>
+              </div>
+              <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div class="{{ bar_colours[outcome] }} h-full rounded-full"
+                     style="width: {{ (count / total * 100) | int }}%"></div>
+              </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+          </div>
+          <p class="text-xs text-slate-400 mt-3 border-t border-slate-100 pt-2">
+            Score = outcome mapped 1–5, averaged
+          </p>
+        </div>
+
+      </div>
+    </div>
+  </a>
+
+  <!-- Option A: individual review list -->
+  <div class="mt-4 max-w-3xl space-y-2">
+    <p class="text-xs text-slate-400 uppercase tracking-wide font-medium mb-2">Reviews used</p>
+    {% for r in reviews %}
+    <div class="bg-white border border-slate-100 rounded-lg px-4 py-2.5 flex items-center justify-between gap-4">
+      <span class="text-sm text-slate-700">{{ outcome_labels.get(r.outcome, r.outcome) }}</span>
+      <div class="flex items-center gap-3 shrink-0">
+        <span class="text-xs text-slate-400">maps to</span>
+        <span class="font-bold text-slate-700">
+          {% if r.outcome == 'extended' %}5
+          {% elif r.outcome == 'repro_extension_failed' %}4
+          {% elif r.outcome == 'reproduced' %}3
+          {% elif r.outcome == 'no_extension' %}2
+          {% else %}1{% endif %}
+        </span>
+      </div>
+    </div>
+    {% endfor %}
+    <div class="bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 flex justify-between text-sm font-semibold text-slate-700">
+      <span>Average</span>
+      <span>★ {{ score_a }}</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     OPTION D — Outcome distribution, no averaging
+═══════════════════════════════════════════════════════════ -->
+
+<div class="mb-12">
+  <div class="flex items-center gap-3 mb-4">
+    <span class="text-xs font-bold bg-slate-700 text-white rounded px-2 py-1 tracking-wide">OPTION D</span>
+    <p class="text-slate-600 text-sm">No averaging. Shows the raw distribution of outcomes directly on the card.</p>
+  </div>
+
+  <!-- Paper card — Option D -->
+  <a href="/paper/{{ paper.doi }}"
+     class="block bg-white border border-slate-200 rounded-xl p-4 hover:border-brand hover:shadow-sm transition-all max-w-3xl">
+    <div class="flex items-center gap-4">
+
+      <div class="flex-1 min-w-0">
+        <p class="font-medium text-slate-800 text-sm leading-snug mb-0.5">{{ paper.title }}</p>
+        <p class="text-xs text-slate-500 truncate mb-0.5">{{ display_authors }}</p>
+        <p class="text-xs text-slate-400 truncate">
+          {{ paper.journal }}
+          {% if paper.year %}&middot; {{ paper.year }}{% endif %}
+          &middot; <span class="font-mono">{{ paper.doi }}</span>
+        </p>
+      </div>
+
+      <!-- Distribution column -->
+      <div class="shrink-0 w-36 space-y-1">
+        {% set dist_styles = {
+          'extended':               ('bg-green-500',  'text-green-700'),
+          'repro_extension_failed': ('bg-blue-400',   'text-blue-700'),
+          'reproduced':             ('bg-sky-400',    'text-sky-700'),
+          'no_extension':           ('bg-orange-400', 'text-orange-700'),
+          'no_repro':               ('bg-red-400',    'text-red-700')
+        } %}
+        {% set dist_short = {
+          'extended':               'Extended',
+          'repro_extension_failed': 'Repro, ext. failed',
+          'reproduced':             'Reproduced',
+          'no_extension':           'Ext. failed',
+          'no_repro':               'Did not work'
+        } %}
+        {% for outcome, label, count in distribution %}
+        {% if count > 0 %}
+        {% set bar_cls, text_cls = dist_styles[outcome] %}
+        <div class="flex items-center gap-1.5">
+          <div class="flex gap-0.5 shrink-0">
+            {% for i in range(total) %}
+            <div class="w-2 h-2 rounded-sm {{ bar_cls if i < count else 'bg-slate-100' }}"></div>
+            {% endfor %}
+          </div>
+          <span class="{{ text_cls }} text-xs font-medium whitespace-nowrap">{{ count }}</span>
+        </div>
+        {% endif %}
+        {% endfor %}
+        <p class="text-xs text-slate-400 pt-0.5">{{ total }} ratings</p>
+      </div>
+
+    </div>
+  </a>
+
+  <!-- Option D: distribution legend -->
+  <div class="mt-4 max-w-3xl">
+    <p class="text-xs text-slate-400 uppercase tracking-wide font-medium mb-2">Legend</p>
+    <div class="flex flex-wrap gap-3">
+      {% for outcome, label, count in distribution %}
+      {% if count > 0 %}
+      {% set bar_cls, text_cls = dist_styles[outcome] %}
+      <div class="flex items-center gap-1.5 text-xs">
+        <div class="w-3 h-3 rounded-sm {{ bar_cls }}"></div>
+        <span class="text-slate-600">{{ label }} ({{ count }})</span>
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Separator -->
+<!-- ═══════════════════════════════════════════════════════════
+     PAGINATION PREVIEW
+═══════════════════════════════════════════════════════════ -->
+<div class="border-t border-slate-200 pt-8 mt-4 max-w-3xl">
+  <h2 class="text-lg font-bold text-slate-800 mb-1">Pagination controls</h2>
+  <p class="text-slate-500 text-sm mb-6">Three states: first page, middle page, last page.</p>
+
+  <div class="space-y-4">
+
+    <!-- First page — only Next -->
+    <div>
+      <p class="text-xs text-slate-400 uppercase tracking-wide font-medium mb-2">First page (Next only)</p>
+      <div class="flex items-center justify-center gap-2 text-sm bg-white border border-slate-200 rounded-xl py-4 px-6">
+        <span class="text-slate-400 text-xs">Page 1 of 3</span>
+        <button class="px-3 py-1.5 border border-slate-200 rounded-lg text-slate-600 hover:border-brand transition-colors">
+          Next &gt;
+        </button>
+      </div>
+    </div>
+
+    <!-- Middle page — both buttons -->
+    <div>
+      <p class="text-xs text-slate-400 uppercase tracking-wide font-medium mb-2">Middle page (Previous + Next)</p>
+      <div class="flex items-center justify-center gap-2 text-sm bg-white border border-slate-200 rounded-xl py-4 px-6">
+        <button class="px-3 py-1.5 border border-slate-200 rounded-lg text-slate-600 hover:border-brand transition-colors">
+          &lt; Previous
+        </button>
+        <span class="text-slate-400 text-xs">Page 2 of 3</span>
+        <button class="px-3 py-1.5 border border-slate-200 rounded-lg text-slate-600 hover:border-brand transition-colors">
+          Next &gt;
+        </button>
+      </div>
+    </div>
+
+    <!-- Last page — only Previous -->
+    <div>
+      <p class="text-xs text-slate-400 uppercase tracking-wide font-medium mb-2">Last page (Previous only)</p>
+      <div class="flex items-center justify-center gap-2 text-sm bg-white border border-slate-200 rounded-xl py-4 px-6">
+        <button class="px-3 py-1.5 border border-slate-200 rounded-lg text-slate-600 hover:border-brand transition-colors">
+          &lt; Previous
+        </button>
+        <span class="text-slate-400 text-xs">Page 3 of 3</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="border-t border-slate-200 pt-6 mt-8 max-w-3xl">
+  <p class="text-xs text-slate-400">
+    Fake paper &middot; 7 seeded reviews &middot; not publicly accessible &middot;
+    <a href="/" class="text-brand hover:underline">← back to homepage</a>
+  </p>
+</div>
+
+{% endblock %}

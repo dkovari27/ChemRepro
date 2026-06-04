@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}Scoring Explainer Demo – ChemRepro{% endblock %}
+
+{% block content %}
+
+<div class="mb-8 text-center">
+  <p class="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full inline-block px-3 py-1 mb-3">Dev design preview</p>
+  <h1 class="text-2xl font-bold text-slate-800">Scoring explainer – Option 2+3 vs Option 5</h1>
+  <p class="text-slate-500 text-sm mt-1">How do we help readers understand what the ★ score means?</p>
+</div>
+
+{% set fake_breakdown = [
+  ('extended',               2),
+  ('repro_extension_failed', 0),
+  ('reproduced',             3),
+  ('no_extension',           1),
+  ('no_repro',               1),
+] %}
+{% set total = 7 %}
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+  <!-- ═══════════════════════════════════════════════════════
+       OPTION 2+3
+       Tooltip footnote + score value on radio buttons
+  ═══════════════════════════════════════════════════════ -->
+  <div>
+    <div class="flex items-center gap-3 mb-5">
+      <span class="text-xs font-bold bg-brand text-white rounded px-2 py-1 tracking-wide">OPTION 2+3</span>
+      <p class="text-slate-600 text-sm">Footnote in tooltip · score value shown on form radio buttons</p>
+    </div>
+
+    <!-- Tooltip mockup -->
+    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Hover tooltip on paper card</p>
+    <div class="bg-white border border-slate-200 rounded-xl shadow-lg p-4 w-64 mb-6">
+      <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Breakdown</p>
+      <div class="space-y-2 mb-3">
+        {% for outcome, count in fake_breakdown %}
+        {% set bar_cls = outcome_colors[outcome][0] %}
+        {% set txt_cls = outcome_colors[outcome][1] %}
+        <div>
+          <div class="flex justify-between text-xs mb-0.5">
+            <span class="{{ txt_cls }} font-medium leading-tight">{{ outcome_labels[outcome] }}</span>
+            <span class="font-semibold {% if count > 0 %}text-slate-700{% else %}text-slate-300{% endif %} shrink-0 ml-2">{{ count }}</span>
+          </div>
+          <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+            <div class="h-full rounded-full {{ bar_cls }} {% if count == 0 %}opacity-0{% endif %}"
+                 style="width: {{ (count / total * 100) | int }}%"></div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <!-- Option 2: footnote -->
+      <p class="text-xs text-slate-400 border-t border-slate-100 pt-2">
+        Each outcome maps to 1–5 and is averaged.
+      </p>
+    </div>
+
+    <!-- Form radio mockup -->
+    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Rating form – outcome selection</p>
+    <div class="bg-white border border-slate-200 rounded-xl p-4 w-72">
+      <p class="text-xs font-medium text-slate-600 mb-3">What did you attempt? <span class="text-red-500">*</span></p>
+      <div class="flex flex-col gap-2.5">
+        {% set scores_map = {
+          'no_repro': 1, 'no_extension': 2, 'reproduced': 3,
+          'repro_extension_failed': 4, 'extended': 5
+        } %}
+        {% for outcome in outcome_order %}
+        {% set txt_cls = outcome_colors[outcome][1] %}
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="radio" class="accent-brand w-4 h-4" disabled />
+          <span class="text-sm text-slate-800">{{ outcome_labels[outcome] }}</span>
+          <!-- Option 3: score badge on radio -->
+          <span class="ml-auto text-xs font-bold {{ txt_cls }} bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 shrink-0">
+            {{ scores_map[outcome] }}
+          </span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       OPTION 5
+       Numeric prefix in the label everywhere
+  ═══════════════════════════════════════════════════════ -->
+  <div>
+    <div class="flex items-center gap-3 mb-5">
+      <span class="text-xs font-bold bg-slate-700 text-white rounded px-2 py-1 tracking-wide">OPTION 5</span>
+      <p class="text-slate-600 text-sm">Number baked into the label – tooltip and form are consistent</p>
+    </div>
+
+    <!-- Tooltip mockup -->
+    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Hover tooltip on paper card</p>
+    <div class="bg-white border border-slate-200 rounded-xl shadow-lg p-4 w-64 mb-6">
+      <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Breakdown</p>
+      <div class="space-y-2">
+        {% for outcome, count in fake_breakdown %}
+        {% set bar_cls = outcome_colors[outcome][0] %}
+        {% set txt_cls = outcome_colors[outcome][1] %}
+        {% set score = scores_map[outcome] %}
+        <div>
+          <div class="flex justify-between text-xs mb-0.5">
+            <span class="{{ txt_cls }} font-medium leading-tight">
+              <span class="font-bold">{{ score }}</span>
+              <span class="mx-0.5 opacity-60">–</span>{{ outcome_labels[outcome] }}
+            </span>
+            <span class="font-semibold shrink-0 ml-3 {% if count > 0 %}text-slate-600{% else %}text-slate-300{% endif %}">
+              {% if count > 0 %}×{{ count }}{% else %}–{% endif %}
+            </span>
+          </div>
+          <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+            <div class="h-full rounded-full {{ bar_cls }} {% if count == 0 %}opacity-0{% endif %}"
+                 style="width: {{ (count / total * 100) | int }}%"></div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <!-- No footnote needed – numbers speak for themselves -->
+    </div>
+
+    <!-- Form radio mockup -->
+    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Rating form – outcome selection</p>
+    <div class="bg-white border border-slate-200 rounded-xl p-4 w-72">
+      <p class="text-xs font-medium text-slate-600 mb-3">What did you attempt? <span class="text-red-500">*</span></p>
+      <div class="flex flex-col gap-2.5">
+        {% for outcome in outcome_order %}
+        {% set score = scores_map[outcome] %}
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="radio" class="accent-brand w-4 h-4" disabled />
+          <span class="text-sm text-slate-800">
+            <span class="font-bold text-slate-800">{{ score }}</span>
+            <span class="text-slate-400 mx-0.5">–</span>{{ outcome_labels[outcome] }}
+          </span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="border-t border-slate-200 pt-6 mt-8 max-w-xl">
+  <p class="text-xs text-slate-400">
+    Design preview only – no changes have been made to the real UI.
+    <a href="/design-demo" class="text-brand hover:underline ml-2">← scoring display demo</a>
+    &nbsp;·&nbsp;
+    <a href="/" class="text-brand hover:underline">homepage</a>
+  </p>
+</div>
+
+{% endblock %}
