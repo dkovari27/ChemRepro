@@ -6,6 +6,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
+from app import prompts
 from app.config import settings
 from app.database import get_db
 from app.models.comment import Comment
@@ -213,6 +214,22 @@ async def paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
 
     scores = _get_paper_scores(doi, db)
 
+    # ── Scoring mode (v2 = single score | classic = repro stars + outcome) ─
+    scoring_mode = request.query_params.get("mode", "v2")
+    if scoring_mode not in ("v2", "classic"):
+        scoring_mode = "v2"
+
+    # Classic mode: also compute average repro score
+    classic_scores = {}
+    if scoring_mode == "classic":
+        row = (
+            db.query(func.avg(Rating.reproducibility_score).label("avg_repro"))
+            .filter(Rating.doi == doi, Rating.scoring_mode == "classic",
+                    Rating.reproducibility_score.isnot(None))
+            .one()
+        )
+        classic_scores["avg_repro"] = round(float(row.avg_repro), 1) if row.avg_repro else None
+
     # ── Filter / sort / paginate ─────────────────────────────────────────
     PAGE_SIZE = 25
     active_outcome = request.query_params.get("outcome", "")
@@ -311,6 +328,9 @@ async def paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
         "user_name": request.session.get("user_name"),
         "orcid_id": orcid_id,
         "user_already_rated": user_already_rated,
+        "scoring_mode": scoring_mode,
+        "classic_scores": classic_scores,
+        "prompts": prompts,
         **_scoring_context(),
     })
 
@@ -381,7 +401,10 @@ async def submit_rating(
     scope_observation: str = Form(""),
     modification_details: str = Form(""),
     coi_confirmed: str = Form(""),
+    scoring_mode: str = Form("v2"),
 ):
+    if scoring_mode not in ("v2", "classic"):
+        scoring_mode = "v2"
     orcid_id = request.session.get("orcid_id")
     if not orcid_id:
         return RedirectResponse(f"/auth/guest-setup?next={request.url.path}", status_code=303)
@@ -410,10 +433,28 @@ async def submit_rating(
         scope_level=scope_level or None,
         scope_observation=scope_observation[:1000] or None,
         modification_details=modification_details[:1000] or None,
+        scoring_mode=scoring_mode,
     )
     db.add(rating)
     db.commit()
     return RedirectResponse(f"/paper/{doi}", status_code=303)
+
+
+@router.get("/design-demo/scoring-ab", response_class=HTMLResponse)
+async def design_demo_scoring_ab(request: Request):
+    if settings.ORCID_ENV == "production":
+        raise HTTPException(status_code=403)
+    from app import prompts as _prompts
+    return templates.TemplateResponse("design_demo_scoring_ab.html", {
+        "request": request,
+        "outcome_labels": OUTCOME_LABELS,
+        "outcome_colors": OUTCOME_COLORS,
+        "outcome_order": OUTCOME_ORDER,
+        "outcome_scores": OUTCOME_SCORES,
+        "prompts": _prompts,
+        "user_name": request.session.get("user_name"),
+        "orcid_id": request.session.get("orcid_id"),
+    })
 
 
 @router.get("/design-demo/scoring", response_class=HTMLResponse)

@@ -92,17 +92,22 @@
         </div>
 
       {% else %}
-        <form action="/paper/{{ paper.doi }}/rate" method="post" id="rating-form" data-moderate>
+        <!-- Scoring mode toggle -->
+        <div class="flex gap-1.5 mb-5 bg-slate-100 rounded-lg p-1 text-xs font-medium">
+          <a href="?mode=v2" class="flex-1 text-center py-1.5 rounded-md transition-colors
+             {% if scoring_mode != 'classic' %}bg-white shadow text-slate-800{% else %}text-slate-500 hover:text-slate-700{% endif %}">
+            Single score
+          </a>
+          <a href="?mode=classic" class="flex-1 text-center py-1.5 rounded-md transition-colors
+             {% if scoring_mode == 'classic' %}bg-white shadow text-slate-800{% else %}text-slate-500 hover:text-slate-700{% endif %}">
+            Classic (2 scores)
+          </a>
+        </div>
 
-          <!-- ══ STEP 1: OUTCOME ═════════════════════════════════════════
-               NOTE FOR FOLLOW-UP: These outcome categories are provisional.
-               Original user thoughts:
-                 "Did not work on original" / "Did not work on extension"
-                 "Reproduced original" / "Reproduced original, extension failed"
-                 "Extended"
-               Repro section: no_repro, reproduced, repro_extension_failed
-               Scope section: no_extension, repro_extension_failed, extended
-          ════════════════════════════════════════════════════════════════ -->
+        <form action="/paper/{{ paper.doi }}/rate" method="post" id="rating-form" data-moderate>
+          <input type="hidden" name="scoring_mode" value="{{ scoring_mode }}" />
+
+          <!-- ══ STEP 1: OUTCOME ═══════════════════════════════════════ -->
           <div class="mb-5">
             <label class="block text-xs font-medium text-slate-600 mb-2">
               What did you attempt? <span class="text-red-500">*</span>
@@ -120,23 +125,33 @@
             </div>
           </div>
 
-          <!-- ══ STEP 2a: REPRODUCIBILITY ═══════════════════════════════ -->
+          <!-- ══ STEP 2a: REPRODUCIBILITY ═════════════════════════════ -->
           <div id="repro-section" class="hidden border-t border-slate-100 pt-4 mb-4">
             <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Reproducibility</p>
+
+            {% if scoring_mode == 'classic' %}
+            <!-- Classic: show 1–5 star rating -->
+            <div class="mb-3">
+              <label class="block text-xs font-medium text-slate-600 mb-1">
+                Reproducibility score <span class="text-red-500">*</span>
+              </label>
+              <div class="flex gap-1 mb-1" data-stars="reproducibility_score">
+                {% for i in range(1, 6) %}
+                <button type="button" data-value="{{ i }}" class="star-btn text-2xl text-slate-300 transition-colors">★</button>
+                {% endfor %}
+              </div>
+              <input type="hidden" name="reproducibility_score" id="repro-input" value="" />
+              <p id="repro-legend" class="text-xs font-medium text-amber-600 min-h-[1rem]"></p>
+            </div>
+            {% endif %}
+
             <label class="block text-xs font-medium text-slate-600 mb-1">Reproducibility observation</label>
-            <textarea name="reproducibility_observation" rows="3" maxlength="1000"
-              placeholder="Name the substrate from the paper you tested (e.g. compound 5g, 50 mg scale)"
-              class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none"></textarea>
+            <textarea name="reproducibility_observation" rows="6" maxlength="1000"
+              placeholder="{{ prompts.REPRO_OBSERVATION }}"
+              class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
           </div>
 
-          <!-- ══ STEP 2b: SCOPE EXTENSION ════════════════════════════════
-               NOTE FOR FOLLOW-UP: Scope scoring is a placeholder.
-               User thinking: Minor (similar scaffold, no new functionality) /
-               Medium (different scaffold, no new functionality) /
-               Major (different scaffold and new functionality).
-               Wants something eye-catching and easy to understand.
-               generalisability_score (1–5 numeric) kept in DB for future use.
-          ════════════════════════════════════════════════════════════════ -->
+          <!-- ══ STEP 2b: SCOPE EXTENSION ══════════════════════════════ -->
           <div id="scope-section" class="hidden border-t border-slate-100 pt-4 mb-4">
             <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Scope extension</p>
             <label class="block text-xs font-medium text-slate-600 mb-2">
@@ -167,15 +182,15 @@
             </div>
             <div class="mb-3">
               <label class="block text-xs font-medium text-slate-600 mb-1">Scope extension observations</label>
-              <textarea name="scope_observation" rows="3" maxlength="1000"
-                placeholder="Describe what substrates or conditions you extended the reaction to"
-                class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none"></textarea>
+              <textarea name="scope_observation" rows="6" maxlength="1000"
+                placeholder="{{ prompts.SCOPE_OBSERVATION }}"
+                class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
             </div>
             <div id="modification-block" class="hidden">
               <label class="block text-xs font-medium text-slate-600 mb-1">Modification details</label>
-              <textarea name="modification_details" rows="3" maxlength="1000"
-                placeholder="Describe the specific modifications you made"
-                class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none"></textarea>
+              <textarea name="modification_details" rows="5" maxlength="1000"
+                placeholder="{{ prompts.MODIFICATION_DETAILS }}"
+                class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
             </div>
           </div>
 
@@ -266,6 +281,12 @@
             {% if r.outcome %}
             <span class="text-xs font-semibold {{ txt_cls }} bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1">
               {{ outcome_scores.get(r.outcome, '') }} – {{ outcome_labels.get(r.outcome, r.outcome) }}
+            </span>
+            {% endif %}
+            {% if r.reproducibility_score and r.scoring_mode == 'classic' %}
+            <span class="text-sm">
+              <span class="text-amber-500 font-medium">★ {{ r.reproducibility_score }}/5</span>
+              <span class="text-slate-400 text-xs ml-1">repro</span>
             </span>
             {% endif %}
             {% if r.scope_level %}
@@ -389,7 +410,7 @@
           <form action="/paper/{{ paper.doi }}/comment" method="post" data-moderate>
             <input type="hidden" name="rating_id" value="{{ r.id }}" />
             <textarea name="content" rows="2" maxlength="2000" required
-              placeholder="Share a method tip, ask a question, or flag an issue…"
+              placeholder="{{ prompts.COMMENT_PLACEHOLDER }}"
               class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none"></textarea>
             <div class="flex gap-2 mt-1.5">
               <button type="submit"
@@ -508,12 +529,17 @@
   // ── Outcome → show/hide form sections ────────────────────────────────
   const SHOWS_REPRO = new Set(['no_repro', 'reproduced', 'repro_extension_failed']);
   const SHOWS_SCOPE = new Set(['no_extension', 'repro_extension_failed', 'extended']);
+  const IS_CLASSIC  = document.querySelector('input[name="scoring_mode"]')?.value === 'classic';
 
   document.querySelectorAll('input[name="outcome"]').forEach(radio => {
     radio.addEventListener('change', () => {
       const v = radio.value;
       document.getElementById('repro-section').classList.toggle('hidden', !SHOWS_REPRO.has(v));
       document.getElementById('scope-section').classList.toggle('hidden', !SHOWS_SCOPE.has(v));
+      if (!SHOWS_REPRO.has(v) && IS_CLASSIC) {
+        const ri = document.getElementById('repro-input');
+        if (ri) { ri.value = ''; paintStars(0); }
+      }
       checkReady();
     });
   });
@@ -533,14 +559,37 @@
     });
   });
 
+  // ── Classic mode: reproducibility stars ──────────────────────────────
+  const REPRO_LABELS = ['Failed completely','','Partially reproduced','','Reproduced exactly or better'];
+  const starBtns  = document.querySelectorAll('[data-stars="reproducibility_score"] .star-btn');
+  const reproInput  = document.getElementById('repro-input');
+  const reproLegend = document.getElementById('repro-legend');
+
+  function paintStars(val) {
+    starBtns.forEach(s => { s.style.color = parseInt(s.dataset.value) <= val ? '#f59e0b' : ''; });
+    if (reproLegend) reproLegend.textContent = val > 0 ? (REPRO_LABELS[val - 1] || '') : '';
+  }
+
+  starBtns.forEach(star => {
+    star.addEventListener('click', () => {
+      reproInput.value = star.dataset.value;
+      paintStars(parseInt(star.dataset.value));
+      checkReady();
+    });
+    star.addEventListener('mouseenter', () => paintStars(parseInt(star.dataset.value)));
+    star.addEventListener('mouseleave', () => paintStars(parseInt(reproInput?.value || 0)));
+  });
+
   // ── Submit gate ───────────────────────────────────────────────────────
   function checkReady() {
     const outcome = document.querySelector('input[name="outcome"]:checked');
     if (!outcome) { disable(); return; }
+    const reproVisible = !document.getElementById('repro-section').classList.contains('hidden');
     const scopeVisible = !document.getElementById('scope-section').classList.contains('hidden');
+    const reproOk = !reproVisible || !IS_CLASSIC || !!reproInput?.value;
     const scopeOk = !scopeVisible || !!document.querySelector('input[name="scope_level"]:checked');
-    const coiOk = document.getElementById('coi-checkbox')?.checked ?? true;
-    scopeOk && coiOk ? enable() : disable();
+    const coiOk   = document.getElementById('coi-checkbox')?.checked ?? true;
+    reproOk && scopeOk && coiOk ? enable() : disable();
   }
   function enable()  { document.getElementById('submit-btn').disabled = false; }
   function disable() { document.getElementById('submit-btn').disabled = true; }
