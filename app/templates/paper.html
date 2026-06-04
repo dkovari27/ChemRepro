@@ -92,7 +92,7 @@
         </div>
 
       {% else %}
-        <form action="/paper/{{ paper.doi }}/rate" method="post" id="rating-form">
+        <form action="/paper/{{ paper.doi }}/rate" method="post" id="rating-form" data-moderate>
 
           <!-- ══ STEP 1: OUTCOME ═════════════════════════════════════════
                NOTE FOR FOLLOW-UP: These outcome categories are provisional.
@@ -386,7 +386,7 @@
         <!-- Reply form — hidden, shown by comment button -->
         {% if orcid_id %}
         <div id="reply-{{ r.id }}" class="hidden mt-3 pt-3 border-t border-slate-100">
-          <form action="/paper/{{ paper.doi }}/comment" method="post">
+          <form action="/paper/{{ paper.doi }}/comment" method="post" data-moderate>
             <input type="hidden" name="rating_id" value="{{ r.id }}" />
             <textarea name="content" rows="2" maxlength="2000" required
               placeholder="Share a method tip, ask a question, or flag an issue…"
