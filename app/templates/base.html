@@ -38,19 +38,26 @@
         {% if orcid_id %}
           <span class="text-slate-600">
             <span class="font-medium">{{ user_name }}</span>
-            <a href="https://orcid.org/{{ orcid_id }}" target="_blank"
-               class="ml-1 text-xs text-green-700 bg-green-50 border border-green-200 rounded px-1.5 py-0.5">
-              ORCID ✓
-            </a>
+            {% if orcid_id.startswith('local:') %}
+              <span class="ml-1 text-xs text-slate-500 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5">
+                guest
+              </span>
+            {% else %}
+              <a href="https://orcid.org/{{ orcid_id }}" target="_blank"
+                 class="ml-1 text-xs text-green-700 bg-green-50 border border-green-200 rounded px-1.5 py-0.5">
+                ORCID ✓
+              </a>
+            {% endif %}
           </span>
           <a href="/auth/logout"
              class="text-slate-500 hover:text-red-600 transition-colors">Sign out</a>
         {% else %}
+          <a href="/auth/guest-setup"
+             class="text-slate-500 hover:text-brand transition-colors text-sm">
+            Continue as guest
+          </a>
           <a href="/auth/login"
-             class="inline-flex items-center gap-1.5 bg-brand text-white rounded-md px-4 py-1.5 font-medium hover:bg-brand-dark transition-colors">
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 3a3 3 0 110 6 3 3 0 010-6zm0 14.2a7.2 7.2 0 01-6-3.22c.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08a7.2 7.2 0 01-6 3.22z"/>
-            </svg>
+             class="inline-flex items-center gap-1.5 bg-brand text-white rounded-md px-4 py-1.5 font-medium hover:bg-blue-700 transition-colors">
             Sign in with ORCID
           </a>
         {% endif %}
@@ -67,7 +74,7 @@
   <footer class="bg-white border-t border-slate-200 mt-auto">
     <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between text-xs text-slate-400">
       <span>ChemRepro MVP – community reproducibility ratings for synthetic chemistry</span>
-      <span>Scores are anonymous. Only ORCID-verified chemists may submit.</span>
+      <span>Scores are anonymous. A display name is required to submit.</span>
     </div>
   </footer>
 

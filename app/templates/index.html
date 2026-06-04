@@ -50,72 +50,77 @@
 </div>
 {% endif %}
 
-<!-- Recent papers -->
-{% if papers %}
+{% macro paper_card(entry) %}
+{% set p = entry.paper %}
+<a href="/paper/{{ p.doi }}"
+   class="block bg-white border border-slate-200 rounded-xl p-4 hover:border-brand hover:shadow-sm transition-all">
+  <div class="flex items-center gap-4">
+    <div class="flex-1 min-w-0">
+      <p class="font-medium text-slate-800 text-sm leading-snug line-clamp-2 mb-0.5">{{ p.title }}</p>
+      <p class="text-xs text-slate-500 truncate mb-0.5">{{ entry.display_authors }}</p>
+      <p class="text-xs text-slate-400 truncate">
+        {{ p.journal or "–" }}{% if p.year %} &middot; {{ p.year }}{% endif %}
+        &middot; <span class="font-mono">{{ p.doi }}</span>
+      </p>
+    </div>
+    <div class="shrink-0 text-center w-24 group relative cursor-default" onclick="return false;">
+      {% if entry.rating_count > 0 and entry.avg_score %}
+        <div class="text-lg font-bold text-slate-700">★ {{ entry.avg_score }}</div>
+        <div class="text-xs text-slate-400">{{ entry.rating_count }} rating{{ 's' if entry.rating_count != 1 }}</div>
+        <div class="absolute right-0 bottom-full mb-2 hidden group-hover:block
+                    bg-white border border-slate-200 rounded-xl shadow-lg p-4 w-60 z-20 text-left pointer-events-none">
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3 text-center">Rating breakdown</p>
+          <div class="space-y-2">
+            {% for outcome in outcome_order %}
+            {% set count = entry.breakdown.get(outcome, 0) %}
+            {% set bar_cls = outcome_colors[outcome][0] %}
+            {% set txt_cls = outcome_colors[outcome][1] %}
+            <div>
+              <div class="flex justify-between text-xs mb-0.5">
+                <span class="{{ txt_cls }} font-medium leading-tight">
+                  <span class="font-bold">{{ outcome_scores[outcome] }}</span>
+                  <span class="mx-0.5 opacity-60">–</span>{{ outcome_labels[outcome] }}
+                </span>
+                <span class="font-semibold shrink-0 ml-3 {% if count > 0 %}text-slate-600{% else %}text-slate-300{% endif %}">
+                  {% if count > 0 %}×{{ count }}{% else %}–{% endif %}
+                </span>
+              </div>
+              <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div class="h-full rounded-full {{ bar_cls }} {% if count == 0 %}opacity-0{% endif %}"
+                     style="width: {{ (count / entry.rating_count * 100) | int }}%"></div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% else %}
+        <div class="text-xs text-slate-400 italic">No ratings<br>yet</div>
+      {% endif %}
+    </div>
+  </div>
+</a>
+{% endmacro %}
+
+<!-- My rated papers (logged-in users only) -->
+{% if my_papers %}
 <div class="mb-4 flex items-center justify-between">
-  <h2 class="text-lg font-semibold text-slate-700">Recently rated papers</h2>
+  <h2 class="text-lg font-semibold text-slate-700">My reviewed papers</h2>
+</div>
+<div class="space-y-3 mb-8">
+  {% for entry in my_papers %}{{ paper_card(entry) }}{% endfor %}
+</div>
+{% endif %}
+
+<!-- Community feed -->
+{% if community_papers %}
+<div class="mb-4 flex items-center justify-between">
+  <h2 class="text-lg font-semibold text-slate-700">{% if my_papers %}Recently rated by the community{% else %}Recently rated papers{% endif %}</h2>
   <a href="/api/v1/papers" target="_blank" class="text-xs text-slate-400 hover:text-brand">View as JSON →</a>
 </div>
-
 <div class="space-y-3">
-  {% for entry in papers %}
-  {% set p = entry.paper %}
-  <a href="/paper/{{ p.doi }}"
-     class="block bg-white border border-slate-200 rounded-xl p-4 hover:border-brand hover:shadow-sm transition-all">
-    <div class="flex items-center gap-4">
-
-      <!-- Left: three-row text block -->
-      <div class="flex-1 min-w-0">
-        <p class="font-medium text-slate-800 text-sm leading-snug line-clamp-2 mb-0.5">{{ p.title }}</p>
-        <p class="text-xs text-slate-500 truncate mb-0.5">{{ entry.display_authors }}</p>
-        <p class="text-xs text-slate-400 truncate">
-          {{ p.journal or "–" }}{% if p.year %} &middot; {{ p.year }}{% endif %}
-          &middot; <span class="font-mono">{{ p.doi }}</span>
-        </p>
-      </div>
-
-      <!-- Right: Option A score with hover breakdown -->
-      <div class="shrink-0 text-center w-24 group relative cursor-default" onclick="return false;">
-        {% if entry.rating_count > 0 and entry.avg_score %}
-          <div class="text-lg font-bold text-slate-700">★ {{ entry.avg_score }}</div>
-          <div class="text-xs text-slate-400">{{ entry.rating_count }} rating{{ 's' if entry.rating_count != 1 }}</div>
-          <!-- Hover breakdown tooltip -->
-          <div class="absolute right-0 bottom-full mb-2 hidden group-hover:block
-                      bg-white border border-slate-200 rounded-xl shadow-lg p-4 w-60 z-20 text-left pointer-events-none">
-            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3 text-center">Rating breakdown</p>
-            <div class="space-y-2">
-              {% for outcome in outcome_order %}
-              {% set count = entry.breakdown.get(outcome, 0) %}
-              {% set bar_cls = outcome_colors[outcome][0] %}
-              {% set txt_cls = outcome_colors[outcome][1] %}
-              <div>
-                <div class="flex justify-between text-xs mb-0.5">
-                  <span class="{{ txt_cls }} font-medium leading-tight">
-                    <span class="font-bold">{{ outcome_scores[outcome] }}</span>
-                    <span class="mx-0.5 opacity-60">–</span>{{ outcome_labels[outcome] }}
-                  </span>
-                  <span class="font-semibold shrink-0 ml-3 {% if count > 0 %}text-slate-600{% else %}text-slate-300{% endif %}">
-                    {% if count > 0 %}×{{ count }}{% else %}–{% endif %}
-                  </span>
-                </div>
-                <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                  <div class="h-full rounded-full {{ bar_cls }} {% if count == 0 %}opacity-0{% endif %}"
-                       style="width: {{ (count / entry.rating_count * 100) | int }}%"></div>
-                </div>
-              </div>
-              {% endfor %}
-            </div>
-          </div>
-        {% else %}
-          <div class="text-xs text-slate-400 italic">No ratings<br>yet</div>
-        {% endif %}
-      </div>
-
-    </div>
-  </a>
-  {% endfor %}
+  {% for entry in community_papers %}{{ paper_card(entry) }}{% endfor %}
 </div>
-{% else %}
+{% elif not my_papers %}
 <div class="text-center text-slate-400 mt-16 text-sm">
   No papers yet. Be the first – look up a DOI above.
 </div>

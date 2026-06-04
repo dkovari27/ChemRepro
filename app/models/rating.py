@@ -50,7 +50,7 @@ class Rating(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     doi: Mapped[str] = mapped_column(String(255), ForeignKey("papers.doi"), nullable=False)
-    orcid_id: Mapped[str] = mapped_column(String(20), ForeignKey("users.orcid_id"), nullable=False)
+    orcid_id: Mapped[str] = mapped_column(String(64), ForeignKey("users.orcid_id"), nullable=False)
 
     outcome: Mapped[str | None] = mapped_column(String(30))
 

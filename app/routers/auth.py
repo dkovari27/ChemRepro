@@ -1,14 +1,18 @@
 import secrets
+import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
 from app.models.user import User
 from app.services.orcid import exchange_code_for_token, fetch_orcid_name, get_auth_url
+
+templates = Jinja2Templates(directory="app/templates")
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -69,6 +73,36 @@ async def callback(
     request.session["user_name"] = user.name or orcid_id
 
     return RedirectResponse("/", status_code=303)
+
+
+@router.get("/guest-setup")
+async def guest_setup_page(request: Request):
+    next_url = request.query_params.get("next", "/")
+    return templates.TemplateResponse("guest_setup.html", {
+        "request": request,
+        "next_url": next_url,
+    })
+
+
+@router.post("/guest-setup")
+async def guest_setup(
+    request: Request,
+    db: Session = Depends(get_db),
+    display_name: str = Form(...),
+    next_url: str = Form(default="/"),
+):
+    display_name = display_name.strip()[:80]
+    if not display_name:
+        return RedirectResponse(f"/auth/guest-setup?next={next_url}", status_code=303)
+
+    local_id = f"local:{uuid.uuid4()}"
+    user = User(orcid_id=local_id, name=display_name, verified_at=datetime.now(timezone.utc))
+    db.add(user)
+    db.commit()
+
+    request.session["orcid_id"] = local_id
+    request.session["user_name"] = display_name
+    return RedirectResponse(next_url or "/", status_code=303)
 
 
 @router.get("/logout")

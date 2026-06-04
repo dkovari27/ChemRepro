@@ -13,7 +13,7 @@ class Like(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     rating_id: Mapped[int] = mapped_column(Integer, ForeignKey("ratings.id"), nullable=False)
-    orcid_id: Mapped[str] = mapped_column(String(20), ForeignKey("users.orcid_id"), nullable=False)
+    orcid_id: Mapped[str] = mapped_column(String(64), ForeignKey("users.orcid_id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Choose a display name — ChemRepro{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto mt-12">
+
+  <div class="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
+    <h1 class="text-xl font-bold text-slate-800 mb-1">Choose a display name</h1>
+    <p class="text-sm text-slate-500 mb-6">
+      This is how others will see your reviews and comments.
+      You can replace this with verified ORCID login later.
+    </p>
+
+    <form action="/auth/guest-setup" method="post" class="space-y-4">
+      <input type="hidden" name="next_url" value="{{ next_url }}" />
+
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1" for="display_name">
+          Display name <span class="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          id="display_name"
+          name="display_name"
+          maxlength="80"
+          required
+          autofocus
+          placeholder="e.g. Daniel K."
+          class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm
+                 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+        />
+        <p class="text-xs text-slate-400 mt-1">First name + initial is fine. No real names required.</p>
+      </div>
+
+      <button type="submit"
+        class="w-full bg-brand text-white rounded-lg px-5 py-2.5 text-sm font-medium
+               hover:bg-blue-700 transition-colors">
+        Continue
+      </button>
+    </form>
+
+    <p class="text-xs text-slate-400 mt-6 text-center">
+      Have an ORCID?
+      <a href="/auth/login" class="text-brand hover:underline">Sign in with ORCID instead</a>
+    </p>
+  </div>
+
+</div>
+{% endblock %}

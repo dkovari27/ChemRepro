@@ -179,6 +179,17 @@
             </div>
           </div>
 
+          <!-- Conflict of interest declaration -->
+          <label class="flex items-start gap-2.5 cursor-pointer border border-slate-200 rounded-lg p-3 hover:border-brand transition-colors">
+            <input type="checkbox" id="coi-checkbox" name="coi_confirmed" value="on"
+              onchange="checkReady()"
+              class="accent-brand mt-0.5 w-4 h-4 shrink-0" />
+            <span class="text-xs text-slate-600 leading-relaxed">
+              I confirm I am <strong>not an author</strong> on this paper and have
+              no direct affiliation with the research group.
+            </span>
+          </label>
+
           <button type="submit" id="submit-btn" disabled
             class="w-full bg-brand text-white rounded-lg px-4 py-2.5 text-sm font-medium
                    hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
@@ -528,7 +539,8 @@
     if (!outcome) { disable(); return; }
     const scopeVisible = !document.getElementById('scope-section').classList.contains('hidden');
     const scopeOk = !scopeVisible || !!document.querySelector('input[name="scope_level"]:checked');
-    scopeOk ? enable() : disable();
+    const coiOk = document.getElementById('coi-checkbox')?.checked ?? true;
+    scopeOk && coiOk ? enable() : disable();
   }
   function enable()  { document.getElementById('submit-btn').disabled = false; }
   function disable() { document.getElementById('submit-btn').disabled = true; }

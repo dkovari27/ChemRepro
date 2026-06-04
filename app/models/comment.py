@@ -11,7 +11,7 @@ class Comment(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     doi: Mapped[str] = mapped_column(String(255), ForeignKey("papers.doi"), nullable=False)
     rating_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("ratings.id"), nullable=True)
-    orcid_id: Mapped[str] = mapped_column(String(20), ForeignKey("users.orcid_id"), nullable=False)
+    orcid_id: Mapped[str] = mapped_column(String(64), ForeignKey("users.orcid_id"), nullable=False)
     content: Mapped[str] = mapped_column(String(2000), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

@@ -20,7 +20,7 @@ app.add_middleware(
     secret_key=settings.SECRET_KEY,
     session_cookie="chemrepro_session",
     max_age=60 * 60 * 24 * 7,  # 7 days
-    https_only=False,  # Set True in production behind HTTPS
+    https_only=(settings.ORCID_ENV == "production"),
     same_site="lax",
 )
 

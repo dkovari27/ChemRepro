@@ -107,21 +107,55 @@ def _scoring_context() -> dict:
 
 @router.get("/", response_class=HTMLResponse)
 async def index(request: Request, db: Session = Depends(get_db)):
-    recent = db.query(Paper).order_by(Paper.fetched_at.desc()).limit(10).all()
-    papers_with_scores = []
-    for p in recent:
-        scores = _get_paper_scores(p.doi, db)
-        papers_with_scores.append({
-            "paper": p,
-            "display_authors": _format_authors(p.authors),
-            **scores,
-        })
+    orcid_id = request.session.get("orcid_id")
+
+    def _enrich(papers):
+        return [
+            {"paper": p, "display_authors": _format_authors(p.authors), **_get_paper_scores(p.doi, db)}
+            for p in papers
+        ]
+
+    # Sub-query: most recent rating date per paper
+    last_rated_sq = (
+        db.query(Rating.doi, func.max(Rating.created_at).label("last_rated"))
+        .group_by(Rating.doi)
+        .subquery()
+    )
+
+    # Papers the logged-in user rated, ordered by their own latest rating
+    my_papers = []
+    if orcid_id:
+        my_dois_sq = (
+            db.query(Rating.doi)
+            .filter(Rating.orcid_id == orcid_id)
+            .subquery()
+        )
+        my_papers = _enrich(
+            db.query(Paper)
+            .join(my_dois_sq, Paper.doi == my_dois_sq.c.doi)
+            .join(last_rated_sq, Paper.doi == last_rated_sq.c.doi)
+            .order_by(last_rated_sq.c.last_rated.desc())
+            .limit(5)
+            .all()
+        )
+
+    # Community feed: most recently rated, excluding user's own papers already shown
+    my_doi_set = {e["paper"].doi for e in my_papers}
+    community_candidates = (
+        db.query(Paper)
+        .join(last_rated_sq, Paper.doi == last_rated_sq.c.doi)
+        .order_by(last_rated_sq.c.last_rated.desc())
+        .limit(10 + len(my_doi_set))
+        .all()
+    )
+    community_papers = _enrich([p for p in community_candidates if p.doi not in my_doi_set][:10])
 
     return templates.TemplateResponse("index.html", {
         "request": request,
-        "papers": papers_with_scores,
+        "my_papers": my_papers,
+        "community_papers": community_papers,
         "user_name": request.session.get("user_name"),
-        "orcid_id": request.session.get("orcid_id"),
+        "orcid_id": orcid_id,
         **_dev_context(),
         **_scoring_context(),
     })
@@ -291,7 +325,7 @@ async def submit_comment(
 ):
     orcid_id = request.session.get("orcid_id")
     if not orcid_id:
-        return RedirectResponse("/auth/login", status_code=303)
+        return RedirectResponse(f"/auth/guest-setup?next={request.url.path}", status_code=303)
     if not content.strip():
         return RedirectResponse(f"/paper/{doi}", status_code=303)
 
@@ -317,7 +351,7 @@ async def toggle_like(doi: str, rating_id: int, request: Request, db: Session = 
     if not orcid_id:
         if wants_json:
             return JSONResponse({"error": "not authenticated"}, status_code=401)
-        return RedirectResponse("/auth/login", status_code=303)
+        return RedirectResponse(f"/auth/guest-setup?next={request.url.path}", status_code=303)
 
     existing = db.query(Like).filter(Like.rating_id == rating_id, Like.orcid_id == orcid_id).first()
     if existing:
@@ -346,14 +380,18 @@ async def submit_rating(
     scope_level: str = Form(""),
     scope_observation: str = Form(""),
     modification_details: str = Form(""),
+    coi_confirmed: str = Form(""),
 ):
     orcid_id = request.session.get("orcid_id")
     if not orcid_id:
-        return RedirectResponse("/auth/login", status_code=303)
+        return RedirectResponse(f"/auth/guest-setup?next={request.url.path}", status_code=303)
 
     paper = db.get(Paper, doi)
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
+
+    if coi_confirmed != "on":
+        raise HTTPException(status_code=422, detail="You must confirm no conflict of interest")
 
     existing = db.query(Rating).filter(Rating.doi == doi, Rating.orcid_id == orcid_id).first()
     if existing:
