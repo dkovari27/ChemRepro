@@ -29,8 +29,8 @@
   {% endif %}
 </div>
 
-{# ── Top 50/50 grid: score card + form ───────────────────────────── #}
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+{# ── 40/60 grid: score card + form (left) | reviews (right) ─────── #}
+<div class="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-6">
 
   {# ══════════ LEFT COLUMN: Score card + Form ══════════ #}
   <div>
@@ -202,10 +202,8 @@
   </div>
   </div>{# end left sticky #}
 
-</div>{# ── end top 50/50 grid ─────────────────────────────────────────── #}
-
-{# ══════════ FULL-WIDTH: Community reviews ══════════ #}
-<div>
+  {# ══════════ RIGHT COLUMN (60%): Community reviews ══════════ #}
+  <div>
 
     <div class="flex items-center justify-between mb-3">
       <h2 class="font-semibold text-slate-700">
@@ -373,7 +371,9 @@
     <div class="text-slate-400 text-sm italic mt-4">No Classic reviews yet – be the first!</div>
     {% endif %}
 
-  </div>{# end full-width reviews #}
+  </div>{# end right col #}
+
+</div>{# end 40/60 grid #}
 
 {% endblock %}
 
