@@ -79,6 +79,14 @@ try:
         authors='["Lena Hartmann", "Markus Vogel", "Sofía Romero-García", "Takeshi Yamamoto", "Peter Baran"]',
         journal="Journal of the American Chemical Society",
         year=2024,
+        abstract=(
+            "We report a palladium-catalysed, enantioselective C–H functionalisation of unactivated "
+            "methylene groups using a chiral phosphoric acid cocatalyst. The method tolerates a broad "
+            "range of aryl halide coupling partners and delivers products in high yields (up to 94%) "
+            "and excellent enantioselectivities (up to 98% ee). Mechanistic studies support a "
+            "concerted metalation–deprotonation (CMD) pathway. The utility of the method is "
+            "demonstrated in a short asymmetric synthesis of a pharmaceutically relevant scaffold."
+        ),
         fetched_at=datetime.now(timezone.utc),
     ))
 

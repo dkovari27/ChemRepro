@@ -97,10 +97,14 @@ async def fetch_paper_metadata(doi: str) -> dict | None:
     date_parts = published.get("date-parts", [[]])
     year = date_parts[0][0] if date_parts and date_parts[0] else None
 
+    abstract_raw = data.get("abstract", "")
+    abstract = re.sub(r"<[^>]+>", "", abstract_raw).strip() or None
+
     return {
         "doi": doi,
         "title": title,
         "authors": authors,
         "journal": journal,
         "year": year,
+        "abstract": abstract,
     }

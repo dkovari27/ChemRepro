@@ -13,6 +13,7 @@ class Paper(Base):
     authors: Mapped[str] = mapped_column(Text, nullable=False)  # JSON string
     journal: Mapped[str | None] = mapped_column(String(500))
     year: Mapped[int | None] = mapped_column()
+    abstract: Mapped[str | None] = mapped_column(Text, nullable=True)
     fetched_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
