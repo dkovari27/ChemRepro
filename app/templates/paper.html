@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ paper.title[:60] }}… – ChemRepro{% endblock %}
+{% block title %}{{ paper.title | truncate(60, true, '…') }} – ChemRepro{% endblock %}
 
 {% block content %}
 

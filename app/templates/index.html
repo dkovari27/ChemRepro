@@ -52,7 +52,7 @@
 
 {% macro paper_card(entry) %}
 {% set p = entry.paper %}
-<a href="/paper/{{ p.doi }}"
+<a href="{% if site_version == 'classic' %}/classic{% endif %}/paper/{{ p.doi }}"
    class="block bg-white border border-slate-200 rounded-xl p-4 hover:border-brand hover:shadow-sm transition-all">
   <div class="flex items-center gap-4">
     <div class="flex-1 min-w-0">

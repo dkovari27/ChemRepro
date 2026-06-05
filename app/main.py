@@ -5,6 +5,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.config import settings
 from app.database import Base, engine
 from app.routers import auth, papers, api
+from app.routers import feedback as feedback_router
 
 # Create tables (use Alembic for production migrations)
 Base.metadata.create_all(bind=engine)
@@ -29,3 +30,4 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.include_router(auth.router)
 app.include_router(papers.router)
 app.include_router(api.router)
+app.include_router(feedback_router.router)

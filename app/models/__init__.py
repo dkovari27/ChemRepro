@@ -3,5 +3,6 @@ from app.models.user import User
 from app.models.rating import Rating
 from app.models.comment import Comment
 from app.models.like import Like
+from app.models.feedback import Feedback
 
-__all__ = ["Paper", "User", "Rating", "Comment", "Like"]
+__all__ = ["Paper", "User", "Rating", "Comment", "Like", "Feedback"]

@@ -58,14 +58,15 @@ _SCORE_EXPR = case(
 
 
 def _get_paper_scores(doi: str, db: Session) -> dict:
+    std_filter = [Rating.doi == doi, Rating.scoring_mode != "classic"]
     row = db.query(
         func.avg(_SCORE_EXPR).label("avg_score"),
         func.count(Rating.id).label("count"),
-    ).filter(Rating.doi == doi).one()
+    ).filter(*std_filter).one()
 
     breakdown_rows = (
         db.query(Rating.outcome, func.count(Rating.id))
-        .filter(Rating.doi == doi, Rating.outcome.isnot(None))
+        .filter(*std_filter, Rating.outcome.isnot(None))
         .group_by(Rating.outcome)
         .all()
     )
@@ -92,7 +93,7 @@ def _format_authors(authors_json: str) -> str:
 
 def _dev_context() -> dict:
     return {
-        "dev_mode": settings.ORCID_ENV != "production",
+        "dev_mode": False,  # hidden for user testing; endpoint still works at /auth/dev-login/{i}
         "dev_users": list(enumerate(name for _, name in DEV_FAKE_USERS)),
     }
 
@@ -247,7 +248,7 @@ async def paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
     except ValueError:
         active_page = 1
 
-    q = db.query(Rating).filter(Rating.doi == doi)
+    q = db.query(Rating).filter(Rating.doi == doi, Rating.scoring_mode != "classic")
     if active_outcome:
         q = q.filter(Rating.outcome == active_outcome)
     if active_scope:
@@ -290,7 +291,9 @@ async def paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
 
     orcid_id = request.session.get("orcid_id")
     user_already_rated = (
-        db.query(Rating).filter(Rating.doi == doi, Rating.orcid_id == orcid_id).first()
+        db.query(Rating).filter(
+            Rating.doi == doi, Rating.orcid_id == orcid_id, Rating.scoring_mode != "classic"
+        ).first()
         if orcid_id else None
     )
 
@@ -410,8 +413,7 @@ async def submit_rating(
     coi_confirmed: str = Form(""),
     scoring_mode: str = Form("v2"),
 ):
-    if scoring_mode not in ("v2", "classic"):
-        scoring_mode = "v2"
+    scoring_mode = "standard"  # form always submits standard; classic has its own endpoint
     orcid_id = request.session.get("orcid_id")
     if not orcid_id:
         return RedirectResponse(f"/auth/guest-setup?next={request.url.path}", status_code=303)
@@ -423,7 +425,9 @@ async def submit_rating(
     if coi_confirmed != "on":
         raise HTTPException(status_code=422, detail="You must confirm no conflict of interest")
 
-    existing = db.query(Rating).filter(Rating.doi == doi, Rating.orcid_id == orcid_id).first()
+    existing = db.query(Rating).filter(
+        Rating.doi == doi, Rating.orcid_id == orcid_id, Rating.scoring_mode == "standard"
+    ).first()
     if existing:
         raise HTTPException(status_code=409, detail="You have already rated this paper")
 

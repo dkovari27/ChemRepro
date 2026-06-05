@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Tester Feedback – ChemRepro{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto">
+
+  {% if submitted %}
+  <div class="bg-green-50 border border-green-200 rounded-xl p-6 text-center mb-6">
+    <p class="text-2xl mb-2">Thank you!</p>
+    <p class="text-slate-600 text-sm">Your feedback has been recorded. It will help us decide which scoring method to keep.</p>
+    <a href="/" class="inline-block mt-4 text-sm text-brand hover:underline">← Back to ChemRepro</a>
+  </div>
+  {% else %}
+
+  <div class="bg-white border border-slate-200 rounded-xl p-6">
+    <h1 class="text-xl font-bold text-slate-800 mb-1">Tester feedback</h1>
+    <p class="text-sm text-slate-500 mb-6">
+      You've been trying ChemRepro as a beta tester. We're deciding which scoring method to keep — your opinion matters.
+    </p>
+
+    <form action="/feedback" method="post">
+
+      <div class="mb-6">
+        <label class="block text-sm font-semibold text-slate-700 mb-3">
+          Which scoring method felt more useful for evaluating chemistry papers?
+          <span class="text-red-500">*</span>
+        </label>
+
+        <div class="flex flex-col gap-3">
+
+          <label class="flex items-start gap-3 p-3 border-2 border-slate-200 rounded-xl cursor-pointer hover:border-brand transition-all has-[:checked]:border-brand has-[:checked]:bg-blue-50">
+            <input type="radio" name="preference" value="standard" required class="mt-0.5 accent-brand shrink-0" />
+            <div>
+              <p class="text-sm font-semibold text-slate-800">Standard</p>
+              <p class="text-xs text-slate-500">Single outcome-based score (1–5): Did it work / was it extended?</p>
+            </div>
+          </label>
+
+          <label class="flex items-start gap-3 p-3 border-2 border-slate-200 rounded-xl cursor-pointer hover:border-brand transition-all has-[:checked]:border-brand has-[:checked]:bg-blue-50">
+            <input type="radio" name="preference" value="classic" class="mt-0.5 accent-brand shrink-0" />
+            <div>
+              <p class="text-sm font-semibold text-slate-800">Classic</p>
+              <p class="text-xs text-slate-500">Two independent star scores: reproducibility (amber) + extension scope (blue)</p>
+            </div>
+          </label>
+
+          <label class="flex items-start gap-3 p-3 border-2 border-slate-200 rounded-xl cursor-pointer hover:border-brand transition-all has-[:checked]:border-brand has-[:checked]:bg-blue-50">
+            <input type="radio" name="preference" value="both" class="mt-0.5 accent-brand shrink-0" />
+            <div>
+              <p class="text-sm font-semibold text-slate-800">Both are equally useful</p>
+              <p class="text-xs text-slate-500">Keep both modes available and let users choose</p>
+            </div>
+          </label>
+
+          <label class="flex items-start gap-3 p-3 border-2 border-slate-200 rounded-xl cursor-pointer hover:border-brand transition-all has-[:checked]:border-brand has-[:checked]:bg-blue-50">
+            <input type="radio" name="preference" value="unsure" class="mt-0.5 accent-brand shrink-0" />
+            <div>
+              <p class="text-sm font-semibold text-slate-800">Not sure / need more time</p>
+            </div>
+          </label>
+
+        </div>
+      </div>
+
+      <div class="mb-6">
+        <label class="block text-sm font-semibold text-slate-700 mb-2">
+          Any other thoughts? <span class="text-slate-400 font-normal">(optional)</span>
+        </label>
+        <textarea name="comment" rows="5" maxlength="2000"
+          placeholder="What worked well? What was confusing? Any missing features?"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
+        <p class="text-xs text-slate-400 mt-1">Max 2000 characters.</p>
+      </div>
+
+      <button type="submit"
+        class="w-full bg-brand text-white rounded-lg px-4 py-3 text-sm font-medium hover:bg-blue-700 transition-colors">
+        Submit feedback
+      </button>
+
+    </form>
+
+    <div class="mt-6 pt-5 border-t border-slate-100 text-center">
+      <p class="text-xs text-slate-400">
+        For longer comments or questions, you can also reach out directly:<br/>
+        <a href="mailto:d.kovari.bham@gmail.com"
+           class="text-brand hover:underline font-medium">d.kovari.bham@gmail.com</a>
+      </p>
+    </div>
+  </div>
+
+  {% endif %}
+</div>
+{% endblock %}

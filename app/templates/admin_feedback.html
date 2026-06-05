@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Feedback Responses – ChemRepro Admin{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+  <h1 class="text-xl font-bold text-slate-800 mb-6">
+    Tester feedback
+    <span class="text-base font-normal text-slate-400">({{ total }} responses)</span>
+  </h1>
+
+  {% if total %}
+  <!-- Summary counts -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+    {% for pref, label, color in [
+        ('standard', 'Standard',   'bg-blue-50 border-blue-200 text-blue-700'),
+        ('classic',  'Classic',    'bg-amber-50 border-amber-200 text-amber-700'),
+        ('both',     'Both equal', 'bg-green-50 border-green-200 text-green-700'),
+        ('unsure',   'Not sure',   'bg-slate-50 border-slate-200 text-slate-600')
+    ] %}
+    <div class="border rounded-xl p-4 text-center {{ color }}">
+      <div class="text-3xl font-bold">{{ counts[pref] }}</div>
+      <div class="text-xs font-medium mt-1">{{ label }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Individual responses -->
+  <div class="space-y-4">
+    {% for r in responses %}
+    <div class="bg-white border border-slate-200 rounded-xl p-4">
+      <div class="flex items-center justify-between gap-3 mb-2">
+        <span class="text-xs font-semibold uppercase tracking-wide
+          {% if r.preference == 'standard' %}text-blue-600
+          {% elif r.preference == 'classic' %}text-amber-600
+          {% elif r.preference == 'both' %}text-green-600
+          {% else %}text-slate-500{% endif %}">
+          {{ r.preference }}
+        </span>
+        <span class="text-xs text-slate-400">{{ r.created_at.strftime('%d %b %Y %H:%M') }}</span>
+      </div>
+      {% if r.comment %}
+      <p class="text-sm text-slate-700 leading-relaxed">{{ r.comment }}</p>
+      {% else %}
+      <p class="text-xs text-slate-300 italic">No comment</p>
+      {% endif %}
+      {% if r.orcid_id %}
+      <p class="text-xs text-slate-400 mt-2">{{ r.orcid_id }}</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <p class="text-slate-400 text-sm italic">No responses yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

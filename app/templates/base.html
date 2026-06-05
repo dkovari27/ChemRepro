@@ -25,16 +25,14 @@
 
   <!-- Nav -->
   <nav class="bg-white border-b border-slate-200 shadow-sm">
-    <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+    <div class="max-w-5xl mx-auto px-4 py-3 relative flex items-center">
       <a href="/" class="flex items-center gap-2 text-brand font-bold text-xl tracking-tight">
-        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/>
-        </svg>
+        <img src="/static/logo.png" alt="ChemRepro logo" class="h-8 w-auto" />
         ChemRepro
       </a>
 
-      <!-- Version switcher -->
-      <div class="flex items-center gap-0.5 bg-slate-100 rounded-lg p-0.5 text-xs font-medium">
+      <!-- Version switcher: absolutely centered so it never shifts -->
+      <div class="absolute left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-slate-100 rounded-lg p-0.5 text-xs font-medium">
         <a href="{{ switch_urls.standard if switch_urls is defined else '/' }}"
            class="px-3 py-1.5 rounded-md transition-colors
                   {% if site_version == 'classic' %}text-slate-500 hover:text-slate-700{% else %}bg-white shadow text-slate-800{% endif %}">
@@ -46,7 +44,14 @@
           Classic
         </a>
       </div>
-      <div class="flex items-center gap-4 text-sm">
+
+      <div class="ml-auto flex items-center gap-4 text-sm">
+        {% if orcid_id %}
+        <a href="/feedback"
+           class="text-xs font-medium text-slate-500 hover:text-brand transition-colors border border-slate-200 rounded-md px-3 py-1.5 hover:border-brand">
+          Feedback
+        </a>
+        {% endif %}
         <a href="/api/v1/papers" target="_blank"
            class="text-slate-500 hover:text-brand transition-colors">API</a>
         {% if orcid_id %}
