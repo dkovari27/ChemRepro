@@ -213,6 +213,11 @@ async def paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
         db.add(paper)
         db.commit()
         db.refresh(paper)
+    elif paper.abstract is None:
+        meta = await fetch_paper_metadata(doi)
+        if meta and meta.get("abstract"):
+            paper.abstract = meta["abstract"]
+            db.commit()
 
     scores = _get_paper_scores(doi, db)
 
@@ -544,6 +549,11 @@ async def classic_paper_page(doi: str, request: Request, db: Session = Depends(g
         db.add(paper)
         db.commit()
         db.refresh(paper)
+    elif paper.abstract is None:
+        meta = await fetch_paper_metadata(doi)
+        if meta and meta.get("abstract"):
+            paper.abstract = meta["abstract"]
+            db.commit()
 
     # Classic dual scores
     repro_row = (
