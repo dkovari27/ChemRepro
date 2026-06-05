@@ -139,6 +139,18 @@
         <p class="text-xs text-slate-400 mb-1">★ Failed completely &nbsp;·&nbsp; ★★★ Partly reproduced &nbsp;·&nbsp; ★★★★★ Exact or better</p>
         <p class="text-xs font-medium text-amber-600 mb-3">Mostly reproduced</p>
 
+        <!-- Extension stars (replaces cards in Version B) -->
+        <label class="block text-xs font-medium text-slate-600 mb-1">
+          Extension score <span class="text-red-500">*</span>
+        </label>
+        <div class="flex gap-1 mb-1">
+          {% for i in range(1, 6) %}
+          <span class="text-2xl {% if i <= 3 %}text-blue-500{% else %}text-slate-200{% endif %}">★</span>
+          {% endfor %}
+        </div>
+        <p class="text-xs text-slate-400 mb-1">★ Minor &nbsp;·&nbsp; ★★★ Medium &nbsp;·&nbsp; ★★★★★ Major</p>
+        <p class="text-xs font-medium text-blue-600 mb-3">Medium – new scaffold</p>
+
         <label class="block text-xs font-medium text-slate-600 mb-1">Reproducibility observation</label>
         <textarea rows="6" disabled
           placeholder="{{ prompts.REPRO_OBSERVATION }}"
@@ -155,8 +167,8 @@
 
       <!-- What the score looks like -->
       <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4 text-xs text-slate-500">
-        <span class="font-medium text-slate-700">Score produced:</span>
-        &nbsp;★ 4.0 repro &nbsp;+&nbsp; outcome label "Reproduced original"
+        <span class="font-medium text-slate-700">Scores produced:</span>
+        &nbsp;★ 4.0 repro (amber) &nbsp;+&nbsp; ★ 3.0 extension (blue)
       </div>
 
       <button disabled class="w-full bg-brand text-white rounded-lg px-4 py-2.5 text-sm font-medium opacity-40 cursor-not-allowed">

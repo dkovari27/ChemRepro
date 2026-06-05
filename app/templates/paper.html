@@ -154,6 +154,23 @@
           <!-- ══ STEP 2b: SCOPE EXTENSION ══════════════════════════════ -->
           <div id="scope-section" class="hidden border-t border-slate-100 pt-4 mb-4">
             <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Scope extension</p>
+
+            {% if scoring_mode == 'classic' %}
+            <!-- Classic mode: 1–5 extension stars -->
+            <label class="block text-xs font-medium text-slate-600 mb-1">
+              Extension score <span class="text-red-500">*</span>
+            </label>
+            <div class="flex gap-1 mb-1" data-stars="generalisability_score">
+              {% for i in range(1, 6) %}
+              <button type="button" data-value="{{ i }}" class="star-btn text-2xl text-slate-300 transition-colors">★</button>
+              {% endfor %}
+            </div>
+            <input type="hidden" name="generalisability_score" id="scope-stars-input" value="" />
+            <p class="text-xs text-slate-400 mb-1">★ Minor &nbsp;·&nbsp; ★★★ Medium &nbsp;·&nbsp; ★★★★★ Major</p>
+            <p id="scope-legend" class="text-xs font-medium text-blue-600 min-h-[1rem] mb-3"></p>
+
+            {% else %}
+            <!-- v2 mode: scope level cards -->
             <label class="block text-xs font-medium text-slate-600 mb-2">
               Extension level <span class="text-red-500">*</span>
             </label>
@@ -180,16 +197,18 @@
                 </div>
               </label>
             </div>
-            <div class="mb-3">
-              <label class="block text-xs font-medium text-slate-600 mb-1">Scope extension observations</label>
-              <textarea name="scope_observation" rows="6" maxlength="1000"
-                placeholder="{{ prompts.SCOPE_OBSERVATION }}"
-                class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
-            </div>
             <div id="modification-block" class="hidden">
               <label class="block text-xs font-medium text-slate-600 mb-1">Modification details</label>
               <textarea name="modification_details" rows="5" maxlength="1000"
                 placeholder="{{ prompts.MODIFICATION_DETAILS }}"
+                class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
+            </div>
+            {% endif %}
+
+            <div class="mb-3">
+              <label class="block text-xs font-medium text-slate-600 mb-1">Scope extension observations</label>
+              <textarea name="scope_observation" rows="6" maxlength="1000"
+                placeholder="{{ prompts.SCOPE_OBSERVATION }}"
                 class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
             </div>
           </div>
@@ -540,11 +559,15 @@
         const ri = document.getElementById('repro-input');
         if (ri) { ri.value = ''; paintStars(0); }
       }
+      if (!SHOWS_SCOPE.has(v) && IS_CLASSIC) {
+        const si = document.getElementById('scope-stars-input');
+        if (si) { si.value = ''; paintScopeStars(0); }
+      }
       checkReady();
     });
   });
 
-  // ── Scope card highlight ──────────────────────────────────────────────
+  // ── Scope card highlight (v2 only) ───────────────────────────────────
   document.querySelectorAll('input[name="scope_level"]').forEach(radio => {
     radio.addEventListener('change', () => {
       document.querySelectorAll('.scope-card').forEach(c =>
@@ -559,9 +582,9 @@
     });
   });
 
-  // ── Classic mode: reproducibility stars ──────────────────────────────
+  // ── Classic mode: reproducibility stars (amber) ───────────────────────
   const REPRO_LABELS = ['Failed completely','','Partially reproduced','','Reproduced exactly or better'];
-  const starBtns  = document.querySelectorAll('[data-stars="reproducibility_score"] .star-btn');
+  const starBtns    = document.querySelectorAll('[data-stars="reproducibility_score"] .star-btn');
   const reproInput  = document.getElementById('repro-input');
   const reproLegend = document.getElementById('repro-legend');
 
@@ -580,6 +603,27 @@
     star.addEventListener('mouseleave', () => paintStars(parseInt(reproInput?.value || 0)));
   });
 
+  // ── Classic mode: extension scope stars (blue) ────────────────────────
+  const SCOPE_LABELS = ['Minor – same scaffold','','Medium – new scaffold','','Major – new scaffold, new function'];
+  const scopeStarBtns   = document.querySelectorAll('[data-stars="generalisability_score"] .star-btn');
+  const scopeStarsInput = document.getElementById('scope-stars-input');
+  const scopeLegend     = document.getElementById('scope-legend');
+
+  function paintScopeStars(val) {
+    scopeStarBtns.forEach(s => { s.style.color = parseInt(s.dataset.value) <= val ? '#3b82f6' : ''; });
+    if (scopeLegend) scopeLegend.textContent = val > 0 ? (SCOPE_LABELS[val - 1] || '') : '';
+  }
+
+  scopeStarBtns.forEach(star => {
+    star.addEventListener('click', () => {
+      scopeStarsInput.value = star.dataset.value;
+      paintScopeStars(parseInt(star.dataset.value));
+      checkReady();
+    });
+    star.addEventListener('mouseenter', () => paintScopeStars(parseInt(star.dataset.value)));
+    star.addEventListener('mouseleave', () => paintScopeStars(parseInt(scopeStarsInput?.value || 0)));
+  });
+
   // ── Submit gate ───────────────────────────────────────────────────────
   function checkReady() {
     const outcome = document.querySelector('input[name="outcome"]:checked');
@@ -587,8 +631,10 @@
     const reproVisible = !document.getElementById('repro-section').classList.contains('hidden');
     const scopeVisible = !document.getElementById('scope-section').classList.contains('hidden');
     const reproOk = !reproVisible || !IS_CLASSIC || !!reproInput?.value;
-    const scopeOk = !scopeVisible || !!document.querySelector('input[name="scope_level"]:checked');
-    const coiOk   = document.getElementById('coi-checkbox')?.checked ?? true;
+    const scopeOk = IS_CLASSIC
+      ? (!scopeVisible || !!scopeStarsInput?.value)
+      : (!scopeVisible || !!document.querySelector('input[name="scope_level"]:checked'));
+    const coiOk = document.getElementById('coi-checkbox')?.checked ?? true;
     reproOk && scopeOk && coiOk ? enable() : disable();
   }
   function enable()  { document.getElementById('submit-btn').disabled = false; }
