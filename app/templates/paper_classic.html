@@ -40,9 +40,9 @@
           <div class="text-2xl font-bold text-amber-500">★ {{ classic_scores.avg_repro }}</div>
           <div class="text-xs text-slate-400">{{ classic_scores.repro_count }} rating{{ 's' if classic_scores.repro_count != 1 }}</div>
           {# Hover tooltip — repro breakdown, labels at 1/3/5, ×N counts #}
-          {% set repro_labels = {5: 'Reproduced exactly', 4: '', 3: 'Partially reproduced', 2: '', 1: 'Failed completely'} %}
+          {% set repro_labels = {5: 'Reproduced exactly', 4: none, 3: 'Partially reproduced', 2: none, 1: 'Failed completely'} %}
           <div class="absolute left-0 bottom-full mb-2 hidden group-hover:block
-                      bg-white border border-slate-200 rounded-xl shadow-lg p-4 w-60 z-20 pointer-events-none">
+                      bg-white border border-slate-200 rounded-xl shadow-lg p-4 w-72 z-20 pointer-events-none">
             <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3 text-center">Reproducibility</p>
             <div class="space-y-1.5">
               {% for i in [5, 4, 3, 2, 1] %}
@@ -52,8 +52,7 @@
               <div>
                 <div class="flex justify-between text-xs mb-0.5">
                   <span class="text-amber-600 font-medium leading-tight">
-                    {% if lbl %}<span class="font-bold">{{ i }}</span><span class="mx-0.5 opacity-60">–</span>{{ lbl }}
-                    {% else %}<span class="text-slate-300 font-bold">{{ i }}</span>{% endif %}
+                    <span class="font-bold">{{ i }}</span>{% if lbl %}<span class="mx-0.5 opacity-60">–</span>{{ lbl }}{% endif %}
                   </span>
                   <span class="font-semibold shrink-0 ml-2 {% if cnt > 0 %}text-slate-600{% else %}text-slate-300{% endif %}">
                     {% if cnt > 0 %}×{{ cnt }}{% else %}–{% endif %}
@@ -81,9 +80,9 @@
           <div class="text-2xl font-bold text-blue-500">★ {{ classic_scores.avg_ext }}</div>
           <div class="text-xs text-slate-400">{{ classic_scores.ext_count }} rating{{ 's' if classic_scores.ext_count != 1 }}</div>
           {# Hover tooltip — extension breakdown, labels at 1/3/5, ×N counts #}
-          {% set ext_labels = {5: 'Major – new scaffold', 4: '', 3: 'Medium – new scaffold', 2: '', 1: 'Minor – similar scaffold'} %}
+          {% set ext_labels = {5: 'Major – new scaffold', 4: none, 3: 'Medium – new scaffold', 2: none, 1: 'Minor – same scaffold'} %}
           <div class="absolute left-0 bottom-full mb-2 hidden group-hover:block
-                      bg-white border border-slate-200 rounded-xl shadow-lg p-4 w-60 z-20 pointer-events-none">
+                      bg-white border border-slate-200 rounded-xl shadow-lg p-4 w-72 z-20 pointer-events-none">
             <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3 text-center">Extension</p>
             <div class="space-y-1.5">
               {% for i in [5, 4, 3, 2, 1] %}
@@ -93,8 +92,7 @@
               <div>
                 <div class="flex justify-between text-xs mb-0.5">
                   <span class="text-blue-600 font-medium leading-tight">
-                    {% if lbl %}<span class="font-bold">{{ i }}</span><span class="mx-0.5 opacity-60">–</span>{{ lbl }}
-                    {% else %}<span class="text-slate-300 font-bold">{{ i }}</span>{% endif %}
+                    <span class="font-bold">{{ i }}</span>{% if lbl %}<span class="mx-0.5 opacity-60">–</span>{{ lbl }}{% endif %}
                   </span>
                   <span class="font-semibold shrink-0 ml-2 {% if cnt > 0 %}text-slate-600{% else %}text-slate-300{% endif %}">
                     {% if cnt > 0 %}×{{ cnt }}{% else %}–{% endif %}
