@@ -276,21 +276,19 @@
         {# Action row #}
         <div class="mt-3 border-t border-slate-100 pt-2 flex items-center gap-5">
           {% if orcid_id %}
-          <form action="/paper/{{ paper.doi }}/ratings/{{ r.id }}/like" method="post" class="inline">
-            <button type="submit" title="Like"
-              id="like-btn-{{ r.id }}"
-              onclick="event.preventDefault(); toggleLike({{ r.id }}, '{{ paper.doi }}')"
-              class="flex items-center gap-1 text-xs transition-colors
-                     {% if is_liked %}text-amber-500{% else %}text-slate-400 hover:text-amber-400{% endif %}">
-              <svg id="like-svg-{{ r.id }}" class="w-4 h-4" viewBox="0 0 24 24"
-                   fill="{% if is_liked %}currentColor{% else %}none{% endif %}"
-                   stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="7" y1="3" x2="17" y2="3"/>
-                <path d="M9 3 V10 L3 22 H21 L15 10 V3 Z"/>
-              </svg>
-              <span id="like-count-{{ r.id }}" class="font-medium {% if like_count == 0 %}hidden{% endif %}">{{ like_count }}</span>
-            </button>
-          </form>
+          <button type="button" title="Like"
+            id="like-btn-{{ r.id }}"
+            onclick="toggleLike({{ r.id }}, '{{ paper.doi }}')"
+            class="flex items-center gap-1 text-xs transition-colors
+                   {% if is_liked %}text-amber-500{% else %}text-slate-400 hover:text-amber-400{% endif %}">
+            <svg id="like-svg-{{ r.id }}" class="w-4 h-4" viewBox="0 0 24 24"
+                 fill="{% if is_liked %}currentColor{% else %}none{% endif %}"
+                 stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="7" y1="3" x2="17" y2="3"/>
+              <path d="M9 3 V10 L3 22 H21 L15 10 V3 Z"/>
+            </svg>
+            <span id="like-count-{{ r.id }}" class="font-medium {% if like_count == 0 %}hidden{% endif %}">{{ like_count }}</span>
+          </button>
           <button type="button" title="Comment" onclick="toggleReply({{ r.id }})"
             class="flex items-center gap-1 text-xs text-slate-400 hover:text-brand transition-colors">
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"

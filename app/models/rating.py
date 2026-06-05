@@ -36,7 +36,7 @@ SCOPE_LEVEL_LABELS = {
 class Rating(Base):
     __tablename__ = "ratings"
     __table_args__ = (
-        UniqueConstraint("doi", "orcid_id", name="uq_one_rating_per_user_per_paper"),
+        UniqueConstraint("doi", "orcid_id", "scoring_mode", name="uq_one_rating_per_mode_per_paper"),
         # Scores are nullable — only filled when the relevant section is shown
         CheckConstraint(
             "reproducibility_score IS NULL OR reproducibility_score BETWEEN 1 AND 5",

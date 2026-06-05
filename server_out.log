@@ -1,0 +1,4 @@
+INFO:     127.0.0.1:63109 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63109 - "GET /paper/10.0000/chemrepro.demo.2024 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63109 - "GET /classic/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63109 - "GET /classic/paper/10.0000/chemrepro.demo.2024 HTTP/1.1" 200 OK

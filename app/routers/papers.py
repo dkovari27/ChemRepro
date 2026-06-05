@@ -467,26 +467,35 @@ async def classic_index(request: Request, db: Session = Depends(get_db)):
     def _enrich_classic(papers):
         out = []
         for p in papers:
-            scores = _get_paper_scores(p.doi, db)
-            # Classic-specific: avg repro and extension stars
             repro_row = (
-                db.query(func.avg(Rating.reproducibility_score).label("avg_repro"))
+                db.query(func.avg(Rating.reproducibility_score).label("avg_repro"),
+                         func.count(Rating.id).label("rc"))
                 .filter(Rating.doi == p.doi, Rating.scoring_mode == "classic",
-                        Rating.reproducibility_score.isnot(None))
-                .one()
+                        Rating.reproducibility_score.isnot(None)).one()
             )
             ext_row = (
-                db.query(func.avg(Rating.generalisability_score).label("avg_ext"))
+                db.query(func.avg(Rating.generalisability_score).label("avg_ext"),
+                         func.count(Rating.id).label("ec"))
                 .filter(Rating.doi == p.doi, Rating.scoring_mode == "classic",
-                        Rating.generalisability_score.isnot(None))
-                .one()
+                        Rating.generalisability_score.isnot(None)).one()
             )
+            repro_dist = {i: (db.query(func.count(Rating.id))
+                .filter(Rating.doi == p.doi, Rating.scoring_mode == "classic",
+                        Rating.reproducibility_score == i).scalar() or 0)
+                for i in range(1, 6)}
+            ext_dist = {i: (db.query(func.count(Rating.id))
+                .filter(Rating.doi == p.doi, Rating.scoring_mode == "classic",
+                        Rating.generalisability_score == i).scalar() or 0)
+                for i in range(1, 6)}
             out.append({
                 "paper": p,
                 "display_authors": _format_authors(p.authors),
                 "avg_repro": round(float(repro_row.avg_repro), 1) if repro_row.avg_repro else None,
                 "avg_ext": round(float(ext_row.avg_ext), 1) if ext_row.avg_ext else None,
-                **scores,
+                "repro_dist": repro_dist,
+                "ext_dist": ext_dist,
+                "total_repro": sum(repro_dist.values()),
+                "total_ext": sum(ext_dist.values()),
             })
         return out
 
