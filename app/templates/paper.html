@@ -92,23 +92,10 @@
         </div>
 
       {% else %}
-        <!-- Scoring mode toggle -->
-        <div class="flex gap-1.5 mb-5 bg-slate-100 rounded-lg p-1 text-xs font-medium">
-          <a href="?mode=v2" class="flex-1 text-center py-1.5 rounded-md transition-colors
-             {% if scoring_mode != 'classic' %}bg-white shadow text-slate-800{% else %}text-slate-500 hover:text-slate-700{% endif %}">
-            Single score
-          </a>
-          <a href="?mode=classic" class="flex-1 text-center py-1.5 rounded-md transition-colors
-             {% if scoring_mode == 'classic' %}bg-white shadow text-slate-800{% else %}text-slate-500 hover:text-slate-700{% endif %}">
-            Classic (2 scores)
-          </a>
-        </div>
-
         <form action="/paper/{{ paper.doi }}/rate" method="post" id="rating-form" data-moderate>
-          <input type="hidden" name="scoring_mode" value="{{ scoring_mode }}" />
+          <input type="hidden" name="scoring_mode" value="standard" />
 
-          {% if scoring_mode != 'classic' %}
-          <!-- ══ STEP 1: OUTCOME (v2 only) ════════════════════════════ -->
+          <!-- ══ STEP 1: OUTCOME ════════════════════════════════════ -->
           <div class="mb-5">
             <label class="block text-xs font-medium text-slate-600 mb-2">
               What did you attempt? <span class="text-red-500">*</span>
@@ -125,63 +112,19 @@
               {% endfor %}
             </div>
           </div>
-          {% endif %}
 
           <!-- ══ STEP 2a: REPRODUCIBILITY ═════════════════════════════ -->
-          <div id="repro-section" class="{{ '' if scoring_mode == 'classic' else 'hidden ' }}border-t border-slate-100 pt-4 mb-4">
+          <div id="repro-section" class="hidden border-t border-slate-100 pt-4 mb-4">
             <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Reproducibility</p>
-
-            {% if scoring_mode == 'classic' %}
-            <!-- Classic: stars always visible, obs textarea appears on click -->
-            <label class="block text-xs font-medium text-slate-600 mb-1">Reproducibility score</label>
-            <div class="flex gap-1 mb-1" data-stars="reproducibility_score">
-              {% for i in range(1, 6) %}
-              <button type="button" data-value="{{ i }}" class="star-btn text-2xl text-slate-300 transition-colors">★</button>
-              {% endfor %}
-            </div>
-            <input type="hidden" name="reproducibility_score" id="repro-input" value="" />
-            <p class="text-xs text-slate-400 mb-1">★ Failed &nbsp;·&nbsp; ★★★ Partially &nbsp;·&nbsp; ★★★★★ Exact or better</p>
-            <p id="repro-legend" class="text-xs font-medium text-amber-600 min-h-[1rem] mb-1"></p>
-            <div id="repro-obs-block" class="hidden mt-1">
-              <label class="block text-xs font-medium text-slate-600 mb-1">Reproducibility observation</label>
-              <textarea name="reproducibility_observation" rows="6" maxlength="1000"
-                placeholder="{{ prompts.REPRO_OBSERVATION }}"
-                class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
-            </div>
-
-            {% else %}
-            <!-- v2: obs textarea always visible when section is shown -->
             <label class="block text-xs font-medium text-slate-600 mb-1">Reproducibility observation</label>
             <textarea name="reproducibility_observation" rows="6" maxlength="1000"
               placeholder="{{ prompts.REPRO_OBSERVATION }}"
               class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
-            {% endif %}
           </div>
 
           <!-- ══ STEP 2b: SCOPE EXTENSION ══════════════════════════════ -->
-          <div id="scope-section" class="{{ '' if scoring_mode == 'classic' else 'hidden ' }}border-t border-slate-100 pt-4 mb-4">
+          <div id="scope-section" class="hidden border-t border-slate-100 pt-4 mb-4">
             <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Scope extension</p>
-
-            {% if scoring_mode == 'classic' %}
-            <!-- Classic mode: stars always visible, obs textarea appears on click -->
-            <label class="block text-xs font-medium text-slate-600 mb-1">Extension score</label>
-            <div class="flex gap-1 mb-1" data-stars="generalisability_score">
-              {% for i in range(1, 6) %}
-              <button type="button" data-value="{{ i }}" class="star-btn text-2xl text-slate-300 transition-colors">★</button>
-              {% endfor %}
-            </div>
-            <input type="hidden" name="generalisability_score" id="scope-stars-input" value="" />
-            <p class="text-xs text-slate-400 mb-1">★ Minor &nbsp;·&nbsp; ★★★ Medium &nbsp;·&nbsp; ★★★★★ Major</p>
-            <p id="scope-legend" class="text-xs font-medium text-blue-600 min-h-[1rem] mb-1"></p>
-            <div id="scope-obs-block" class="hidden mt-1">
-              <label class="block text-xs font-medium text-slate-600 mb-1">Scope extension observations</label>
-              <textarea name="scope_observation" rows="6" maxlength="1000"
-                placeholder="{{ prompts.SCOPE_OBSERVATION }}"
-                class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
-            </div>
-
-            {% else %}
-            <!-- v2 mode: scope level cards + obs textarea -->
             <label class="block text-xs font-medium text-slate-600 mb-2">
               Extension level <span class="text-red-500">*</span>
             </label>
@@ -214,13 +157,12 @@
                 placeholder="{{ prompts.MODIFICATION_DETAILS }}"
                 class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
             </div>
-            <div class="mb-3">
+            <div class="mt-3">
               <label class="block text-xs font-medium text-slate-600 mb-1">Scope extension observations</label>
               <textarea name="scope_observation" rows="6" maxlength="1000"
                 placeholder="{{ prompts.SCOPE_OBSERVATION }}"
                 class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
             </div>
-            {% endif %}
           </div>
 
           <!-- Conflict of interest declaration -->
@@ -558,26 +500,17 @@
   // ── Outcome → show/hide form sections ────────────────────────────────
   const SHOWS_REPRO = new Set(['no_repro', 'reproduced', 'repro_extension_failed']);
   const SHOWS_SCOPE = new Set(['no_extension', 'repro_extension_failed', 'extended']);
-  const IS_CLASSIC  = document.querySelector('input[name="scoring_mode"]')?.value === 'classic';
 
   document.querySelectorAll('input[name="outcome"]').forEach(radio => {
     radio.addEventListener('change', () => {
       const v = radio.value;
       document.getElementById('repro-section').classList.toggle('hidden', !SHOWS_REPRO.has(v));
       document.getElementById('scope-section').classList.toggle('hidden', !SHOWS_SCOPE.has(v));
-      if (!SHOWS_REPRO.has(v) && IS_CLASSIC) {
-        const ri = document.getElementById('repro-input');
-        if (ri) { ri.value = ''; paintStars(0); }
-      }
-      if (!SHOWS_SCOPE.has(v) && IS_CLASSIC) {
-        const si = document.getElementById('scope-stars-input');
-        if (si) { si.value = ''; paintScopeStars(0); }
-      }
       checkReady();
     });
   });
 
-  // ── Scope card highlight (v2 only) ───────────────────────────────────
+  // ── Scope card highlight ──────────────────────────────────────────────
   document.querySelectorAll('input[name="scope_level"]').forEach(radio => {
     radio.addEventListener('change', () => {
       document.querySelectorAll('.scope-card').forEach(c =>
@@ -592,66 +525,13 @@
     });
   });
 
-  // ── Classic mode: reproducibility stars (amber) ───────────────────────
-  const REPRO_LABELS = ['Failed completely','','Partially reproduced','','Reproduced exactly or better'];
-  const starBtns    = document.querySelectorAll('[data-stars="reproducibility_score"] .star-btn');
-  const reproInput  = document.getElementById('repro-input');
-  const reproLegend = document.getElementById('repro-legend');
-
-  function paintStars(val) {
-    starBtns.forEach(s => { s.style.color = parseInt(s.dataset.value) <= val ? '#f59e0b' : ''; });
-    if (reproLegend) reproLegend.textContent = val > 0 ? (REPRO_LABELS[val - 1] || '') : '';
-    const obsBlock = document.getElementById('repro-obs-block');
-    if (obsBlock) obsBlock.classList.toggle('hidden', val === 0);
-  }
-
-  starBtns.forEach(star => {
-    star.addEventListener('click', () => {
-      reproInput.value = star.dataset.value;
-      paintStars(parseInt(star.dataset.value));
-      checkReady();
-    });
-    star.addEventListener('mouseenter', () => paintStars(parseInt(star.dataset.value)));
-    star.addEventListener('mouseleave', () => paintStars(parseInt(reproInput?.value || 0)));
-  });
-
-  // ── Classic mode: extension scope stars (blue) ────────────────────────
-  const SCOPE_LABELS = ['Minor - Similar scaffold','','Medium - New scaffold','','Major - New scaffold, new function'];
-  const scopeStarBtns   = document.querySelectorAll('[data-stars="generalisability_score"] .star-btn');
-  const scopeStarsInput = document.getElementById('scope-stars-input');
-  const scopeLegend     = document.getElementById('scope-legend');
-
-  function paintScopeStars(val) {
-    scopeStarBtns.forEach(s => { s.style.color = parseInt(s.dataset.value) <= val ? '#3b82f6' : ''; });
-    if (scopeLegend) scopeLegend.textContent = val > 0 ? (SCOPE_LABELS[val - 1] || '') : '';
-    const obsBlock = document.getElementById('scope-obs-block');
-    if (obsBlock) obsBlock.classList.toggle('hidden', val === 0);
-  }
-
-  scopeStarBtns.forEach(star => {
-    star.addEventListener('click', () => {
-      scopeStarsInput.value = star.dataset.value;
-      paintScopeStars(parseInt(star.dataset.value));
-      checkReady();
-    });
-    star.addEventListener('mouseenter', () => paintScopeStars(parseInt(star.dataset.value)));
-    star.addEventListener('mouseleave', () => paintScopeStars(parseInt(scopeStarsInput?.value || 0)));
-  });
-
   // ── Submit gate ───────────────────────────────────────────────────────
   function checkReady() {
-    const coiOk = document.getElementById('coi-checkbox')?.checked ?? true;
-    if (IS_CLASSIC) {
-      // Classic: at least one star score (repro OR extension) + COI
-      const ok = (!!reproInput?.value || !!scopeStarsInput?.value) && coiOk;
-      ok ? enable() : disable();
-      return;
-    }
-    // v2 mode
     const outcome = document.querySelector('input[name="outcome"]:checked');
     if (!outcome) { disable(); return; }
     const scopeVisible = !document.getElementById('scope-section').classList.contains('hidden');
     const scopeOk = !scopeVisible || !!document.querySelector('input[name="scope_level"]:checked');
+    const coiOk = document.getElementById('coi-checkbox')?.checked ?? true;
     scopeOk && coiOk ? enable() : disable();
   }
   function enable()  { document.getElementById('submit-btn').disabled = false; }

@@ -157,6 +157,8 @@ async def index(request: Request, db: Session = Depends(get_db)):
         "community_papers": community_papers,
         "user_name": request.session.get("user_name"),
         "orcid_id": orcid_id,
+        "site_version": "standard",
+        "switch_urls": {"standard": "/", "classic": "/classic/"},
         **_dev_context(),
         **_scoring_context(),
     })
@@ -328,9 +330,9 @@ async def paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
         "user_name": request.session.get("user_name"),
         "orcid_id": orcid_id,
         "user_already_rated": user_already_rated,
-        "scoring_mode": scoring_mode,
-        "classic_scores": classic_scores,
         "prompts": prompts,
+        "site_version": "standard",
+        "switch_urls": {"standard": f"/paper/{doi}", "classic": f"/classic/paper/{doi}"},
         **_scoring_context(),
     })
 
@@ -455,6 +457,253 @@ async def design_demo_scoring_ab(request: Request):
         "user_name": request.session.get("user_name"),
         "orcid_id": request.session.get("orcid_id"),
     })
+
+
+@router.get("/classic/", response_class=HTMLResponse)
+@router.get("/classic", response_class=HTMLResponse)
+async def classic_index(request: Request, db: Session = Depends(get_db)):
+    orcid_id = request.session.get("orcid_id")
+
+    def _enrich_classic(papers):
+        out = []
+        for p in papers:
+            scores = _get_paper_scores(p.doi, db)
+            # Classic-specific: avg repro and extension stars
+            repro_row = (
+                db.query(func.avg(Rating.reproducibility_score).label("avg_repro"))
+                .filter(Rating.doi == p.doi, Rating.scoring_mode == "classic",
+                        Rating.reproducibility_score.isnot(None))
+                .one()
+            )
+            ext_row = (
+                db.query(func.avg(Rating.generalisability_score).label("avg_ext"))
+                .filter(Rating.doi == p.doi, Rating.scoring_mode == "classic",
+                        Rating.generalisability_score.isnot(None))
+                .one()
+            )
+            out.append({
+                "paper": p,
+                "display_authors": _format_authors(p.authors),
+                "avg_repro": round(float(repro_row.avg_repro), 1) if repro_row.avg_repro else None,
+                "avg_ext": round(float(ext_row.avg_ext), 1) if ext_row.avg_ext else None,
+                **scores,
+            })
+        return out
+
+    last_rated_sq = (
+        db.query(Rating.doi, func.max(Rating.created_at).label("last_rated"))
+        .group_by(Rating.doi).subquery()
+    )
+    my_papers, my_doi_set = [], set()
+    if orcid_id:
+        my_dois_sq = db.query(Rating.doi).filter(Rating.orcid_id == orcid_id).subquery()
+        my_papers = _enrich_classic(
+            db.query(Paper)
+            .join(my_dois_sq, Paper.doi == my_dois_sq.c.doi)
+            .join(last_rated_sq, Paper.doi == last_rated_sq.c.doi)
+            .order_by(last_rated_sq.c.last_rated.desc()).limit(5).all()
+        )
+        my_doi_set = {e["paper"].doi for e in my_papers}
+
+    community_candidates = (
+        db.query(Paper).join(last_rated_sq, Paper.doi == last_rated_sq.c.doi)
+        .order_by(last_rated_sq.c.last_rated.desc()).limit(10 + len(my_doi_set)).all()
+    )
+    community_papers = _enrich_classic([p for p in community_candidates if p.doi not in my_doi_set][:10])
+
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "my_papers": my_papers,
+        "community_papers": community_papers,
+        "user_name": request.session.get("user_name"),
+        "orcid_id": orcid_id,
+        "site_version": "classic",
+        "switch_urls": {"standard": "/", "classic": "/classic/"},
+        **_dev_context(),
+        **_scoring_context(),
+    })
+
+
+@router.get("/classic/paper/{doi:path}", response_class=HTMLResponse)
+async def classic_paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
+    paper = db.get(Paper, doi)
+    if not paper:
+        meta = await fetch_paper_metadata(doi)
+        if not meta:
+            raise HTTPException(status_code=404, detail="Paper not found")
+        paper = Paper(**meta)
+        db.add(paper)
+        db.commit()
+        db.refresh(paper)
+
+    # Classic dual scores
+    repro_row = (
+        db.query(func.avg(Rating.reproducibility_score).label("avg_repro"),
+                 func.count(Rating.id).label("repro_count"))
+        .filter(Rating.doi == doi, Rating.scoring_mode == "classic",
+                Rating.reproducibility_score.isnot(None))
+        .one()
+    )
+    ext_row = (
+        db.query(func.avg(Rating.generalisability_score).label("avg_ext"),
+                 func.count(Rating.id).label("ext_count"))
+        .filter(Rating.doi == doi, Rating.scoring_mode == "classic",
+                Rating.generalisability_score.isnot(None))
+        .one()
+    )
+    # Repro breakdown distribution 1-5
+    repro_dist = {
+        i: (db.query(func.count(Rating.id))
+            .filter(Rating.doi == doi, Rating.scoring_mode == "classic",
+                    Rating.reproducibility_score == i)
+            .scalar() or 0)
+        for i in range(1, 6)
+    }
+    ext_dist = {
+        i: (db.query(func.count(Rating.id))
+            .filter(Rating.doi == doi, Rating.scoring_mode == "classic",
+                    Rating.generalisability_score == i)
+            .scalar() or 0)
+        for i in range(1, 6)
+    }
+    classic_scores = {
+        "avg_repro": round(float(repro_row.avg_repro), 1) if repro_row.avg_repro else None,
+        "avg_ext": round(float(ext_row.avg_ext), 1) if ext_row.avg_ext else None,
+        "repro_count": repro_row.repro_count,
+        "ext_count": ext_row.ext_count,
+        "repro_dist": repro_dist,
+        "ext_dist": ext_dist,
+        "total_repro": sum(repro_dist.values()),
+        "total_ext": sum(ext_dist.values()),
+    }
+
+    # Pagination / filter / sort (same logic as Standard)
+    PAGE_SIZE = 25
+    active_sort = request.query_params.get("sort", "newest")
+    try:
+        active_page = max(1, int(request.query_params.get("page", 1)))
+    except ValueError:
+        active_page = 1
+
+    q = db.query(Rating).filter(Rating.doi == doi, Rating.scoring_mode == "classic")
+    total_count = q.count()
+    total_pages = max(1, (total_count + PAGE_SIZE - 1) // PAGE_SIZE)
+    active_page = min(active_page, total_pages)
+
+    if active_sort == "oldest":
+        q = q.order_by(Rating.created_at.asc())
+    elif active_sort == "most_liked":
+        like_sq = (
+            select(Like.rating_id, func.count(Like.id).label("lc"))
+            .group_by(Like.rating_id).subquery()
+        )
+        q = q.outerjoin(like_sq, Rating.id == like_sq.c.rating_id)
+        q = q.order_by(func.coalesce(like_sq.c.lc, 0).desc(), Rating.created_at.desc())
+    else:
+        q = q.order_by(Rating.created_at.desc())
+
+    reviews = q.offset((active_page - 1) * PAGE_SIZE).limit(PAGE_SIZE).all()
+
+    all_comments = (
+        db.query(Comment).filter(Comment.doi == doi)
+        .order_by(Comment.created_at.asc()).all()
+    )
+    comment_map: dict[int, list] = {}
+    for c in all_comments:
+        if c.rating_id:
+            comment_map.setdefault(c.rating_id, []).append(c)
+
+    orcid_id = request.session.get("orcid_id")
+    user_already_rated = (
+        db.query(Rating).filter(Rating.doi == doi, Rating.orcid_id == orcid_id,
+                                Rating.scoring_mode == "classic").first()
+        if orcid_id else None
+    )
+
+    try:
+        authors = json.loads(paper.authors)
+    except Exception:
+        authors = [paper.authors]
+
+    rating_ids = [r.id for r in reviews]
+    like_rows = (
+        db.query(Like.rating_id, func.count(Like.id))
+        .filter(Like.rating_id.in_(rating_ids)).group_by(Like.rating_id).all()
+    ) if rating_ids else []
+    like_counts = {rid: cnt for rid, cnt in like_rows}
+    user_likes: set[int] = set()
+    if orcid_id and rating_ids:
+        user_likes = {
+            row.rating_id for row in
+            db.query(Like.rating_id)
+            .filter(Like.orcid_id == orcid_id, Like.rating_id.in_(rating_ids)).all()
+        }
+
+    return templates.TemplateResponse("paper_classic.html", {
+        "request": request,
+        "paper": paper,
+        "authors": authors,
+        "classic_scores": classic_scores,
+        "reviews": reviews,
+        "comment_map": comment_map,
+        "like_counts": like_counts,
+        "user_likes": user_likes,
+        "total_count": total_count,
+        "total_pages": total_pages,
+        "active_page": active_page,
+        "active_sort": active_sort,
+        "user_name": request.session.get("user_name"),
+        "orcid_id": orcid_id,
+        "user_already_rated": user_already_rated,
+        "prompts": prompts,
+        "site_version": "classic",
+        "switch_urls": {"standard": f"/paper/{doi}", "classic": f"/classic/paper/{doi}"},
+    })
+
+
+@router.post("/classic/paper/{doi:path}/rate")
+async def classic_submit_rating(
+    doi: str, request: Request, db: Session = Depends(get_db),
+    reproducibility_score: str = Form(""),
+    reproducibility_observation: str = Form(""),
+    generalisability_score: str = Form(""),
+    scope_observation: str = Form(""),
+    coi_confirmed: str = Form(""),
+):
+    orcid_id = request.session.get("orcid_id")
+    if not orcid_id:
+        return RedirectResponse(f"/auth/guest-setup?next=/classic/paper/{doi}", status_code=303)
+    if coi_confirmed != "on":
+        raise HTTPException(status_code=422, detail="Conflict of interest confirmation required")
+
+    existing = db.query(Rating).filter(
+        Rating.doi == doi, Rating.orcid_id == orcid_id, Rating.scoring_mode == "classic"
+    ).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="You have already rated this paper in Classic mode")
+
+    paper = db.get(Paper, doi)
+    if not paper:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    repro_int = int(reproducibility_score) if reproducibility_score else None
+    ext_int = int(generalisability_score) if generalisability_score else None
+    if repro_int is not None and not (1 <= repro_int <= 5):
+        raise HTTPException(status_code=422, detail="Reproducibility score must be 1–5")
+    if ext_int is not None and not (1 <= ext_int <= 5):
+        raise HTTPException(status_code=422, detail="Extension score must be 1–5")
+
+    db.add(Rating(
+        doi=doi,
+        orcid_id=orcid_id,
+        scoring_mode="classic",
+        reproducibility_score=repro_int,
+        reproducibility_observation=reproducibility_observation.strip()[:1000] or None,
+        generalisability_score=ext_int,
+        scope_observation=scope_observation.strip()[:1000] or None,
+    ))
+    db.commit()
+    return RedirectResponse(f"/classic/paper/{doi}", status_code=303)
 
 
 @router.get("/design-demo/scoring", response_class=HTMLResponse)
