@@ -21,6 +21,8 @@ FAKE_USERS = [
     ("0000-0000-0000-0005", "Eva Flask"),
     ("0000-0000-0000-0006", "Frank Yield"),
     ("0000-0000-0000-0007", "Grace Stir"),
+    ("0000-0000-0000-0008", "Hans Reaktion"),
+    ("0000-0000-0000-0009", "Irene Substrate"),
 ]
 
 # ── Standard reviews (outcome-based, scoring_mode="standard") ──────────────
@@ -48,6 +50,9 @@ CLASSIC_REVIEWS = [
     ("0000-0000-0000-0005", 3, "Reproduced at 50 mg scale but ee was 5% lower than reported.",             2, "Only one of four substrate extensions gave acceptable yield."),
     ("0000-0000-0000-0006", 5, "Reproduced Table 2 completely over two runs. Highly reproducible.",         5, "New substrate class (benzylic C–H) also worked — major scope."),
     ("0000-0000-0000-0007", 1, "Could not reproduce — suspected ligand batch issue.",                       None, None),
+    # Extension-only reviews (no reproducibility score)
+    ("0000-0000-0000-0008", None, None, 4, "Successfully extended to trifluoromethyl substrates — moderate yields across 5 analogues."),
+    ("0000-0000-0000-0009", None, None, 5, "Major scope extension — tested 12 new electrophiles, all gave >80% yield with excellent ee."),
 ]
 
 REPRO_SCORES = {
