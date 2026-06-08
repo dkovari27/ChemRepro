@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}{{ status_code }} – ChemRepro{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto text-center mt-16">
+
+  <div class="text-7xl font-bold text-slate-100 mb-4 select-none">{{ status_code }}</div>
+
+  {% if status_code == 404 %}
+  <h1 class="text-xl font-bold text-slate-700 mb-2">Page not found</h1>
+  <p class="text-slate-500 text-sm mb-8">
+    That DOI or page doesn't exist on ChemRepro.<br/>
+    Try looking up a paper below.
+  </p>
+  {% elif status_code == 403 %}
+  <h1 class="text-xl font-bold text-slate-700 mb-2">Access denied</h1>
+  <p class="text-slate-500 text-sm mb-8">You don't have permission to view this page.</p>
+  {% elif status_code == 422 %}
+  <h1 class="text-xl font-bold text-slate-700 mb-2">Invalid submission</h1>
+  <p class="text-slate-500 text-sm mb-8">Something was missing or incorrect in your submission. Please go back and try again.</p>
+  {% else %}
+  <h1 class="text-xl font-bold text-slate-700 mb-2">Something went wrong</h1>
+  <p class="text-slate-500 text-sm mb-8">An unexpected error occurred. Please try again in a moment.</p>
+  {% endif %}
+
+  <form action="/search" method="get" class="flex gap-2 max-w-md mx-auto mb-6">
+    <input type="text" name="doi"
+      placeholder="Paste a DOI – e.g. 10.1021/jacs.2c00001"
+      autofocus
+      class="flex-1 border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent" />
+    <button type="submit"
+      class="bg-brand text-white rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-blue-700 transition-colors whitespace-nowrap">
+      Look up
+    </button>
+  </form>
+
+  <a href="/" class="text-sm text-slate-400 hover:text-brand transition-colors">← Back to homepage</a>
+
+</div>
+{% endblock %}

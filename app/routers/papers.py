@@ -729,6 +729,17 @@ async def classic_submit_rating(
     return RedirectResponse(f"/classic/paper/{doi}", status_code=303)
 
 
+@router.get("/about", response_class=HTMLResponse)
+async def about(request: Request):
+    return templates.TemplateResponse("about.html", {
+        "request": request,
+        "user_name": request.session.get("user_name"),
+        "orcid_id": request.session.get("orcid_id"),
+        "site_version": "standard",
+        "switch_urls": {"standard": "/", "classic": "/classic/"},
+    })
+
+
 @router.get("/design-demo/scoring", response_class=HTMLResponse)
 async def design_demo_scoring(request: Request):
     if settings.ORCID_ENV == "production":

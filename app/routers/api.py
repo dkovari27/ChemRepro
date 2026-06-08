@@ -26,7 +26,7 @@ async def list_papers(limit: int = 20, offset: int = 0, db: Session = Depends(ge
             func.avg(Rating.reproducibility_score),
             func.avg(Rating.generalisability_score),
             func.count(Rating.id),
-        ).filter(Rating.doi == p.doi).one()
+        ).filter(Rating.doi == p.doi, Rating.scoring_mode != "classic").one()
         result.append(PaperWithScores(
             doi=p.doi,
             title=p.title,
@@ -65,7 +65,7 @@ async def get_paper(doi: str, db: Session = Depends(get_db)):
         func.avg(Rating.reproducibility_score),
         func.avg(Rating.generalisability_score),
         func.count(Rating.id),
-    ).filter(Rating.doi == doi).one()
+    ).filter(Rating.doi == doi, Rating.scoring_mode != "classic").one()
 
     return PaperWithScores(
         doi=paper.doi,
@@ -103,7 +103,7 @@ async def get_paper_scores(doi: str, db: Session = Depends(get_db)):
         func.avg(Rating.reproducibility_score),
         func.avg(Rating.generalisability_score),
         func.count(Rating.id),
-    ).filter(Rating.doi == doi).one()
+    ).filter(Rating.doi == doi, Rating.scoring_mode != "classic").one()
 
     return AggregatedScores(
         doi=doi,

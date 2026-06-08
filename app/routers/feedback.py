@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.models.feedback import Feedback
+from app.utils.email import send_feedback_notification
 
 router = APIRouter(tags=["feedback"])
 templates = Jinja2Templates(directory="app/templates")
@@ -35,12 +36,15 @@ async def submit_feedback(
     if preference not in VALID_PREFS:
         return RedirectResponse("/feedback", status_code=303)
 
+    orcid_id = request.session.get("orcid_id")
+    trimmed_comment = comment.strip()[:2000] or None
     db.add(Feedback(
         preference=preference,
-        comment=comment.strip()[:2000] or None,
-        orcid_id=request.session.get("orcid_id"),
+        comment=trimmed_comment,
+        orcid_id=orcid_id,
     ))
     db.commit()
+    await send_feedback_notification(preference, trimmed_comment, orcid_id)
     return RedirectResponse("/feedback?submitted=1", status_code=303)
 
 

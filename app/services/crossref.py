@@ -7,13 +7,15 @@ CROSSREF_URL = "https://api.crossref.org/works/{doi}"
 
 
 def normalise_doi(raw: str) -> str:
-    """Strip URL prefix and trailing punctuation from a DOI string."""
-    doi = raw.strip()
-    for prefix in ("https://doi.org/", "http://doi.org/", "doi:", "DOI:"):
-        if doi.startswith(prefix):
-            doi = doi[len(prefix):]
-    doi = doi.rstrip(".,;)")
-    return doi
+    """Extract a bare DOI from any input — URL, doi: prefix, or plain DOI."""
+    # Try to extract DOI pattern from anywhere in the string (handles publisher URLs,
+    # doi.org links, doi:/DOI: prefixes, pasted article pages, etc.)
+    match = re.search(r'10\.\d{4,}/\S+', raw.strip())
+    if match:
+        doi = match.group(0)
+    else:
+        doi = raw.strip()
+    return doi.rstrip(".,;)")
 
 
 def is_valid_doi(doi: str) -> bool:
@@ -66,6 +68,23 @@ async def search_by_title(title: str, rows: int = 8) -> list[dict]:
     return results
 
 
+async def _fetch_europepmc_abstract(doi: str) -> str | None:
+    """Fallback abstract source when CrossRef has none."""
+    url = f"https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=DOI:{doi}&format=json"
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.get(url, headers={"User-Agent": "ChemRepro/1.0"})
+        if resp.status_code != 200:
+            return None
+        for item in resp.json().get("resultList", {}).get("result", []):
+            text = item.get("abstractText", "").strip()
+            if text:
+                return text
+    except Exception:
+        pass
+    return None
+
+
 async def fetch_paper_metadata(doi: str) -> dict | None:
     """
     Query CrossRef for paper metadata. Returns a dict ready for Paper model
@@ -99,6 +118,9 @@ async def fetch_paper_metadata(doi: str) -> dict | None:
 
     abstract_raw = data.get("abstract", "")
     abstract = re.sub(r"<[^>]+>", "", abstract_raw).strip() or None
+
+    if not abstract:
+        abstract = await _fetch_europepmc_abstract(doi)
 
     return {
         "doi": doi,

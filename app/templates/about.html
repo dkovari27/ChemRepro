@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}About – ChemRepro{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+
+  <h1 class="text-3xl font-bold text-slate-800 mb-2">About ChemRepro</h1>
+  <p class="text-slate-400 text-sm mb-10">A community platform for synthetic chemistry reproducibility</p>
+
+  <!-- Why it exists -->
+  <div class="bg-white border border-slate-200 rounded-xl p-6 mb-5">
+    <h2 class="text-lg font-bold text-slate-800 mb-3">Why does this exist?</h2>
+    <p class="text-sm text-slate-600 leading-relaxed mb-3">
+      Anyone who has spent time at a bench knows the frustration: you find a reaction in the literature,
+      set it up carefully, and it simply doesn't work – or works very differently from what was reported.
+      Reproducibility problems in synthetic chemistry are widespread, yet almost never discussed in print.
+      Failed attempts don't get published. Corrections are rare. The knowledge stays locked in lab notebooks
+      and hallway conversations.
+    </p>
+    <p class="text-sm text-slate-600 leading-relaxed">
+      ChemRepro exists to change that. It gives practising chemists a place to record what actually happened
+      when they tried a published reaction – honestly, anonymously, and with enough detail to be useful to
+      the next person.
+    </p>
+  </div>
+
+  <!-- Who it's for -->
+  <div class="bg-white border border-slate-200 rounded-xl p-6 mb-5">
+    <h2 class="text-lg font-bold text-slate-800 mb-3">Who is it for?</h2>
+    <ul class="text-sm text-slate-600 leading-relaxed space-y-2 list-none">
+      <li><strong>Synthetic chemists planning a reaction</strong> – check whether others have reproduced the key step before investing lab time.</li>
+      <li><strong>Chemists who just attempted a reaction</strong> – share your experience and help the community, even if it was a failure.</li>
+      <li><strong>Medicinal and process chemists</strong> – quickly assess whether a new methodology is reliable enough to build on.</li>
+      <li><strong>Students and postdocs</strong> – find out what conditions actually work in practice, not just on paper.</li>
+    </ul>
+  </div>
+
+  <!-- How it works -->
+  <div class="bg-white border border-slate-200 rounded-xl p-6 mb-5">
+    <h2 class="text-lg font-bold text-slate-800 mb-3">How does it work?</h2>
+    <ol class="text-sm text-slate-600 leading-relaxed space-y-3 list-none">
+      <li class="flex gap-3">
+        <span class="flex-shrink-0 w-6 h-6 bg-brand text-white rounded-full flex items-center justify-center text-xs font-bold">1</span>
+        <span>Paste a DOI into the search bar. ChemRepro fetches the paper's title, authors, and abstract from CrossRef automatically.</span>
+      </li>
+      <li class="flex gap-3">
+        <span class="flex-shrink-0 w-6 h-6 bg-brand text-white rounded-full flex items-center justify-center text-xs font-bold">2</span>
+        <span>See ratings from other chemists – how many reproduced it, how many extended it, and their detailed observations.</span>
+      </li>
+      <li class="flex gap-3">
+        <span class="flex-shrink-0 w-6 h-6 bg-brand text-white rounded-full flex items-center justify-center text-xs font-bold">3</span>
+        <span>Submit your own rating. Choose a display name – no institutional email or registration required. ORCID login is also available for verified attribution.</span>
+      </li>
+    </ol>
+
+  </div>
+
+  <!-- COI & privacy -->
+  <div class="bg-white border border-slate-200 rounded-xl p-6 mb-5">
+    <h2 class="text-lg font-bold text-slate-800 mb-3">Integrity &amp; privacy</h2>
+    <ul class="text-sm text-slate-600 leading-relaxed space-y-2">
+      <li class="flex gap-2"><span class="text-green-500 mt-0.5">✓</span>
+        <span>Every rating requires a conflict-of-interest declaration – you cannot rate your own work.</span>
+      </li>
+      <li class="flex gap-2"><span class="text-green-500 mt-0.5">✓</span>
+        <span>One rating per paper per user per scoring mode.</span>
+      </li>
+      <li class="flex gap-2"><span class="text-green-500 mt-0.5">✓</span>
+        <span>Display names only – no institutional affiliation is stored or displayed.</span>
+      </li>
+      <li class="flex gap-2"><span class="text-green-500 mt-0.5">✓</span>
+        <span>ORCID login is optional. Guest login with a chosen display name is always available.</span>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Who runs it -->
+  <div class="bg-white border border-slate-200 rounded-xl p-6 mb-5">
+    <h2 class="text-lg font-bold text-slate-800 mb-3">Who runs it?</h2>
+    <p class="text-sm text-slate-600 leading-relaxed mb-3">
+      ChemRepro is an independent project built and maintained by a medicinal chemist based in Basel, Switzerland.
+      It is currently in <strong>public beta</strong> – features are being added and refined based on feedback from early users.
+    </p>
+    <p class="text-sm text-slate-600 leading-relaxed">
+      Questions, suggestions, or bug reports are very welcome:
+      <a href="mailto:d.kovari.bham@gmail.com" class="text-brand hover:underline">d.kovari.bham@gmail.com</a>
+    </p>
+  </div>
+
+  <!-- CTA -->
+  <div class="text-center mt-8 mb-4">
+    <a href="/"
+       class="inline-flex items-center gap-2 bg-brand text-white rounded-xl px-6 py-3 font-medium hover:bg-blue-700 transition-colors">
+      Start looking up papers →
+    </a>
+    {% if orcid_id %}
+    <p class="text-xs text-slate-400 mt-3">Signed in as {{ user_name }}</p>
+    {% else %}
+    <p class="text-xs text-slate-400 mt-3">No account needed – just paste a DOI</p>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

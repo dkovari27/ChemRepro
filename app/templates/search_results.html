@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Search: {{ query }} — ChemRepro{% endblock %}
+{% block title %}Search: {{ query }} – ChemRepro{% endblock %}
 
 {% block content %}
 
@@ -33,7 +33,7 @@
         <p class="font-medium text-slate-800 text-sm leading-snug mb-0.5">{{ r.title }}</p>
         <p class="text-xs text-slate-500 truncate mb-0.5">{{ author_str }}</p>
         <p class="text-xs text-slate-400 truncate">
-          {{ r.journal or "—" }}{% if r.year %} &middot; {{ r.year }}{% endif %}
+          {{ r.journal or "–" }}{% if r.year %} &middot; {{ r.year }}{% endif %}
           &middot; <span class="font-mono">{{ r.doi }}</span>
         </p>
       </div>

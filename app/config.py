@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     ORCID_REDIRECT_URI: str = "http://localhost:8000/auth/callback"
     ORCID_ENV: str = "sandbox"  # "sandbox" or "production"
 
+    GMAIL_ADDRESS: str = ""
+    GMAIL_APP_PASSWORD: str = ""
+    FEEDBACK_NOTIFY_EMAIL: str = ""
+
     @property
     def orcid_base_url(self) -> str:
         if self.ORCID_ENV == "production":
