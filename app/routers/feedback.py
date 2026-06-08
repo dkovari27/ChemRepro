@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -29,6 +29,7 @@ async def feedback_page(request: Request):
 @router.post("/feedback")
 async def submit_feedback(
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     preference: str = Form(""),
     comment: str = Form(""),
@@ -44,7 +45,7 @@ async def submit_feedback(
         orcid_id=orcid_id,
     ))
     db.commit()
-    await send_feedback_notification(preference, trimmed_comment, orcid_id)
+    background_tasks.add_task(send_feedback_notification, preference, trimmed_comment, orcid_id)
     return RedirectResponse("/feedback?submitted=1", status_code=303)
 
 
