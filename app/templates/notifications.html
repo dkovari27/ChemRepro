@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Notifications – ChemRepro{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+
+  <div class="mb-6">
+    <h1 class="text-xl font-bold text-slate-800">Notifications</h1>
+    <p class="text-sm text-slate-400 mt-1">Interactions on your reviews</p>
+  </div>
+
+  {% if notifications %}
+  <div class="space-y-2">
+    {% for n in notifications %}
+    <a href="/paper/{{ n.doi }}#review-{{ n.rating_id }}"
+       class="flex items-start gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 hover:border-brand transition-colors group">
+
+      <!-- Icon -->
+      {% if n.type == 'like' %}
+      <span class="mt-0.5 flex-shrink-0 w-7 h-7 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-500 text-sm">
+        ★
+      </span>
+      {% else %}
+      <span class="mt-0.5 flex-shrink-0 w-7 h-7 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center">
+        <svg class="w-3.5 h-3.5 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+      </span>
+      {% endif %}
+
+      <!-- Text -->
+      <div class="flex-1 min-w-0">
+        <p class="text-sm text-slate-700">
+          <span class="font-medium">{{ n.actor_name }}</span>
+          {% if n.type == 'like' %}
+            liked your review
+          {% else %}
+            commented on your review
+          {% endif %}
+        </p>
+        <p class="text-xs text-slate-400 truncate mt-0.5">{{ n.paper_title }}</p>
+        <p class="text-xs text-slate-300 mt-0.5">{{ n.created_at.strftime('%d %b %Y, %H:%M') }}</p>
+      </div>
+
+      <!-- Unread dot -->
+      {% if not n.is_read %}
+      <span class="mt-2 flex-shrink-0 w-2 h-2 rounded-full bg-brand"></span>
+      {% endif %}
+
+    </a>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="bg-white border border-slate-200 rounded-xl px-6 py-12 text-center">
+    <p class="text-2xl mb-2">🔔</p>
+    <p class="text-slate-500 text-sm">No notifications yet.</p>
+    <p class="text-slate-400 text-xs mt-1">You'll be notified when someone likes or comments on your reviews.</p>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

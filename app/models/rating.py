@@ -72,6 +72,7 @@ class Rating(Base):
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
     )
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     paper: Mapped["Paper"] = relationship("Paper", back_populates="ratings")  # noqa: F821
     user: Mapped["User"] = relationship("User", back_populates="ratings")  # noqa: F821

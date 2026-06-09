@@ -6,11 +6,36 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
+from sqlalchemy import text
+
 from app.database import Base, engine
+from app.models import notification as _notif_model  # noqa: F401 — ensure table is registered
 from app.routers import auth, papers, api
 from app.routers import feedback as feedback_router
+from app.routers import profile as profile_router
 
 Base.metadata.create_all(bind=engine)
+
+# Column migrations — safe to run on every startup (no-op after first run)
+def _migrate():
+    with engine.connect() as conn:
+        is_sqlite = str(engine.url).startswith("sqlite")
+        if is_sqlite:
+            cols = [row[1] for row in conn.execute(text("PRAGMA table_info(users)"))]
+            if "career_stage" not in cols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN career_stage VARCHAR(60)"))
+            if "career_stage_set" not in cols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN career_stage_set BOOLEAN NOT NULL DEFAULT 0"))
+            rating_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(ratings)"))]
+            if "updated_at" not in rating_cols:
+                conn.execute(text("ALTER TABLE ratings ADD COLUMN updated_at DATETIME"))
+        else:
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS career_stage VARCHAR(60)"))
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS career_stage_set BOOLEAN NOT NULL DEFAULT FALSE"))
+            conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE"))
+        conn.commit()
+
+_migrate()
 
 app = FastAPI(
     title="ChemRepro",
@@ -33,6 +58,7 @@ app.include_router(auth.router)
 app.include_router(papers.router)
 app.include_router(api.router)
 app.include_router(feedback_router.router)
+app.include_router(profile_router.router)
 
 _templates = Jinja2Templates(directory="app/templates")
 

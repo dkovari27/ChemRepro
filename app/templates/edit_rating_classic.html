@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Edit review – ChemRepro{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+
+  <div class="mb-6">
+    <a href="/classic/paper/{{ paper.doi }}" class="text-sm text-slate-400 hover:text-brand transition-colors">← Back to paper</a>
+    <h1 class="text-xl font-bold text-slate-800 mt-2">Edit your review</h1>
+    <p class="text-sm text-slate-500 mt-1 truncate">{{ paper.title }}</p>
+  </div>
+
+  <form action="/classic/paper/{{ paper.doi }}/ratings/{{ rating.id }}/edit" method="post"
+        class="bg-white border border-slate-200 rounded-xl p-6 space-y-6">
+
+    {# ── Reproducibility stars (amber) ── #}
+    <div>
+      <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Reproducibility</p>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Reproducibility score</label>
+      <div class="flex gap-1 mb-1" id="repro-stars">
+        {% for i in range(1, 6) %}
+        <button type="button" data-value="{{ i }}" onclick="setRepro({{ i }})"
+          class="star-btn text-2xl transition-colors
+                 {% if rating.reproducibility_score and i <= rating.reproducibility_score %}text-amber-400{% else %}text-slate-300{% endif %}">★</button>
+        {% endfor %}
+      </div>
+      <input type="hidden" name="reproducibility_score" id="repro-input"
+             value="{{ rating.reproducibility_score or '' }}" />
+      <p class="text-xs text-slate-400 mb-1">★ Failed completely &nbsp;·&nbsp; ★★★ Partially reproduced &nbsp;·&nbsp; ★★★★★ Reproduced exactly or better</p>
+      <p id="repro-legend" class="text-xs font-medium text-amber-600 min-h-[1rem] mb-2">
+        {% if rating.reproducibility_score %}
+          {{ {1: 'Failed completely', 2: '', 3: 'Partially reproduced', 4: '', 5: 'Reproduced exactly'}.get(rating.reproducibility_score, '') }}
+        {% endif %}
+      </p>
+      <div class="mt-1">
+        <label class="block text-xs font-medium text-slate-600 mb-1">Reproducibility observation</label>
+        <textarea name="reproducibility_observation" rows="6" maxlength="1000" spellcheck="true"
+          placeholder="{{ prompts.REPRO_OBSERVATION }}"
+          class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y">{{ rating.reproducibility_observation or '' }}</textarea>
+      </div>
+    </div>
+
+    {# ── Extension stars (blue) ── #}
+    <div class="border-t border-slate-100 pt-5">
+      <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Extension</p>
+      <label class="block text-xs font-medium text-slate-600 mb-1">Extension score</label>
+      <div class="flex gap-1 mb-1" id="ext-stars">
+        {% for i in range(1, 6) %}
+        <button type="button" data-value="{{ i }}" onclick="setExt({{ i }})"
+          class="star-btn-ext text-2xl transition-colors
+                 {% if rating.generalisability_score and i <= rating.generalisability_score %}text-blue-400{% else %}text-slate-300{% endif %}">★</button>
+        {% endfor %}
+      </div>
+      <input type="hidden" name="generalisability_score" id="ext-input"
+             value="{{ rating.generalisability_score or '' }}" />
+      <p class="text-xs text-slate-400 mb-1">★ Minor – Similar scaffold &nbsp;·&nbsp; ★★★ Medium – New scaffold &nbsp;·&nbsp; ★★★★★ Major – New scaffold, new function</p>
+      <p id="ext-legend" class="text-xs font-medium text-blue-600 min-h-[1rem] mb-2">
+        {% if rating.generalisability_score %}
+          {{ {1: 'Minor – same scaffold', 2: '', 3: 'Medium – new scaffold', 4: '', 5: 'Major – new scaffold, new function'}.get(rating.generalisability_score, '') }}
+        {% endif %}
+      </p>
+      <div class="mt-1">
+        <label class="block text-xs font-medium text-slate-600 mb-1">Extension observation</label>
+        <textarea name="scope_observation" rows="6" maxlength="1000" spellcheck="true"
+          placeholder="{{ prompts.SCOPE_OBSERVATION }}"
+          class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y">{{ rating.scope_observation or '' }}</textarea>
+      </div>
+    </div>
+
+    <div class="flex gap-3 pt-2">
+      <button type="submit"
+        class="bg-brand text-white rounded-lg px-6 py-2.5 text-sm font-medium hover:bg-blue-700 transition-colors">
+        Save changes
+      </button>
+      <a href="/classic/paper/{{ paper.doi }}#review-{{ rating.id }}"
+        class="text-sm text-slate-400 hover:text-slate-600 px-4 py-2.5">
+        Cancel
+      </a>
+    </div>
+  </form>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const REPRO_LABELS = { 1: 'Failed completely', 2: '', 3: 'Partially reproduced', 4: '', 5: 'Reproduced exactly' };
+  const EXT_LABELS   = { 1: 'Minor – same scaffold', 2: '', 3: 'Medium – new scaffold', 4: '', 5: 'Major – new scaffold, new function' };
+
+  function setRepro(val) {
+    document.getElementById('repro-input').value = val;
+    document.querySelectorAll('#repro-stars .star-btn').forEach(btn => {
+      btn.classList.toggle('text-amber-400', parseInt(btn.dataset.value) <= val);
+      btn.classList.toggle('text-slate-300', parseInt(btn.dataset.value) > val);
+    });
+    document.getElementById('repro-legend').textContent = REPRO_LABELS[val] || '';
+  }
+
+  function setExt(val) {
+    document.getElementById('ext-input').value = val;
+    document.querySelectorAll('#ext-stars .star-btn-ext').forEach(btn => {
+      btn.classList.toggle('text-blue-400', parseInt(btn.dataset.value) <= val);
+      btn.classList.toggle('text-slate-300', parseInt(btn.dataset.value) > val);
+    });
+    document.getElementById('ext-legend').textContent = EXT_LABELS[val] || '';
+  }
+</script>
+{% endblock %}

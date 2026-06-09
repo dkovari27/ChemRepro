@@ -8,13 +8,47 @@ CROSSREF_URL = "https://api.crossref.org/works/{doi}"
 
 def normalise_doi(raw: str) -> str:
     """Extract a bare DOI from any input — URL, doi: prefix, or plain DOI."""
-    # Try to extract DOI pattern from anywhere in the string (handles publisher URLs,
+    s = raw.strip()
+    path_only = s.split('?')[0].split('#')[0].rstrip('/')
+
+    # RSC (pubs.rsc.org) — DOI is always 10.1039/{last-segment}
+    # e.g. https://pubs.rsc.org/en/content/articlehtml/2021/cs/d1cs00311a
+    if 'pubs.rsc.org' in s:
+        suffix = path_only.split('/')[-1]
+        if re.match(r'^[a-z0-9]{6,20}$', suffix, re.IGNORECASE):
+            return f"10.1039/{suffix.lower()}"
+
+    # Nature family (nature.com/articles/{slug}) — DOI is 10.1038/{slug}
+    # e.g. https://www.nature.com/articles/s41557-021-00679-1
+    if 'nature.com/articles/' in s:
+        slug = path_only.split('/articles/')[-1].split('/')[0]
+        if re.match(r'^[a-zA-Z0-9._-]{4,}$', slug):
+            return f"10.1038/{slug}"
+
+    # Beilstein journals — DOI is 10.3762/{journal}.{vol}.{id}
+    # e.g. https://www.beilstein-journals.org/bjoc/articles/19/1
+    if 'beilstein-journals.org' in s:
+        parts = path_only.split('/')
+        # expect: .../{journal}/articles/{vol}/{id}
+        try:
+            art_idx = parts.index('articles')
+            journal = parts[art_idx - 1]   # e.g. bjoc, bjnano
+            vol = parts[art_idx + 1]
+            art_id = parts[art_idx + 2]
+            if vol.isdigit() and art_id.isdigit():
+                return f"10.3762/{journal}.{vol}.{art_id}"
+        except (ValueError, IndexError):
+            pass
+
+    # Generic: extract DOI pattern from anywhere in the string (handles publisher URLs,
     # doi.org links, doi:/DOI: prefixes, pasted article pages, etc.)
-    match = re.search(r'10\.\d{4,}/\S+', raw.strip())
+    # Covers: ACS, Wiley, Springer, Thieme, Taylor & Francis, Science, PNAS, Elsevier
+    # direct doi links, chemrxiv, etc.
+    match = re.search(r'10\.\d{4,}/\S+', s)
     if match:
         doi = match.group(0)
     else:
-        doi = raw.strip()
+        doi = s
     return doi.rstrip(".,;)")
 
 
@@ -130,3 +164,59 @@ async def fetch_paper_metadata(doi: str) -> dict | None:
         "year": year,
         "abstract": abstract,
     }
+
+
+async def resolve_url_to_doi(url: str) -> str | None:
+    """Resolve a publisher URL that doesn't embed a DOI to an actual DOI.
+    Handles PubMed (via NCBI eSummary) and ScienceDirect (via CrossRef alternative-id).
+    Returns the DOI string, or None if unrecognised / lookup fails."""
+    if 'pubmed.ncbi.nlm.nih.gov' in url:
+        return await _resolve_pubmed(url)
+    if 'sciencedirect.com' in url or 'linkinghub.elsevier.com' in url:
+        return await _resolve_sciencedirect(url)
+    return None
+
+
+async def _resolve_pubmed(url: str) -> str | None:
+    pmid = url.rstrip('/').split('/')[-1].split('?')[0]
+    if not pmid.isdigit():
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.get(
+                "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi",
+                params={"db": "pubmed", "id": pmid, "retmode": "json"},
+                headers={"User-Agent": "ChemRepro/1.0"},
+            )
+        if resp.status_code != 200:
+            return None
+        result = resp.json().get("result", {}).get(pmid, {})
+        for artid in result.get("articleids", []):
+            if artid.get("idtype") == "doi":
+                return artid.get("value")
+    except Exception:  # noqa: BLE001
+        pass
+    return None
+
+
+async def _resolve_sciencedirect(url: str) -> str | None:
+    """Use CrossRef alternative-id filter to resolve a ScienceDirect PII to a DOI."""
+    pii_match = re.search(r'pii/([A-Z0-9]+)', url, re.IGNORECASE)
+    if not pii_match:
+        return None
+    pii = pii_match.group(1)
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.get(
+                "https://api.crossref.org/works",
+                params={"filter": f"alternative-id:{pii}", "select": "DOI", "rows": 1},
+                headers={"User-Agent": "ChemRepro/1.0"},
+            )
+        if resp.status_code != 200:
+            return None
+        items = resp.json().get("message", {}).get("items", [])
+        if items:
+            return items[0].get("DOI")
+    except Exception:  # noqa: BLE001
+        pass
+    return None

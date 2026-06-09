@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -11,10 +12,11 @@ from app.config import settings
 from app.database import get_db
 from app.models.comment import Comment
 from app.models.like import Like
+from app.models.notification import Notification
 from app.models.paper import Paper
 from app.models.rating import Rating
 from app.routers.auth import DEV_FAKE_USERS
-from app.services.crossref import fetch_paper_metadata, is_valid_doi, normalise_doi
+from app.services.crossref import fetch_paper_metadata, is_valid_doi, normalise_doi, resolve_url_to_doi
 
 router = APIRouter(tags=["papers"])
 templates = Jinja2Templates(directory="app/templates")
@@ -170,7 +172,10 @@ async def search(request: Request, doi: str = "", db: Session = Depends(get_db))
     if not doi:
         return RedirectResponse("/")
 
-    doi = normalise_doi(doi)
+    # Some publisher URLs (PubMed, ScienceDirect) need an async API call to resolve to DOI
+    resolved = await resolve_url_to_doi(doi)
+    doi = resolved if resolved else normalise_doi(doi)
+
     if not is_valid_doi(doi):
         return templates.TemplateResponse("index.html", {
             "request": request,
@@ -201,6 +206,72 @@ async def search(request: Request, doi: str = "", db: Session = Depends(get_db))
         db.refresh(paper)
 
     return RedirectResponse(f"/paper/{doi}", status_code=303)
+
+
+# ── Helpers (defined early so edit/notification routes can reference them) ────
+
+def _maybe_notify(
+    db: Session,
+    *,
+    notif_type: str,
+    actor_orcid_id: str,
+    actor_name: str,
+    rating: Rating,
+    paper: Paper,
+) -> None:
+    """Create a notification for the review author, unless they are the actor."""
+    if rating.orcid_id == actor_orcid_id:
+        return
+    db.add(Notification(
+        recipient_orcid_id=rating.orcid_id,
+        type=notif_type,
+        actor_name=actor_name,
+        rating_id=rating.id,
+        doi=paper.doi,
+        paper_title=(paper.title or "")[:200],
+    ))
+
+
+def _own_rating_or_404(rating_id: int, orcid_id: str, db: Session) -> Rating:
+    r = db.get(Rating, rating_id)
+    if not r:
+        raise HTTPException(status_code=404, detail="Review not found")
+    if r.orcid_id != orcid_id:
+        raise HTTPException(status_code=403, detail="Not your review")
+    return r
+
+
+def _delete_rating(r: Rating, db: Session) -> None:
+    db.query(Like).filter(Like.rating_id == r.id).delete()
+    db.query(Comment).filter(Comment.rating_id == r.id).delete()
+    db.delete(r)
+    db.commit()
+
+
+# ── Standard: GET edit (must be before the greedy /paper/{doi:path} route) ───
+
+@router.get("/paper/{doi:path}/ratings/{rating_id}/edit", response_class=HTMLResponse)
+async def edit_rating_page(doi: str, rating_id: int, request: Request, db: Session = Depends(get_db)):
+    orcid_id = request.session.get("orcid_id")
+    if not orcid_id:
+        return RedirectResponse(f"/auth/guest-setup?next=/paper/{doi}", status_code=303)
+    r = _own_rating_or_404(rating_id, orcid_id, db)
+    paper = db.get(Paper, doi)
+    if not paper:
+        raise HTTPException(status_code=404)
+    return templates.TemplateResponse("edit_rating.html", {
+        "request": request,
+        "paper": paper,
+        "rating": r,
+        "outcome_labels": OUTCOME_LABELS,
+        "outcome_order": OUTCOME_ORDER,
+        "outcome_scores": OUTCOME_SCORES,
+        "prompts": __import__("app.prompts", fromlist=["prompts"]),
+        "user_name": request.session.get("user_name"),
+        "orcid_id": orcid_id,
+        "site_version": "standard",
+        "switch_urls": {"standard": "/", "classic": "/classic/"},
+    })
 
 
 @router.get("/paper/{doi:path}", response_class=HTMLResponse)
@@ -363,6 +434,7 @@ async def submit_comment(
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
 
+    rating = db.get(Rating, rating_id)
     comment = Comment(
         doi=doi,
         rating_id=rating_id,
@@ -370,6 +442,15 @@ async def submit_comment(
         content=content.strip()[:2000],
     )
     db.add(comment)
+    if rating:
+        _maybe_notify(
+            db,
+            notif_type="comment",
+            actor_orcid_id=orcid_id,
+            actor_name=request.session.get("user_name", "Someone"),
+            rating=rating,
+            paper=paper,
+        )
     db.commit()
     return RedirectResponse(f"/paper/{doi}#review-{rating_id}", status_code=303)
 
@@ -390,6 +471,18 @@ async def toggle_like(doi: str, rating_id: int, request: Request, db: Session = 
     else:
         db.add(Like(rating_id=rating_id, orcid_id=orcid_id))
         liked = True
+        rating = db.get(Rating, rating_id)
+        if rating:
+            paper = db.get(Paper, doi)
+            if paper:
+                _maybe_notify(
+                    db,
+                    notif_type="like",
+                    actor_orcid_id=orcid_id,
+                    actor_name=request.session.get("user_name", "Someone"),
+                    rating=rating,
+                    paper=paper,
+                )
     db.commit()
 
     count = db.query(func.count(Like.id)).filter(Like.rating_id == rating_id).scalar()
@@ -539,6 +632,29 @@ async def classic_index(request: Request, db: Session = Depends(get_db)):
         "switch_urls": {"standard": "/", "classic": "/classic/"},
         **_dev_context(),
         **_scoring_context(),
+    })
+
+
+# ── Classic: GET edit (must be before the greedy /classic/paper/{doi:path} route) ──
+
+@router.get("/classic/paper/{doi:path}/ratings/{rating_id}/edit", response_class=HTMLResponse)
+async def classic_edit_rating_page(doi: str, rating_id: int, request: Request, db: Session = Depends(get_db)):
+    orcid_id = request.session.get("orcid_id")
+    if not orcid_id:
+        return RedirectResponse(f"/auth/guest-setup?next=/classic/paper/{doi}", status_code=303)
+    r = _own_rating_or_404(rating_id, orcid_id, db)
+    paper = db.get(Paper, doi)
+    if not paper:
+        raise HTTPException(status_code=404)
+    return templates.TemplateResponse("edit_rating_classic.html", {
+        "request": request,
+        "paper": paper,
+        "rating": r,
+        "prompts": __import__("app.prompts", fromlist=["prompts"]),
+        "user_name": request.session.get("user_name"),
+        "orcid_id": orcid_id,
+        "site_version": "classic",
+        "switch_urls": {"standard": "/", "classic": "/classic/"},
     })
 
 
@@ -729,9 +845,95 @@ async def classic_submit_rating(
     return RedirectResponse(f"/classic/paper/{doi}", status_code=303)
 
 
+# ── Standard: edit / delete ──────────────────────────────────────────────────
+
+@router.post("/paper/{doi:path}/ratings/{rating_id}/delete")
+async def delete_rating(doi: str, rating_id: int, request: Request, db: Session = Depends(get_db)):
+    orcid_id = request.session.get("orcid_id")
+    if not orcid_id:
+        raise HTTPException(status_code=403, detail="Not authenticated")
+    r = _own_rating_or_404(rating_id, orcid_id, db)
+    _delete_rating(r, db)
+    return RedirectResponse(f"/paper/{doi}", status_code=303)
+
+
+@router.post("/paper/{doi:path}/ratings/{rating_id}/edit")
+async def edit_rating_submit(
+    doi: str, rating_id: int, request: Request, db: Session = Depends(get_db),
+    outcome: str = Form(""),
+    reproducibility_observation: str = Form(""),
+    scope_level: str = Form(""),
+    scope_observation: str = Form(""),
+    modification_details: str = Form(""),
+):
+    orcid_id = request.session.get("orcid_id")
+    if not orcid_id:
+        raise HTTPException(status_code=403)
+    r = _own_rating_or_404(rating_id, orcid_id, db)
+    if outcome:
+        r.outcome = outcome
+    r.reproducibility_observation = reproducibility_observation.strip()[:1000] or None
+    r.scope_level = scope_level or None
+    r.scope_observation = scope_observation.strip()[:1000] or None
+    r.modification_details = modification_details.strip()[:1000] or None
+    r.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    return RedirectResponse(f"/paper/{doi}#review-{rating_id}", status_code=303)
+
+
+# ── Classic: edit / delete ───────────────────────────────────────────────────
+
+@router.post("/classic/paper/{doi:path}/ratings/{rating_id}/delete")
+async def classic_delete_rating(doi: str, rating_id: int, request: Request, db: Session = Depends(get_db)):
+    orcid_id = request.session.get("orcid_id")
+    if not orcid_id:
+        raise HTTPException(status_code=403, detail="Not authenticated")
+    r = _own_rating_or_404(rating_id, orcid_id, db)
+    _delete_rating(r, db)
+    return RedirectResponse(f"/classic/paper/{doi}", status_code=303)
+
+
+@router.post("/classic/paper/{doi:path}/ratings/{rating_id}/edit")
+async def classic_edit_rating_submit(
+    doi: str, rating_id: int, request: Request, db: Session = Depends(get_db),
+    reproducibility_score: str = Form(""),
+    reproducibility_observation: str = Form(""),
+    generalisability_score: str = Form(""),
+    scope_observation: str = Form(""),
+):
+    orcid_id = request.session.get("orcid_id")
+    if not orcid_id:
+        raise HTTPException(status_code=403)
+    r = _own_rating_or_404(rating_id, orcid_id, db)
+    repro_int = int(reproducibility_score) if reproducibility_score else None
+    ext_int = int(generalisability_score) if generalisability_score else None
+    if repro_int is not None and not (1 <= repro_int <= 5):
+        raise HTTPException(status_code=422)
+    if ext_int is not None and not (1 <= ext_int <= 5):
+        raise HTTPException(status_code=422)
+    r.reproducibility_score = repro_int
+    r.reproducibility_observation = reproducibility_observation.strip()[:1000] or None
+    r.generalisability_score = ext_int
+    r.scope_observation = scope_observation.strip()[:1000] or None
+    r.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    return RedirectResponse(f"/classic/paper/{doi}#review-{rating_id}", status_code=303)
+
+
 @router.get("/about", response_class=HTMLResponse)
 async def about(request: Request):
     return templates.TemplateResponse("about.html", {
+        "request": request,
+        "user_name": request.session.get("user_name"),
+        "orcid_id": request.session.get("orcid_id"),
+        "site_version": "standard",
+        "switch_urls": {"standard": "/", "classic": "/classic/"},
+    })
+
+
+@router.get("/privacy", response_class=HTMLResponse)
+async def privacy(request: Request):
+    return templates.TemplateResponse("privacy.html", {
         "request": request,
         "user_name": request.session.get("user_name"),
         "orcid_id": request.session.get("orcid_id"),

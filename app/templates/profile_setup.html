@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}About you – ChemRepro{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto mt-12">
+  <div class="bg-white border border-slate-200 rounded-xl p-8">
+
+    <div class="mb-6">
+      <h1 class="text-xl font-bold text-slate-800 mb-1">One quick question</h1>
+      <p class="text-sm text-slate-500">
+        This helps other chemists understand the context of your reviews.
+        It is optional and can be skipped.
+      </p>
+    </div>
+
+    <form action="/auth/profile-setup" method="post">
+      <fieldset class="mb-6">
+        <legend class="text-sm font-medium text-slate-700 mb-3">Which best describes your current role?</legend>
+        <div class="space-y-2">
+          {% for stage in career_stages %}
+          <label class="flex items-center gap-3 cursor-pointer group">
+            <input type="radio" name="career_stage" value="{{ stage }}"
+              class="accent-brand w-4 h-4 flex-shrink-0" />
+            <span class="text-sm text-slate-700 group-hover:text-slate-900 transition-colors">{{ stage }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+
+      <div class="flex items-center gap-3">
+        <button type="submit"
+          class="flex-1 bg-brand text-white rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-blue-700 transition-colors">
+          Continue
+        </button>
+        <a href="/auth/profile-setup-skip"
+          class="text-sm text-slate-400 hover:text-slate-600 transition-colors px-2">
+          Skip
+        </a>
+      </div>
+    </form>
+
+  </div>
+
+  <p class="text-xs text-slate-400 text-center mt-4">
+    This information is shown on your reviews to provide context.
+    It is not linked to your name or identity.
+  </p>
+</div>
+{% endblock %}

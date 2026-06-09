@@ -11,33 +11,61 @@
       You can replace this with verified ORCID login later.
     </p>
 
-    <form action="/auth/guest-setup" method="post" class="space-y-4" data-moderate>
-      <input type="hidden" name="next_url" value="{{ next_url }}" />
+    <!-- Welcome back panel (shown by JS when localStorage has a saved guest session) -->
+    <div id="reconnect-section" class="hidden mb-5 bg-green-50 border border-green-200 rounded-xl p-4">
+      <p class="text-sm font-semibold text-green-800 mb-0.5">
+        Welcome back, <span id="reconnect-name" class="font-bold"></span>!
+      </p>
+      <p class="text-xs text-green-600 mb-3">Resume your previous guest session?</p>
+      <form action="/auth/guest-setup" method="post" class="flex items-center gap-2">
+        <input type="hidden" name="next_url" value="{{ next_url }}" />
+        <input type="hidden" name="reconnect_id" id="reconnect-id-input" value="" />
+        <input type="hidden" name="display_name" id="reconnect-display-input" value="" />
+        <button type="submit"
+          class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg transition-colors font-medium">
+          Continue as <span id="reconnect-name-btn"></span>
+        </button>
+        <button type="button" onclick="dismissReconnect()"
+          class="text-xs text-green-600 hover:text-green-800 underline transition-colors">
+          Use a different name
+        </button>
+      </form>
+    </div>
 
-      <div>
-        <label class="block text-sm font-medium text-slate-700 mb-1" for="display_name">
-          Display name <span class="text-red-500">*</span>
-        </label>
-        <input
-          type="text"
-          id="display_name"
-          name="display_name"
-          maxlength="80"
-          required
-          autofocus
-          placeholder="e.g. Daniel K."
-          class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm
-                 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
-        />
-        <p class="text-xs text-slate-400 mt-1">First name + initial is fine. No real names required.</p>
-      </div>
+    <!-- Standard name form -->
+    <div id="name-form-section">
+      <form action="/auth/guest-setup" method="post" class="space-y-4" data-moderate>
+        <input type="hidden" name="next_url" value="{{ next_url }}" />
+        <input type="hidden" name="reconnect_id" value="" />
 
-      <button type="submit"
-        class="w-full bg-brand text-white rounded-lg px-5 py-2.5 text-sm font-medium
-               hover:bg-blue-700 transition-colors">
-        Continue
-      </button>
-    </form>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1" for="display_name">
+            Display name <span class="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            id="display_name"
+            name="display_name"
+            maxlength="80"
+            required
+            autofocus
+            placeholder="e.g. Daniel K."
+            class="w-full border border-slate-300 rounded-lg px-4 py-2.5 text-sm
+                   focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+          />
+          <p class="text-xs text-slate-400 mt-1">
+            First name + initial is fine. If you used the same name before on this browser,
+            you'll be reconnected automatically.
+          </p>
+        </div>
+
+        <button type="submit"
+          class="w-full bg-brand text-white rounded-lg px-5 py-2.5 text-sm font-medium
+                 hover:bg-blue-700 transition-colors">
+          Continue
+        </button>
+      </form>
+    </div>
 
     <p class="text-xs text-slate-400 mt-6 text-center">
       Have an ORCID?
@@ -46,4 +74,26 @@
   </div>
 
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    const savedId   = localStorage.getItem('chemrepro_guest_id');
+    const savedName = localStorage.getItem('chemrepro_guest_name');
+    if (!savedId || !savedId.startsWith('local:') || !savedName) return;
+
+    // Show the welcome-back panel
+    document.getElementById('reconnect-name').textContent     = savedName;
+    document.getElementById('reconnect-name-btn').textContent = savedName;
+    document.getElementById('reconnect-id-input').value       = savedId;
+    document.getElementById('reconnect-display-input').value  = savedName;
+    document.getElementById('reconnect-section').classList.remove('hidden');
+  })();
+
+  function dismissReconnect() {
+    document.getElementById('reconnect-section').classList.add('hidden');
+    document.getElementById('display_name').focus();
+  }
+</script>
 {% endblock %}

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
-from app.models.user import User
+from app.models.user import CAREER_STAGES, User
 from app.services.orcid import exchange_code_for_token, fetch_orcid_name, get_auth_url
 
 templates = Jinja2Templates(directory="app/templates")
@@ -72,6 +72,9 @@ async def callback(
     request.session["orcid_id"] = orcid_id
     request.session["user_name"] = user.name or orcid_id
 
+    if not user.career_stage_set:
+        request.session["after_profile_setup"] = "/"
+        return RedirectResponse("/auth/profile-setup", status_code=303)
     return RedirectResponse("/", status_code=303)
 
 
@@ -90,25 +93,102 @@ async def guest_setup(
     db: Session = Depends(get_db),
     display_name: str = Form(...),
     next_url: str = Form(default="/"),
+    reconnect_id: str = Form(default=""),
 ):
     display_name = display_name.strip()[:80]
     if not display_name:
         return RedirectResponse(f"/auth/guest-setup?next={next_url}", status_code=303)
 
-    local_id = f"local:{uuid.uuid4()}"
-    user = User(orcid_id=local_id, name=display_name, verified_at=datetime.now(timezone.utc))
-    db.add(user)
-    db.commit()
+    user = None
 
-    request.session["orcid_id"] = local_id
-    request.session["user_name"] = display_name
-    return RedirectResponse(next_url or "/", status_code=303)
+    # ── Layer 1: explicit reconnect from localStorage ──────────────────────
+    if reconnect_id.startswith("local:"):
+        user = db.get(User, reconnect_id)
+
+    # ── Layer 2: name-based reconnect (fallback, unique-name only) ────────
+    if user is None:
+        matches = (
+            db.query(User)
+            .filter(User.orcid_id.like("local:%"), User.name == display_name)
+            .all()
+        )
+        if len(matches) == 1:
+            user = matches[0]
+
+    # ── Layer 3: create new guest ─────────────────────────────────────────
+    if user is None:
+        local_id = f"local:{uuid.uuid4()}"
+        user = User(orcid_id=local_id, name=display_name, verified_at=datetime.now(timezone.utc))
+        db.add(user)
+        db.commit()
+
+    request.session["orcid_id"] = user.orcid_id
+    request.session["user_name"] = user.name
+    request.session["after_profile_setup"] = next_url or "/"
+
+    # Skip profile setup if the user already configured their career stage
+    if user.career_stage_set:
+        return RedirectResponse(next_url or "/", status_code=303)
+    return RedirectResponse("/auth/profile-setup", status_code=303)
+
+
+@router.get("/profile-setup")
+async def profile_setup_page(request: Request):
+    if not request.session.get("orcid_id"):
+        return RedirectResponse("/", status_code=303)
+    return templates.TemplateResponse("profile_setup.html", {
+        "request": request,
+        "career_stages": CAREER_STAGES,
+        "user_name": request.session.get("user_name"),
+        "orcid_id": request.session.get("orcid_id"),
+        "site_version": "standard",
+        "switch_urls": {"standard": "/", "classic": "/classic/"},
+    })
+
+
+@router.post("/profile-setup")
+async def submit_profile_setup(
+    request: Request,
+    db: Session = Depends(get_db),
+    career_stage: str = Form(default=""),
+):
+    orcid_id = request.session.get("orcid_id")
+    if not orcid_id:
+        return RedirectResponse("/", status_code=303)
+
+    user = db.get(User, orcid_id)
+    if user:
+        if career_stage in CAREER_STAGES:
+            user.career_stage = career_stage
+        user.career_stage_set = True
+        db.commit()
+
+    next_url = request.session.pop("after_profile_setup", "/")
+    return RedirectResponse(next_url, status_code=303)
+
+
+@router.get("/profile-setup-skip")
+async def skip_profile_setup(request: Request, db: Session = Depends(get_db)):
+    orcid_id = request.session.get("orcid_id")
+    if orcid_id:
+        user = db.get(User, orcid_id)
+        if user:
+            user.career_stage_set = True
+            db.commit()
+    next_url = request.session.pop("after_profile_setup", "/")
+    return RedirectResponse(next_url, status_code=303)
 
 
 @router.get("/logout")
 async def logout(request: Request):
     request.session.clear()
-    return RedirectResponse("/", status_code=303)
+    # Redirect through a tiny page that clears guest localStorage before going home
+    return RedirectResponse("/auth/signed-out", status_code=303)
+
+
+@router.get("/signed-out")
+async def signed_out(request: Request):
+    return templates.TemplateResponse("signed_out.html", {"request": request})
 
 
 @router.get("/dev-login/{user_index}")
