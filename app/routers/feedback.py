@@ -115,7 +115,7 @@ async def add_suggestion(
 ):
     if suggested_names.strip():
         _upsert_names(suggested_names, _voter_id(request), db)
-    return RedirectResponse("/feedback?submitted=1", status_code=303)
+    return RedirectResponse("/feedback", status_code=303)
 
 
 @router.post("/feedback/vote/{suggestion_id}")
