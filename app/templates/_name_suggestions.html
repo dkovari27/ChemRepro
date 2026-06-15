@@ -1,0 +1,64 @@
+<!-- ── Name suggestions panel ─────────────────────────────────────── -->
+<div class="bg-white border border-slate-200 rounded-xl p-6">
+  <h2 class="text-base font-bold text-slate-800 mb-1">Name the platform</h2>
+  <p class="text-xs text-slate-500 mb-4">
+    Vote for your favourite(s) or add new ideas below. Multiple votes allowed.
+  </p>
+
+  {% if suggestions %}
+  <div class="space-y-2 mb-5" id="suggestion-list">
+    {% for s in suggestions %}
+    <div id="sug-row-{{ s.id }}" class="flex items-center gap-3">
+      <button type="button"
+        onclick="voteFor({{ s.id }}, this)"
+        class="flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium transition-all
+               {% if s.voted %}border-brand bg-brand text-white{% else %}border-slate-200 text-slate-600 hover:border-brand hover:text-brand{% endif %}">
+        <span class="vote-label">{{ '✓ ' if s.voted }}{{ s.name }}</span>
+        <span id="vcount-{{ s.id }}" class="text-xs {% if s.voted %}text-white/80{% else %}text-slate-400{% endif %} tabular-nums">
+          {{ s.votes }}
+        </span>
+      </button>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="text-sm text-slate-400 italic mb-5">No suggestions yet — be the first!</p>
+  {% endif %}
+
+  <!-- Add new suggestion without submitting the full form -->
+  <form action="/feedback/suggest" method="post" class="flex gap-2">
+    <input type="text" name="suggested_names" maxlength="500" required
+      placeholder="Add a name (comma-separate multiple)"
+      class="flex-1 min-w-0 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand" />
+    <button type="submit"
+      class="shrink-0 bg-brand text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-brand-dark transition-colors">
+      Add
+    </button>
+  </form>
+</div>
+
+<script>
+async function voteFor(id, btn) {
+  try {
+    const resp = await fetch(`/feedback/vote/${id}`, {
+      method: 'POST', headers: { 'Accept': 'application/json' },
+    });
+    if (!resp.ok) return;
+    const { voted, votes } = await resp.json();
+    const label = btn.querySelector('.vote-label');
+    const count = document.getElementById('vcount-' + id);
+    if (voted) {
+      btn.classList.remove('border-slate-200', 'text-slate-600', 'hover:border-brand', 'hover:text-brand');
+      btn.classList.add('border-brand', 'bg-brand', 'text-white');
+      if (count) { count.classList.remove('text-slate-400'); count.classList.add('text-white/80'); }
+      if (label) label.textContent = '✓ ' + label.textContent.replace(/^✓ /, '');
+    } else {
+      btn.classList.remove('border-brand', 'bg-brand', 'text-white');
+      btn.classList.add('border-slate-200', 'text-slate-600', 'hover:border-brand', 'hover:text-brand');
+      if (count) { count.classList.remove('text-white/80'); count.classList.add('text-slate-400'); }
+      if (label) label.textContent = label.textContent.replace(/^✓ /, '');
+    }
+    if (count) count.textContent = votes;
+  } catch (_) {}
+}
+</script>

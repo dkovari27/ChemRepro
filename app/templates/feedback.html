@@ -4,15 +4,21 @@
 {% block content %}
 <div class="max-w-xl mx-auto">
 
+  <!-- ── Thank-you state ───────────────────────────────────────────── -->
   {% if submitted %}
   <div class="bg-green-50 border border-green-200 rounded-xl p-6 text-center mb-6">
     <p class="text-2xl mb-2">Thank you!</p>
     <p class="text-slate-600 text-sm">Your feedback has been recorded. It will help us decide which scoring method to keep.</p>
     <a href="/" class="inline-block mt-4 text-sm text-brand hover:underline">← Back to ChemRepro</a>
   </div>
+
+  <!-- Name suggestion widget — still shown after submit so they can vote -->
+  {% include "_name_suggestions.html" %}
+
   {% else %}
 
-  <div class="bg-white border border-slate-200 rounded-xl p-6">
+  <!-- ── Main feedback form ────────────────────────────────────────── -->
+  <div class="bg-white border border-slate-200 rounded-xl p-6 mb-6">
     <h1 class="text-xl font-bold text-slate-800 mb-1">Tester feedback</h1>
     <p class="text-sm text-slate-500 mb-6">
       You've been trying ChemRepro as a beta tester. We're deciding which scoring method to keep – your opinion matters.
@@ -20,6 +26,7 @@
 
     <form action="/feedback" method="post">
 
+      <!-- Scoring preference -->
       <div class="mb-6">
         <label class="block text-sm font-semibold text-slate-700 mb-3">
           Which scoring method felt more useful for evaluating chemistry papers?
@@ -62,18 +69,30 @@
         </div>
       </div>
 
+      <!-- Free-text comment -->
       <div class="mb-6">
         <label class="block text-sm font-semibold text-slate-700 mb-2">
           Any other thoughts? <span class="text-slate-400 font-normal">(optional)</span>
         </label>
-        <textarea name="comment" rows="5" maxlength="2000"
+        <textarea name="comment" rows="4" maxlength="2000"
           placeholder="What worked well? What was confusing? Any missing features?" spellcheck="true"
           class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
         <p class="text-xs text-slate-400 mt-1">Max 2000 characters.</p>
       </div>
 
+      <!-- Name suggestion input -->
+      <div class="mb-6 bg-[#f2f7f5] rounded-xl p-4">
+        <label class="block text-sm font-semibold text-slate-700 mb-1">
+          Got a name idea for the platform? <span class="text-slate-400 font-normal">(optional)</span>
+        </label>
+        <p class="text-xs text-slate-500 mb-2">Separate multiple names with commas — others can see and vote for them.</p>
+        <input type="text" name="suggested_names" maxlength="500"
+          placeholder="e.g. RepliChem, SynthCheck, LabLog"
+          class="w-full border border-slate-200 bg-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand" />
+      </div>
+
       <button type="submit"
-        class="w-full bg-brand text-white rounded-lg px-4 py-3 text-sm font-medium hover:bg-blue-700 transition-colors">
+        class="w-full bg-brand text-white rounded-lg px-4 py-3 text-sm font-medium hover:bg-brand-dark transition-colors">
         Submit feedback
       </button>
 
@@ -87,6 +106,9 @@
       </p>
     </div>
   </div>
+
+  <!-- Name suggestions panel — shown below the form too -->
+  {% include "_name_suggestions.html" %}
 
   {% endif %}
 </div>

@@ -14,6 +14,7 @@ from app.models import paper_subscription as _sub_model      # noqa: F401
 from app.models import author_notification as _author_model  # noqa: F401
 from app.models import message as _message_model             # noqa: F401
 from app.models import user_follow as _user_follow_model     # noqa: F401
+from app.models import name_suggestion as _name_model        # noqa: F401
 from app.models.comment import CommentLike                   # noqa: F401
 from app.routers import auth, papers, api
 from app.routers import feedback as feedback_router
