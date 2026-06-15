@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import bleach
 import markdown as _md_lib
 
-from app.utils.design import register_globals
+from app.utils.design import index_tpl, paper_classic_tpl, paper_tpl, register_globals
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -203,7 +203,7 @@ async def index(request: Request, db: Session = Depends(get_db)):
     )
     community_papers = _enrich([p for p in community_candidates if p.doi not in my_doi_set][:10])
 
-    return templates.TemplateResponse("index.html", {
+    return templates.TemplateResponse(index_tpl(request), {
         "request": request,
         "my_papers": my_papers,
         "community_papers": community_papers,
@@ -469,7 +469,7 @@ async def paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
         ).first()
     )
 
-    return templates.TemplateResponse("paper.html", {
+    return templates.TemplateResponse(paper_tpl(request), {
         "request": request,
         "paper": paper,
         "authors": authors,
@@ -880,7 +880,7 @@ async def classic_index(request: Request, db: Session = Depends(get_db)):
     )
     community_papers = _enrich_classic([p for p in community_candidates if p.doi not in my_doi_set][:10])
 
-    return templates.TemplateResponse("index.html", {
+    return templates.TemplateResponse(index_tpl(request), {
         "request": request,
         "my_papers": my_papers,
         "community_papers": community_papers,
@@ -1064,7 +1064,7 @@ async def classic_paper_page(doi: str, request: Request, db: Session = Depends(g
         ).first()
     )
 
-    return templates.TemplateResponse("paper_classic.html", {
+    return templates.TemplateResponse(paper_classic_tpl(request), {
         "request": request,
         "paper": paper,
         "authors": authors,

@@ -1,0 +1,593 @@
+﻿{% extends design_base(request) %}
+{% block title %}{{ paper.title | truncate(60, true, '…') }} – Classic – ChemRepro{% endblock %}
+
+{% block content %}
+
+{# ── Paper header ─────────────────────────────────────────────────── #}
+<div class="bg-white border border-slate-200 rounded-xl p-6 mb-6">
+  <div class="flex items-start justify-between gap-4 flex-wrap">
+    <div class="flex-1 min-w-0">
+      <h1 class="text-xl font-bold text-slate-800 leading-snug mb-2">{{ paper.title }}</h1>
+      <p class="text-sm text-slate-500 mb-1">{{ authors | join(', ') }}</p>
+      <p class="text-sm text-slate-400 mb-0">
+        {% if paper.journal %}{{ paper.journal }}{% endif %}
+        {% if paper.year %} &middot; {{ paper.year }}{% endif %}
+        &middot; DOI:&nbsp;<a href="https://doi.org/{{ paper.doi }}" target="_blank"
+           class="font-mono text-brand hover:underline">{{ paper.doi }}</a>
+      </p>
+    </div>
+    <a href="https://doi.org/{{ paper.doi }}" target="_blank"
+       class="shrink-0 text-xs border border-slate-200 rounded-md px-3 py-1.5 text-slate-500 hover:border-brand hover:text-brand transition-colors">
+      View paper →
+    </a>
+  </div>
+  {% if paper.abstract %}
+  <div class="mt-4 pt-4 border-t border-slate-100">
+    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Abstract</p>
+    <p class="text-sm text-slate-600 leading-relaxed">{{ paper.abstract }}</p>
+  </div>
+  {% endif %}
+</div>
+
+{# ── 40/60 grid: score card + form (left) | reviews (right) ─────── #}
+<div class="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-6">
+
+  {# ══════════ LEFT COLUMN: Score card + Form ══════════ #}
+  <div>
+  <div class="sticky top-4 flex flex-col gap-4">
+
+    {# ── Classic score card ───────────────────────────────── #}
+    {% set repro_labels = {5: 'Reproduced exactly', 4: none, 3: 'Partially reproduced', 2: none, 1: 'Failed completely'} %}
+    {% set ext_labels   = {5: 'Major – new scaffold', 4: none, 3: 'Medium – new scaffold', 2: none, 1: 'Minor – same scaffold'} %}
+    <div class="bg-white border border-slate-200 rounded-xl p-5">
+
+      {# ── Reproducibility section ── #}
+      <div class="mb-5">
+        <div class="flex items-baseline gap-3 mb-3">
+          <span class="text-3xl font-bold text-amber-500">
+            {% if classic_scores.avg_repro %}★ {{ classic_scores.avg_repro }}{% else %}–{% endif %}
+          </span>
+          <span class="text-sm text-slate-400">{{ classic_scores.repro_count }} rating{{ 's' if classic_scores.repro_count != 1 }}</span>
+          <span class="ml-auto text-xs font-semibold text-amber-600 uppercase tracking-wide">Repro</span>
+        </div>
+        {% if classic_scores.repro_count > 0 %}
+        <div class="space-y-1.5">
+          {% for i in [5, 4, 3, 2, 1] %}
+          {% set cnt = classic_scores.repro_dist.get(i, 0) %}
+          {% set total = classic_scores.total_repro or 1 %}
+          {% set lbl = repro_labels[i] %}
+          <div>
+            <div class="flex justify-between text-xs mb-0.5">
+              <span class="text-amber-600 font-medium">
+                <span class="font-bold">{{ i }}</span>{% if lbl %}<span class="mx-0.5 opacity-60">–</span>{{ lbl }}{% endif %}
+              </span>
+              <span class="font-semibold shrink-0 ml-2 {% if cnt > 0 %}text-slate-600{% else %}text-slate-300{% endif %}">
+                {% if cnt > 0 %}×{{ cnt }}{% else %}–{% endif %}
+              </span>
+            </div>
+            <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+              <div class="h-full bg-amber-400 rounded-full {% if cnt == 0 %}opacity-0{% endif %}"
+                   style="width: {{ (cnt / total * 100) | int }}%"></div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-sm text-slate-400 italic">No reproducibility ratings yet.</p>
+        {% endif %}
+      </div>
+
+      {# ── Extension section ── #}
+      <div class="border-t border-slate-100 pt-4">
+        <div class="flex items-baseline gap-3 mb-3">
+          <span class="text-3xl font-bold text-blue-500">
+            {% if classic_scores.avg_ext %}★ {{ classic_scores.avg_ext }}{% else %}–{% endif %}
+          </span>
+          <span class="text-sm text-slate-400">{{ classic_scores.ext_count }} rating{{ 's' if classic_scores.ext_count != 1 }}</span>
+          <span class="ml-auto text-xs font-semibold text-blue-600 uppercase tracking-wide">Extension</span>
+        </div>
+        {% if classic_scores.ext_count > 0 %}
+        <div class="space-y-1.5">
+          {% for i in [5, 4, 3, 2, 1] %}
+          {% set cnt = classic_scores.ext_dist.get(i, 0) %}
+          {% set total = classic_scores.total_ext or 1 %}
+          {% set lbl = ext_labels[i] %}
+          <div>
+            <div class="flex justify-between text-xs mb-0.5">
+              <span class="text-blue-600 font-medium">
+                <span class="font-bold">{{ i }}</span>{% if lbl %}<span class="mx-0.5 opacity-60">–</span>{{ lbl }}{% endif %}
+              </span>
+              <span class="font-semibold shrink-0 ml-2 {% if cnt > 0 %}text-slate-600{% else %}text-slate-300{% endif %}">
+                {% if cnt > 0 %}×{{ cnt }}{% else %}–{% endif %}
+              </span>
+            </div>
+            <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+              <div class="h-full bg-blue-400 rounded-full {% if cnt == 0 %}opacity-0{% endif %}"
+                   style="width: {{ (cnt / total * 100) | int }}%"></div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-sm text-slate-400 italic">No extension ratings yet.</p>
+        {% endif %}
+      </div>
+
+    </div>
+
+    {# ── Rating form (Classic) ─────────────────────────────── #}
+    <div class="bg-white border border-slate-200 rounded-xl p-5">
+      <h2 class="font-semibold text-slate-700 mb-4">Rate this paper <span class="text-xs font-normal text-slate-400">(Classic)</span></h2>
+
+      {% if not orcid_id %}
+      <p class="text-sm text-slate-500 mb-3">Sign in to submit a Classic rating.</p>
+      <div class="flex flex-col gap-2">
+        <a href="/auth/guest-setup?next=/classic/paper/{{ paper.doi }}"
+           class="block text-center border border-slate-300 text-slate-700 rounded-lg px-4 py-2 text-sm hover:border-brand transition-colors">
+          Continue as guest
+        </a>
+        <a href="/auth/login"
+           class="block text-center bg-brand text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-colors">
+          Sign in with ORCID
+        </a>
+      </div>
+
+      {% elif user_already_rated %}
+      <div class="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-3">
+        You have already submitted a Classic rating for this paper.
+      </div>
+
+      {% else %}
+      <form action="/classic/paper/{{ paper.doi }}/rate" method="post" id="classic-form" data-moderate>
+
+        {# ── Reproducibility stars (amber) ── #}
+        <div class="mb-5">
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Reproducibility</p>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Reproducibility score</label>
+          <div class="flex gap-1 mb-1" data-stars="reproducibility_score">
+            {% for i in range(1, 6) %}
+            <button type="button" data-value="{{ i }}" class="star-btn text-2xl text-slate-300 transition-colors">★</button>
+            {% endfor %}
+          </div>
+          <input type="hidden" name="reproducibility_score" id="repro-input" value="" />
+          <p class="text-xs text-slate-400 mb-1">★ Failed completely &nbsp;·&nbsp; ★★★ Partially reproduced &nbsp;·&nbsp; ★★★★★ Reproduced exactly or better</p>
+          <p id="repro-legend" class="text-xs font-medium text-amber-600 min-h-[1rem] mb-1"></p>
+          <div id="repro-obs-block" class="hidden mt-1">
+            <label class="block text-xs font-medium text-slate-600 mb-1">Reproducibility observation</label>
+            <textarea name="reproducibility_observation" rows="6" maxlength="1000"
+              placeholder="{{ prompts.REPRO_OBSERVATION }}" spellcheck="true"
+              class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
+          </div>
+        </div>
+
+        {# ── Extension stars (blue) ── #}
+        <div class="border-t border-slate-100 pt-4 mb-5">
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Extension</p>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Extension score</label>
+          <div class="flex gap-1 mb-1" data-stars="generalisability_score">
+            {% for i in range(1, 6) %}
+            <button type="button" data-value="{{ i }}" class="star-btn-ext text-2xl text-slate-300 transition-colors">★</button>
+            {% endfor %}
+          </div>
+          <input type="hidden" name="generalisability_score" id="ext-input" value="" />
+          <p class="text-xs text-slate-400 mb-1">★ Minor - Similar scaffold &nbsp;·&nbsp; ★★★ Medium - New scaffold &nbsp;·&nbsp; ★★★★★ Major - New scaffold, new function</p>
+          <p id="ext-legend" class="text-xs font-medium text-blue-600 min-h-[1rem] mb-1"></p>
+          <div id="ext-obs-block" class="hidden mt-1">
+            <label class="block text-xs font-medium text-slate-600 mb-1">Extension observation</label>
+            <textarea name="scope_observation" rows="6" maxlength="1000"
+              placeholder="{{ prompts.SCOPE_OBSERVATION }}" spellcheck="true"
+              class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
+          </div>
+        </div>
+
+        {# ── COI ── #}
+        <label class="flex items-start gap-2.5 cursor-pointer border border-slate-200 rounded-lg p-3 mb-4 hover:border-brand transition-colors">
+          <input type="checkbox" id="coi-checkbox" name="coi_confirmed" value="on"
+            onchange="checkReady()"
+            class="accent-brand mt-0.5 w-4 h-4 shrink-0" />
+          <span class="text-xs text-slate-600 leading-relaxed">
+            I confirm I am <strong>not an author</strong> on this paper and have no direct affiliation with the research group.
+          </span>
+        </label>
+
+        <button type="submit" id="submit-btn" disabled
+          class="w-full bg-brand text-white rounded-lg px-4 py-2.5 text-sm font-medium
+                 hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+          Submit Classic rating
+        </button>
+      </form>
+      {% endif %}
+    </div>
+
+  </div>
+  </div>{# end left sticky #}
+
+  {# ══════════ RIGHT COLUMN (60%): Community reviews ══════════ #}
+  <div>
+
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-semibold text-slate-700">
+        Classic reviews
+        <span class="text-slate-400 font-normal text-sm">({{ total_count }})</span>
+      </h2>
+      <div class="flex items-center gap-3 text-xs">
+        <span class="font-medium text-slate-500">Sort</span>
+        <select onchange="applySort(this.value)"
+          class="border border-slate-200 rounded-md px-2 py-1 bg-white text-slate-700 text-xs">
+          <option value="newest"    {% if active_sort == 'newest'    %}selected{% endif %}>Newest</option>
+          <option value="oldest"    {% if active_sort == 'oldest'    %}selected{% endif %}>Oldest</option>
+          <option value="most_liked"{% if active_sort == 'most_liked'%}selected{% endif %}>Most liked</option>
+        </select>
+      </div>
+    </div>
+
+    {% if reviews %}
+    <div class="space-y-4">
+      {% for r in reviews %}
+      {% set is_liked = r.id in user_likes %}
+      {% set like_count = like_counts.get(r.id, 0) %}
+      {% set replies = comment_map.get(r.id, []) %}
+      <div id="review-{{ r.id }}" class="bg-white border border-slate-200 rounded-xl p-4">
+
+        {# Review header: plain coloured ratings, no pill backgrounds #}
+        <div class="flex items-center justify-between gap-3 mb-3 flex-wrap">
+          <div class="flex gap-4 flex-wrap items-center">
+            {% if r.reproducibility_score %}
+            <span class="text-sm font-semibold text-amber-500">
+              ★ {{ r.reproducibility_score }}/5
+              <span class="text-xs font-normal text-slate-500 ml-0.5">repro</span>
+            </span>
+            {% endif %}
+            {% if r.generalisability_score %}
+            <span class="text-sm font-semibold text-blue-500">
+              ★ {{ r.generalisability_score }}/5
+              <span class="text-xs font-normal text-slate-500 ml-0.5">extension</span>
+            </span>
+            {% endif %}
+          </div>
+          <div class="flex items-center gap-2">
+            {% if r.user and r.user.career_stage and r.user.career_stage != 'Prefer not to say' %}
+            <span class="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-100 border border-green-200 rounded-full px-2 py-0.5">
+              <span class="text-green-500">✓</span> {{ r.user.career_stage }}
+            </span>
+            {% endif %}
+            <span class="text-xs text-slate-400">{{ r.created_at.strftime('%d %b %Y') }}</span>
+            {% if r.updated_at %}
+            <span class="text-xs text-slate-400 italic">edited</span>
+            {% endif %}
+          </div>
+        </div>
+
+        {# Colour accent strip – amber for repro, blue for ext #}
+        <div class="flex gap-1 mb-3">
+          {% if r.reproducibility_score %}
+          <div class="h-1 flex-1 bg-amber-400 rounded-full opacity-70"></div>
+          {% endif %}
+          {% if r.generalisability_score %}
+          <div class="h-1 flex-1 bg-blue-400 rounded-full opacity-70"></div>
+          {% endif %}
+        </div>
+
+        {# Observations #}
+        {% if r.reproducibility_observation %}
+        <p class="text-sm text-slate-700 mb-2">
+          <span class="text-xs font-medium text-slate-400 uppercase tracking-wide">Repro observation</span><br/>
+          {{ r.reproducibility_observation }}
+        </p>
+        {% endif %}
+        {% if r.scope_observation %}
+        <p class="text-sm text-slate-700 mb-2">
+          <span class="text-xs font-medium text-slate-400 uppercase tracking-wide">Extension observation</span><br/>
+          {{ r.scope_observation }}
+        </p>
+        {% endif %}
+
+        {# Replies #}
+        {% if replies %}
+        <div class="mt-3 border-t border-slate-100 pt-3 space-y-3">
+          {% for c in replies %}
+          <div class="flex gap-3">
+            <div class="w-0.5 bg-slate-200 rounded-full shrink-0 mt-1"></div>
+            <div>
+              <div class="flex items-center gap-2 mb-0.5">
+                <span class="text-xs font-medium text-slate-600">{{ c.user.name or "Verified chemist" }}</span>
+                <span class="text-xs text-slate-400">{{ c.created_at.strftime('%d %b %Y') }}</span>
+              </div>
+              <p class="text-sm text-slate-700 leading-relaxed">{{ c.content }}</p>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        {# Action row #}
+        <div class="mt-3 border-t border-slate-100 pt-2 flex items-center gap-5">
+
+          <!-- Like -->
+          {% if orcid_id %}
+          <button type="button" title="Like"
+            id="like-btn-{{ r.id }}"
+            onclick="toggleLike({{ r.id }}, '{{ paper.doi }}')"
+            class="flex items-center gap-1 text-xs transition-colors
+                   {% if is_liked %}text-amber-500{% else %}text-slate-400 hover:text-amber-400{% endif %}">
+            <svg id="like-svg-{{ r.id }}" class="w-4 h-4" viewBox="0 0 24 24"
+                 fill="{% if is_liked %}currentColor{% else %}none{% endif %}"
+                 stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="7" y1="3" x2="17" y2="3"/>
+              <path d="M9 3 V10 L3 22 H21 L15 10 V3 Z"/>
+            </svg>
+            <span id="like-count-{{ r.id }}" class="font-medium {% if like_count == 0 %}hidden{% endif %}">{{ like_count }}</span>
+          </button>
+          {% else %}
+          <span class="flex items-center gap-1 text-xs text-slate-200 cursor-default" title="Sign in to like">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="7" y1="3" x2="17" y2="3"/>
+              <path d="M9 3 V10 L3 22 H21 L15 10 V3 Z"/>
+            </svg>
+            {% if like_count > 0 %}<span>{{ like_count }}</span>{% endif %}
+          </span>
+          {% endif %}
+
+          <!-- Comment -->
+          {% if orcid_id %}
+          <button type="button" title="Comment" onclick="toggleReply({{ r.id }})"
+            class="flex items-center gap-1 text-xs text-slate-400 hover:text-brand transition-colors">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            {% if replies %}<span class="font-medium">{{ replies | length }}</span>{% endif %}
+          </button>
+          {% else %}
+          <span class="flex items-center gap-1 text-xs text-slate-200 cursor-default" title="Sign in to comment">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </span>
+          {% endif %}
+
+          <!-- Share with social popup -->
+          <div class="relative">
+            <button type="button" title="Share" id="share-{{ r.id }}"
+              onclick="toggleSharePopup({{ r.id }})"
+              class="flex items-center gap-1 text-xs text-slate-400 hover:text-brand transition-colors">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"/>
+                <polygon points="22,2 15,22 11,13 2,9" fill="none"/>
+              </svg>
+            </button>
+            <div id="share-popup-{{ r.id }}"
+                 class="hidden absolute bottom-7 right-0 bg-white border border-slate-200 rounded-xl shadow-lg p-3 z-30 w-44">
+              <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Share</p>
+              <div class="flex flex-col gap-0.5">
+                <button onclick="shareWhatsApp({{ r.id }}, '{{ paper.doi }}')"
+                  class="flex items-center gap-2 text-xs text-slate-600 hover:text-green-600 hover:bg-green-50 rounded-lg px-2 py-1.5 transition-colors text-left w-full">
+                  💬 WhatsApp
+                </button>
+                <button onclick="shareEmail({{ r.id }}, '{{ paper.doi }}')"
+                  class="flex items-center gap-2 text-xs text-slate-600 hover:text-red-500 hover:bg-red-50 rounded-lg px-2 py-1.5 transition-colors text-left w-full">
+                  ✉️ Email
+                </button>
+                <button onclick="shareLinkedIn({{ r.id }}, '{{ paper.doi }}')"
+                  class="flex items-center gap-2 text-xs text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg px-2 py-1.5 transition-colors text-left w-full">
+                  🔗 LinkedIn
+                </button>
+                <div class="border-t border-slate-100 mt-1 pt-1">
+                  <button onclick="copyReviewLink({{ r.id }}, '{{ paper.doi }}')" id="copy-btn-{{ r.id }}"
+                    class="flex items-center gap-2 text-xs text-slate-600 hover:text-brand hover:bg-blue-50 rounded-lg px-2 py-1.5 transition-colors text-left w-full">
+                    📋 Copy link
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Edit / Delete (own reviews only – right side) -->
+          {% if orcid_id and r.orcid_id == orcid_id %}
+          <div class="ml-auto flex items-center gap-3">
+            <a href="/classic/paper/{{ paper.doi }}/ratings/{{ r.id }}/edit"
+              class="flex items-center gap-1 text-xs text-slate-400 hover:text-brand transition-colors" title="Edit">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </a>
+            <form action="/classic/paper/{{ paper.doi }}/ratings/{{ r.id }}/delete" method="post"
+                  onsubmit="return confirm('Delete this review? This cannot be undone.')">
+              <button type="submit" title="Delete"
+                class="flex items-center gap-1 text-xs text-slate-400 hover:text-red-500 transition-colors">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                  <path d="M10 11v6M14 11v6"/>
+                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                </svg>
+              </button>
+            </form>
+          </div>
+          {% endif %}
+
+        </div>
+
+        {% if orcid_id %}
+        <div id="reply-{{ r.id }}" class="hidden mt-3 pt-3 border-t border-slate-100">
+          <form action="/paper/{{ paper.doi }}/comment" method="post" data-moderate>
+            <input type="hidden" name="rating_id" value="{{ r.id }}" />
+            <textarea name="content" rows="3" maxlength="2000" required
+              placeholder="{{ prompts.COMMENT_PLACEHOLDER }}" spellcheck="true"
+              class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none"></textarea>
+            <div class="flex gap-2 mt-1.5">
+              <button type="submit"
+                class="bg-slate-700 hover:bg-slate-900 text-white text-xs font-medium px-4 py-1.5 rounded-lg transition-colors">
+                Post reply
+              </button>
+              <button type="button" onclick="toggleReply({{ r.id }})"
+                class="text-xs text-slate-400 hover:text-slate-600 px-3 py-1.5">Cancel</button>
+            </div>
+          </form>
+        </div>
+        {% endif %}
+
+      </div>
+      {% endfor %}
+    </div>
+
+    {% if total_pages > 1 %}
+    <div class="flex items-center justify-center gap-2 mt-6 text-sm">
+      {% if active_page > 1 %}
+      <button onclick="applySort('{{ active_sort }}', {{ active_page - 1 }})"
+        class="px-3 py-1.5 border border-slate-200 rounded-lg text-slate-600 hover:border-brand transition-colors">
+        &lt; Previous
+      </button>
+      {% endif %}
+      <span class="text-slate-400 text-xs">Page {{ active_page }} of {{ total_pages }}</span>
+      {% if active_page < total_pages %}
+      <button onclick="applySort('{{ active_sort }}', {{ active_page + 1 }})"
+        class="px-3 py-1.5 border border-slate-200 rounded-lg text-slate-600 hover:border-brand transition-colors">
+        Next &gt;
+      </button>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="text-slate-400 text-sm italic mt-4">No Classic reviews yet – be the first!</div>
+    {% endif %}
+
+  </div>{# end right col #}
+
+</div>{# end 40/60 grid #}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // ── Repro stars (amber) ───────────────────────────────────────────────
+  const REPRO_LABELS = ['Failed completely','','Partially reproduced','','Reproduced exactly or better'];
+  const reproStars  = document.querySelectorAll('[data-stars="reproducibility_score"] .star-btn');
+  const reproInput  = document.getElementById('repro-input');
+  const reproLegend = document.getElementById('repro-legend');
+
+  function paintRepro(val) {
+    reproStars.forEach(s => { s.style.color = parseInt(s.dataset.value) <= val ? '#f59e0b' : ''; });
+    if (reproLegend) reproLegend.textContent = val > 0 ? (REPRO_LABELS[val - 1] || '') : '';
+    const obs = document.getElementById('repro-obs-block');
+    if (obs) obs.classList.toggle('hidden', val === 0);
+    checkReady();
+  }
+  reproStars.forEach(s => {
+    s.addEventListener('click',      () => { reproInput.value = s.dataset.value; paintRepro(parseInt(s.dataset.value)); });
+    s.addEventListener('mouseenter', () => paintRepro(parseInt(s.dataset.value)));
+    s.addEventListener('mouseleave', () => paintRepro(parseInt(reproInput?.value || 0)));
+  });
+
+  // ── Extension stars (blue) ────────────────────────────────────────────
+  const EXT_LABELS = ['Minor - Similar scaffold','','Medium - New scaffold','','Major - New scaffold, new function'];
+  const extStars  = document.querySelectorAll('[data-stars="generalisability_score"] .star-btn-ext');
+  const extInput  = document.getElementById('ext-input');
+  const extLegend = document.getElementById('ext-legend');
+
+  function paintExt(val) {
+    extStars.forEach(s => { s.style.color = parseInt(s.dataset.value) <= val ? '#3b82f6' : ''; });
+    if (extLegend) extLegend.textContent = val > 0 ? (EXT_LABELS[val - 1] || '') : '';
+    const obs = document.getElementById('ext-obs-block');
+    if (obs) obs.classList.toggle('hidden', val === 0);
+    checkReady();
+  }
+  extStars.forEach(s => {
+    s.addEventListener('click',      () => { extInput.value = s.dataset.value; paintExt(parseInt(s.dataset.value)); });
+    s.addEventListener('mouseenter', () => paintExt(parseInt(s.dataset.value)));
+    s.addEventListener('mouseleave', () => paintExt(parseInt(extInput?.value || 0)));
+  });
+
+  // ── Submit gate ───────────────────────────────────────────────────────
+  function checkReady() {
+    const hasScore = !!reproInput?.value || !!extInput?.value;
+    const coiOk   = document.getElementById('coi-checkbox')?.checked ?? true;
+    const btn = document.getElementById('submit-btn');
+    if (btn) btn.disabled = !(hasScore && coiOk);
+  }
+
+  // ── Sort / pagination ─────────────────────────────────────────────────
+  function applySort(sort, page) {
+    const params = new URLSearchParams(window.location.search);
+    params.set('sort', sort);
+    if (page) params.set('page', page); else params.delete('page');
+    window.location.search = params.toString();
+  }
+
+  // ── Share popup ────────────────────────────────────────────────────────
+  function toggleSharePopup(reviewId) {
+    document.getElementById('share-popup-' + reviewId).classList.toggle('hidden');
+  }
+
+  function shareWhatsApp(reviewId, doi) {
+    const url = `${window.location.origin}/classic/paper/${doi}#review-${reviewId}`;
+    window.open('https://wa.me/?text=' + encodeURIComponent(url), '_blank');
+    document.getElementById('share-popup-' + reviewId).classList.add('hidden');
+  }
+
+  function shareEmail(reviewId, doi) {
+    const url = `${window.location.origin}/classic/paper/${doi}#review-${reviewId}`;
+    window.location.href = 'mailto:?subject=ChemRepro%20review&body=' + encodeURIComponent(url);
+    document.getElementById('share-popup-' + reviewId).classList.add('hidden');
+  }
+
+  function shareLinkedIn(reviewId, doi) {
+    const url = `${window.location.origin}/classic/paper/${doi}#review-${reviewId}`;
+    window.open('https://www.linkedin.com/sharing/share-offsite/?url=' + encodeURIComponent(url), '_blank');
+    document.getElementById('share-popup-' + reviewId).classList.add('hidden');
+  }
+
+  async function copyReviewLink(reviewId, doi) {
+    const url = `${window.location.origin}/classic/paper/${doi}#review-${reviewId}`;
+    const btn = document.getElementById('copy-btn-' + reviewId);
+    try {
+      await navigator.clipboard.writeText(url);
+      const orig = btn.textContent;
+      btn.textContent = '✓ Copied!';
+      setTimeout(() => { btn.textContent = orig; }, 1500);
+    } catch { prompt('Copy this link:', url); }
+    document.getElementById('share-popup-' + reviewId).classList.add('hidden');
+  }
+
+  document.addEventListener('click', function(e) {
+    document.querySelectorAll('[id^="share-popup-"]').forEach(popup => {
+      const id = popup.id.replace('share-popup-', '');
+      const btn = document.getElementById('share-' + id);
+      if (!popup.contains(e.target) && btn && !btn.contains(e.target)) {
+        popup.classList.add('hidden');
+      }
+    });
+  });
+
+  // ── Like (AJAX) ───────────────────────────────────────────────────────
+  async function toggleLike(reviewId, doi) {
+    const btn     = document.getElementById('like-btn-'   + reviewId);
+    const svg     = document.getElementById('like-svg-'   + reviewId);
+    const countEl = document.getElementById('like-count-' + reviewId);
+    try {
+      const resp = await fetch(`/paper/${doi}/ratings/${reviewId}/like`, {
+        method: 'POST', headers: { 'Accept': 'application/json' },
+      });
+      if (!resp.ok) { window.location.reload(); return; }
+      const { liked, count } = await resp.json();
+      svg.setAttribute('fill', liked ? 'currentColor' : 'none');
+      if (liked) { btn.classList.remove('text-slate-400','hover:text-amber-400'); btn.classList.add('text-amber-500'); }
+      else        { btn.classList.remove('text-amber-500'); btn.classList.add('text-slate-400','hover:text-amber-400'); }
+      countEl.textContent = count;
+      countEl.classList.toggle('hidden', count === 0);
+    } catch { window.location.reload(); }
+  }
+
+  // ── Reply toggle ──────────────────────────────────────────────────────
+  function toggleReply(id) {
+    const el = document.getElementById('reply-' + id);
+    el.classList.toggle('hidden');
+    if (!el.classList.contains('hidden')) el.querySelector('textarea').focus();
+  }
+</script>
+{% endblock %}
