@@ -17,13 +17,26 @@
 
       <!-- Icon -->
       {% if n.type == 'like' %}
-      <span class="mt-0.5 flex-shrink-0 w-7 h-7 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-500 text-sm">
-        ★
+      <span class="mt-0.5 flex-shrink-0 w-7 h-7 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-500">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="9" y1="3" x2="15" y2="3"/>
+          <path d="M9 3V10L3 22H21L15 10V3Z"/>
+          <path d="M7.5 13L16.5 13L21 22H3Z" fill="currentColor" stroke="none"/>
+        </svg>
+      </span>
+      {% elif n.type == 'comment_like' %}
+      <span class="mt-0.5 flex-shrink-0 w-7 h-7 rounded-full bg-red-50 border border-red-200 flex items-center justify-center text-red-400 text-sm">♥</span>
+      {% elif n.type == 'new_review' %}
+      <span class="mt-0.5 flex-shrink-0 w-7 h-7 rounded-full bg-green-50 border border-green-200 flex items-center justify-center text-green-500 text-sm">🧪</span>
+      {% elif n.type == 'comment_reply' %}
+      <span class="mt-0.5 flex-shrink-0 w-7 h-7 rounded-full bg-violet-50 border border-violet-200 flex items-center justify-center">
+        <svg class="w-3.5 h-3.5 text-violet-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/>
+        </svg>
       </span>
       {% else %}
       <span class="mt-0.5 flex-shrink-0 w-7 h-7 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center">
-        <svg class="w-3.5 h-3.5 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg class="w-3.5 h-3.5 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
         </svg>
       </span>
@@ -32,11 +45,18 @@
       <!-- Text -->
       <div class="flex-1 min-w-0">
         <p class="text-sm text-slate-700">
-          <span class="font-medium">{{ n.actor_name }}</span>
           {% if n.type == 'like' %}
-            liked your review
+            <span class="font-medium">{{ n.actor_name }}</span> liked your review
+          {% elif n.type == 'comment_like' %}
+            <span class="font-medium">{{ n.actor_name }}</span> liked your comment
+          {% elif n.type == 'comment_reply' %}
+            <span class="font-medium">{{ n.actor_name }}</span> replied to your comment
+          {% elif n.type == 'new_review' %}
+            <span class="font-medium">{{ n.actor_name }}</span> posted a new review on a paper you follow
+          {% elif n.type == 'new_comment' %}
+            <span class="font-medium">{{ n.actor_name }}</span> commented on a paper you follow
           {% else %}
-            commented on your review
+            <span class="font-medium">{{ n.actor_name }}</span> commented on your review
           {% endif %}
         </p>
         <p class="text-xs text-slate-400 truncate mt-0.5">{{ n.paper_title }}</p>

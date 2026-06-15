@@ -79,20 +79,20 @@
       {% if entry.avg_repro or entry.avg_ext %}
 
       {% if entry.avg_repro %}
-      <div class="text-center min-w-[3rem]">
+      <div class="text-center min-w-[3.5rem]">
         <p class="text-[10px] font-semibold uppercase tracking-widest text-amber-600 mb-0.5">Repro</p>
         <p class="text-base font-bold text-amber-500 leading-none">★ {{ entry.avg_repro }}</p>
-        <p class="text-[10px] text-slate-400 mt-0.5">{{ entry.total_repro }}×</p>
+        <p class="text-[10px] text-slate-400 mt-0.5">{{ entry.total_repro }} rating{{ 's' if entry.total_repro != 1 }}</p>
       </div>
       {% endif %}
 
       {% if entry.avg_repro and entry.avg_ext %}<div class="w-px h-10 bg-slate-200 rounded-full"></div>{% endif %}
 
       {% if entry.avg_ext %}
-      <div class="text-center min-w-[3rem]">
+      <div class="text-center min-w-[3.5rem]">
         <p class="text-[10px] font-semibold uppercase tracking-widest text-blue-600 mb-0.5">Ext</p>
         <p class="text-base font-bold text-blue-500 leading-none">★ {{ entry.avg_ext }}</p>
-        <p class="text-[10px] text-slate-400 mt-0.5">{{ entry.total_ext }}×</p>
+        <p class="text-[10px] text-slate-400 mt-0.5">{{ entry.total_ext }} rating{{ 's' if entry.total_ext != 1 }}</p>
       </div>
       {% endif %}
 

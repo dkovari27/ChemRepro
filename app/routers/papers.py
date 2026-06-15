@@ -1,7 +1,11 @@
 import json
+import re
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+import bleach
+import markdown as _md_lib
+
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import case, func, select
@@ -10,16 +14,49 @@ from sqlalchemy.orm import Session
 from app import prompts
 from app.config import settings
 from app.database import get_db
-from app.models.comment import Comment
+from app.models.author_notification import AuthorNotification
+from app.models.comment import Comment, CommentLike
 from app.models.like import Like
 from app.models.notification import Notification
 from app.models.paper import Paper
+from app.models.paper_subscription import PaperSubscription
 from app.models.rating import Rating
+from app.models.user import User
 from app.routers.auth import DEV_FAKE_USERS
+from app.services.author_notify import notify_author_if_possible
 from app.services.crossref import fetch_paper_metadata, is_valid_doi, normalise_doi, resolve_url_to_doi
 
 router = APIRouter(tags=["papers"])
 templates = Jinja2Templates(directory="app/templates")
+
+_MD_ALLOWED_TAGS = [
+    "p", "br", "strong", "em", "b", "i", "code", "pre",
+    "ul", "ol", "li", "blockquote", "h3", "h4", "a",
+]
+_MD_ALLOWED_ATTRS: dict = {"a": ["href", "title"]}
+
+
+def _render_md(text: str | None) -> str:
+    if not text:
+        return ""
+    raw_html = _md_lib.markdown(text, extensions=["nl2br"])
+    return bleach.clean(raw_html, tags=_MD_ALLOWED_TAGS, attributes=_MD_ALLOWED_ATTRS, strip=True)
+
+
+templates.env.filters["render_md"] = _render_md
+
+_BLOCKED_RE = re.compile(
+    r'\b(fuck(?:er|ing|s|ed)?|shit(?:ting)?|bullshit|cunts?|bitches?|ass(?:hole|holes)'
+    r'|arsehole|bastards?|cocks?|dicks?|puss(?:y|ies)|whores?|sluts?|pricks?'
+    r'|wankers?|tossers?|twats?|bollocks|nigg(?:er|ers|a|as)|fagg?ots?|retards?'
+    r'|spics?|kikes?|chinks?|gooks?|wetbacks?|trann(?:y|ies)|dykes?|cracker)\b',
+    re.IGNORECASE,
+)
+
+
+def _is_clean(*texts: str | None) -> bool:
+    """Server-side content check. Returns False if any text hits the blocklist."""
+    return all(not (t and _BLOCKED_RE.search(t)) for t in texts)
 
 OUTCOME_SCORES = {
     "no_repro": 1,
@@ -348,19 +385,41 @@ async def paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
 
     reviews = q.offset((active_page - 1) * PAGE_SIZE).limit(PAGE_SIZE).all()
 
-    # ── Comments + likes ─────────────────────────────────────────────────
+    # ── Comments + comment likes ──────────────────────────────────────────
     all_comments = (
         db.query(Comment)
         .filter(Comment.doi == doi)
         .order_by(Comment.created_at.asc())
         .all()
     )
-    comment_map: dict[int, list] = {}
+    # Separate top-level comments (parent_id=None) from replies
+    comment_map: dict[int, list] = {}   # rating_id → [top-level Comment]
+    reply_map: dict[int, list] = {}     # comment_id → [reply Comment]
     for c in all_comments:
-        if c.rating_id:
+        if c.parent_id:
+            reply_map.setdefault(c.parent_id, []).append(c)
+        elif c.rating_id:
             comment_map.setdefault(c.rating_id, []).append(c)
 
+    # Comment like counts and user's liked comment ids
+    comment_ids = [c.id for c in all_comments]
+    comment_like_rows = (
+        db.query(CommentLike.comment_id, func.count(CommentLike.id))
+        .filter(CommentLike.comment_id.in_(comment_ids))
+        .group_by(CommentLike.comment_id)
+        .all()
+    ) if comment_ids else []
+    comment_like_counts = {cid: cnt for cid, cnt in comment_like_rows}
+
     orcid_id = request.session.get("orcid_id")
+    user_comment_likes: set[int] = set()
+    if orcid_id and comment_ids:
+        user_comment_likes = {
+            row.comment_id for row in
+            db.query(CommentLike.comment_id)
+            .filter(CommentLike.orcid_id == orcid_id, CommentLike.comment_id.in_(comment_ids))
+            .all()
+        }
     user_already_rated = (
         db.query(Rating).filter(
             Rating.doi == doi, Rating.orcid_id == orcid_id, Rating.scoring_mode != "classic"
@@ -391,6 +450,13 @@ async def paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
             .all()
         }
 
+    is_subscribed = bool(
+        orcid_id and db.query(PaperSubscription).filter(
+            PaperSubscription.orcid_id == orcid_id,
+            PaperSubscription.doi == doi,
+        ).first()
+    )
+
     return templates.TemplateResponse("paper.html", {
         "request": request,
         "paper": paper,
@@ -398,6 +464,9 @@ async def paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
         "scores": scores,
         "reviews": reviews,
         "comment_map": comment_map,
+        "reply_map": reply_map,
+        "comment_like_counts": comment_like_counts,
+        "user_comment_likes": user_comment_likes,
         "like_counts": like_counts,
         "user_likes": user_likes,
         "total_count": total_count,
@@ -409,6 +478,7 @@ async def paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
         "user_name": request.session.get("user_name"),
         "orcid_id": orcid_id,
         "user_already_rated": user_already_rated,
+        "is_subscribed": is_subscribed,
         "prompts": prompts,
         "site_version": "standard",
         "switch_urls": {"standard": f"/paper/{doi}", "classic": f"/classic/paper/{doi}"},
@@ -429,6 +499,8 @@ async def submit_comment(
         return RedirectResponse(f"/auth/guest-setup?next={request.url.path}", status_code=303)
     if not content.strip():
         return RedirectResponse(f"/paper/{doi}", status_code=303)
+    if not _is_clean(content):
+        raise HTTPException(status_code=422, detail="Content contains prohibited language.")
 
     paper = db.get(Paper, doi)
     if not paper:
@@ -451,6 +523,12 @@ async def submit_comment(
             rating=rating,
             paper=paper,
         )
+    _notify_paper_subscribers(
+        db, doi=doi, paper=paper, notif_type="new_comment",
+        actor_name=request.session.get("user_name", "Someone"),
+        rating_id=rating_id,
+        exclude_orcid=orcid_id,
+    )
     db.commit()
     return RedirectResponse(f"/paper/{doi}#review-{rating_id}", status_code=303)
 
@@ -496,6 +574,7 @@ async def toggle_like(doi: str, rating_id: int, request: Request, db: Session = 
 async def submit_rating(
     doi: str,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     outcome: str = Form(""),
     reproducibility_score: str = Form(""),
@@ -517,6 +596,8 @@ async def submit_rating(
 
     if coi_confirmed != "on":
         raise HTTPException(status_code=422, detail="You must confirm no conflict of interest")
+    if not _is_clean(reproducibility_observation, scope_observation, modification_details):
+        raise HTTPException(status_code=422, detail="Content contains prohibited language.")
 
     existing = db.query(Rating).filter(
         Rating.doi == doi, Rating.orcid_id == orcid_id, Rating.scoring_mode == "standard"
@@ -540,8 +621,173 @@ async def submit_rating(
         scoring_mode=scoring_mode,
     )
     db.add(rating)
+    db.flush()  # get rating.id before commit
+    _notify_paper_subscribers(
+        db, doi=doi, paper=paper, notif_type="new_review",
+        actor_name=request.session.get("user_name", "Someone"),
+        rating_id=rating.id,
+        exclude_orcid=orcid_id,
+    )
     db.commit()
+    # Notify corresponding author in background (fire-and-forget)
+    base_url = str(request.base_url).rstrip("/")
+    background_tasks.add_task(
+        notify_author_if_possible, doi, paper.title or "", rating.id, db, base_url
+    )
     return RedirectResponse(f"/paper/{doi}", status_code=303)
+
+
+# ── Subscription toggle ───────────────────────────────────────────────────────
+
+@router.post("/paper/{doi:path}/subscribe")
+async def toggle_subscribe(doi: str, request: Request, db: Session = Depends(get_db)):
+    orcid_id = request.session.get("orcid_id")
+    if not orcid_id:
+        return JSONResponse({"error": "not authenticated"}, status_code=401)
+    existing = db.query(PaperSubscription).filter(
+        PaperSubscription.doi == doi, PaperSubscription.orcid_id == orcid_id
+    ).first()
+    if existing:
+        db.delete(existing)
+        subscribed = False
+    else:
+        db.add(PaperSubscription(orcid_id=orcid_id, doi=doi))
+        subscribed = True
+    db.commit()
+    return JSONResponse({"subscribed": subscribed})
+
+
+# ── Comment likes ────────────────────────────────────────────────────────────
+
+@router.post("/paper/{doi:path}/comment/{comment_id}/like")
+async def toggle_comment_like(doi: str, comment_id: int, request: Request, db: Session = Depends(get_db)):
+    wants_json = "application/json" in request.headers.get("Accept", "")
+    orcid_id = request.session.get("orcid_id")
+    if not orcid_id:
+        return JSONResponse({"error": "not authenticated"}, status_code=401)
+
+    existing = db.query(CommentLike).filter(
+        CommentLike.comment_id == comment_id, CommentLike.orcid_id == orcid_id
+    ).first()
+    if existing:
+        db.delete(existing)
+        liked = False
+    else:
+        db.add(CommentLike(comment_id=comment_id, orcid_id=orcid_id))
+        liked = True
+        # Notify comment author
+        comment = db.get(Comment, comment_id)
+        if comment and comment.orcid_id != orcid_id:
+            paper = db.get(Paper, doi)
+            if paper:
+                db.add(Notification(
+                    recipient_orcid_id=comment.orcid_id,
+                    type="comment_like",
+                    actor_name=request.session.get("user_name", "Someone"),
+                    rating_id=comment.rating_id or 0,
+                    doi=doi,
+                    paper_title=(paper.title or "")[:200],
+                ))
+    db.commit()
+
+    count = db.query(func.count(CommentLike.id)).filter(CommentLike.comment_id == comment_id).scalar()
+    if wants_json:
+        return JSONResponse({"liked": liked, "count": count})
+    return RedirectResponse(f"/paper/{doi}", status_code=303)
+
+
+# ── Reply to a comment (1 level deep) ────────────────────────────────────────
+
+@router.post("/paper/{doi:path}/comment/{parent_id}/reply")
+async def submit_reply(
+    doi: str,
+    parent_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    content: str = Form(""),
+):
+    orcid_id = request.session.get("orcid_id")
+    if not orcid_id:
+        return RedirectResponse(f"/auth/guest-setup?next=/paper/{doi}", status_code=303)
+    content = content.strip()[:2000]
+    if not content:
+        return RedirectResponse(f"/paper/{doi}", status_code=303)
+    if not _is_clean(content):
+        raise HTTPException(status_code=422, detail="Content contains prohibited language.")
+
+    parent = db.get(Comment, parent_id)
+    if not parent:
+        raise HTTPException(status_code=404, detail="Comment not found")
+
+    reply = Comment(
+        doi=doi,
+        rating_id=parent.rating_id,
+        parent_id=parent_id,
+        orcid_id=orcid_id,
+        content=content,
+    )
+    db.add(reply)
+
+    # Notify parent comment author
+    if parent.orcid_id != orcid_id:
+        paper = db.get(Paper, doi)
+        if paper:
+            db.add(Notification(
+                recipient_orcid_id=parent.orcid_id,
+                type="comment_reply",
+                actor_name=request.session.get("user_name", "Someone"),
+                rating_id=parent.rating_id or 0,
+                doi=doi,
+                paper_title=(paper.title or "")[:200],
+            ))
+    db.commit()
+    anchor = f"#review-{parent.rating_id}" if parent.rating_id else ""
+    return RedirectResponse(f"/paper/{doi}{anchor}", status_code=303)
+
+
+def _notify_paper_subscribers(
+    db: Session,
+    *,
+    doi: str,
+    paper: Paper,
+    notif_type: str,
+    actor_name: str,
+    rating_id: int,
+    exclude_orcid: str | None = None,
+) -> None:
+    """Create in-app notifications for all subscribers of a paper."""
+    subs = db.query(PaperSubscription).filter(PaperSubscription.doi == doi).all()
+    for sub in subs:
+        if sub.orcid_id == exclude_orcid:
+            continue
+        db.add(Notification(
+            recipient_orcid_id=sub.orcid_id,
+            type=notif_type,
+            actor_name=actor_name,
+            rating_id=rating_id,
+            doi=doi,
+            paper_title=(paper.title or "")[:200],
+        ))
+
+
+# ── Author notification opt-out ───────────────────────────────────────────────
+
+@router.get("/notify/opt-out/{token}", response_class=HTMLResponse)
+async def author_opt_out(token: str, request: Request, db: Session = Depends(get_db)):
+    record = db.query(AuthorNotification).filter(
+        AuthorNotification.opt_out_token == token
+    ).first()
+    if record and not record.opted_out:
+        record.opted_out = True
+        db.commit()
+    return templates.TemplateResponse("opt_out.html", {
+        "request": request,
+        "success": bool(record),
+        "user_name": request.session.get("user_name"),
+        "orcid_id": request.session.get("orcid_id"),
+        "site_version": "standard",
+        "switch_urls": {"standard": "/", "classic": "/classic/"},
+    })
 
 
 @router.get("/design-demo/scoring-ab", response_class=HTMLResponse)
@@ -748,11 +994,32 @@ async def classic_paper_page(doi: str, request: Request, db: Session = Depends(g
         .order_by(Comment.created_at.asc()).all()
     )
     comment_map: dict[int, list] = {}
+    reply_map: dict[int, list] = {}
     for c in all_comments:
-        if c.rating_id:
+        if c.parent_id:
+            reply_map.setdefault(c.parent_id, []).append(c)
+        elif c.rating_id:
             comment_map.setdefault(c.rating_id, []).append(c)
 
+    comment_ids = [c.id for c in all_comments]
+    comment_like_rows = (
+        db.query(CommentLike.comment_id, func.count(CommentLike.id))
+        .filter(CommentLike.comment_id.in_(comment_ids))
+        .group_by(CommentLike.comment_id)
+        .all()
+    ) if comment_ids else []
+    comment_like_counts = {cid: cnt for cid, cnt in comment_like_rows}
+
     orcid_id = request.session.get("orcid_id")
+    user_comment_likes: set[int] = set()
+    if orcid_id and comment_ids:
+        user_comment_likes = {
+            row.comment_id for row in
+            db.query(CommentLike.comment_id)
+            .filter(CommentLike.orcid_id == orcid_id, CommentLike.comment_id.in_(comment_ids))
+            .all()
+        }
+
     user_already_rated = (
         db.query(Rating).filter(Rating.doi == doi, Rating.orcid_id == orcid_id,
                                 Rating.scoring_mode == "classic").first()
@@ -778,6 +1045,13 @@ async def classic_paper_page(doi: str, request: Request, db: Session = Depends(g
             .filter(Like.orcid_id == orcid_id, Like.rating_id.in_(rating_ids)).all()
         }
 
+    is_subscribed = bool(
+        orcid_id and db.query(PaperSubscription).filter(
+            PaperSubscription.orcid_id == orcid_id,
+            PaperSubscription.doi == doi,
+        ).first()
+    )
+
     return templates.TemplateResponse("paper_classic.html", {
         "request": request,
         "paper": paper,
@@ -785,6 +1059,9 @@ async def classic_paper_page(doi: str, request: Request, db: Session = Depends(g
         "classic_scores": classic_scores,
         "reviews": reviews,
         "comment_map": comment_map,
+        "reply_map": reply_map,
+        "comment_like_counts": comment_like_counts,
+        "user_comment_likes": user_comment_likes,
         "like_counts": like_counts,
         "user_likes": user_likes,
         "total_count": total_count,
@@ -794,6 +1071,7 @@ async def classic_paper_page(doi: str, request: Request, db: Session = Depends(g
         "user_name": request.session.get("user_name"),
         "orcid_id": orcid_id,
         "user_already_rated": user_already_rated,
+        "is_subscribed": is_subscribed,
         "prompts": prompts,
         "site_version": "classic",
         "switch_urls": {"standard": f"/paper/{doi}", "classic": f"/classic/paper/{doi}"},

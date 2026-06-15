@@ -17,10 +17,20 @@
            class="text-brand hover:underline font-mono text-xs">{{ paper.doi }}</a>
       </p>
     </div>
-    <a href="https://doi.org/{{ paper.doi }}" target="_blank"
-       class="shrink-0 text-xs border border-slate-200 rounded-md px-3 py-1.5 text-slate-500 hover:border-brand hover:text-brand transition-colors">
-      View paper →
-    </a>
+    <div class="flex items-center gap-2 shrink-0">
+      {% if orcid_id %}
+      <button id="subscribe-btn" type="button"
+        onclick="toggleSubscribe('{{ paper.doi }}')"
+        class="text-xs border rounded-md px-3 py-1.5 transition-colors
+               {% if is_subscribed %}border-brand text-brand bg-blue-50{% else %}border-slate-200 text-slate-500 hover:border-brand hover:text-brand{% endif %}">
+        {% if is_subscribed %}🔔 Following{% else %}🔔 Follow{% endif %}
+      </button>
+      {% endif %}
+      <a href="https://doi.org/{{ paper.doi }}" target="_blank"
+         class="text-xs border border-slate-200 rounded-md px-3 py-1.5 text-slate-500 hover:border-brand hover:text-brand transition-colors">
+        View paper →
+      </a>
+    </div>
   </div>
   {% if paper.abstract %}
   <div class="mt-4 pt-4 border-t border-slate-100">
@@ -293,36 +303,106 @@
 
         <!-- Observations -->
         {% if r.reproducibility_observation %}
-        <p class="text-sm text-slate-700 mb-2">
-          <span class="text-xs font-medium text-slate-400 uppercase tracking-wide">Repro observation</span><br/>
-          {{ r.reproducibility_observation }}
-        </p>
+        <div class="text-sm text-slate-700 mb-2">
+          <span class="text-xs font-medium text-slate-400 uppercase tracking-wide">Repro observation</span>
+          <div class="mt-1 md-content">{{ r.reproducibility_observation | render_md | safe }}</div>
+        </div>
         {% endif %}
         {% if r.scope_observation %}
-        <p class="text-sm text-slate-700 mb-2">
-          <span class="text-xs font-medium text-slate-400 uppercase tracking-wide">Scope observation</span><br/>
-          {{ r.scope_observation }}
-        </p>
+        <div class="text-sm text-slate-700 mb-2">
+          <span class="text-xs font-medium text-slate-400 uppercase tracking-wide">Scope observation</span>
+          <div class="mt-1 md-content">{{ r.scope_observation | render_md | safe }}</div>
+        </div>
         {% endif %}
         {% if r.modification_details %}
-        <p class="text-sm text-slate-700 mb-2">
-          <span class="text-xs font-medium text-slate-400 uppercase tracking-wide">Modification details</span><br/>
-          {{ r.modification_details }}
-        </p>
+        <div class="text-sm text-slate-700 mb-2">
+          <span class="text-xs font-medium text-slate-400 uppercase tracking-wide">Modification details</span>
+          <div class="mt-1 md-content">{{ r.modification_details | render_md | safe }}</div>
+        </div>
         {% endif %}
 
-        <!-- Threaded replies -->
-        {% if replies %}
-        <div class="mt-3 border-t border-slate-100 pt-3 space-y-3">
-          {% for c in replies %}
-          <div class="flex gap-3">
-            <div class="w-0.5 bg-slate-200 rounded-full shrink-0 mt-1"></div>
-            <div>
-              <div class="flex items-center gap-2 mb-0.5">
-                <span class="text-xs font-medium text-slate-600">{{ c.user.name or "Verified chemist" }}</span>
-                <span class="text-xs text-slate-400">{{ c.created_at.strftime('%d %b %Y') }}</span>
+        <!-- Top-level comments with like + reply threading -->
+        {% set top_comments = comment_map.get(r.id, []) %}
+        {% if top_comments %}
+        <div class="mt-3 border-t border-slate-100 pt-3 space-y-4">
+          {% for c in top_comments %}
+          {% set c_liked = c.id in user_comment_likes %}
+          {% set c_likes = comment_like_counts.get(c.id, 0) %}
+          {% set c_replies = reply_map.get(c.id, []) %}
+          <div id="comment-{{ c.id }}">
+            <div class="flex gap-3">
+              <div class="w-0.5 bg-slate-200 rounded-full shrink-0 mt-1"></div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-0.5">
+                  <span class="text-xs font-medium text-slate-600">{{ c.user.name or "Verified chemist" }}</span>
+                  <span class="text-xs text-slate-400">{{ c.created_at.strftime('%d %b %Y') }}</span>
+                </div>
+                <div class="text-sm text-slate-700 leading-relaxed md-content">{{ c.content | render_md | safe }}</div>
+                <!-- Comment actions: like + reply -->
+                {% if orcid_id %}
+                <div class="flex items-center gap-3 mt-1.5">
+                  <button type="button" onclick="toggleCommentLike({{ c.id }}, '{{ paper.doi }}')"
+                    id="clike-btn-{{ c.id }}"
+                    class="flex items-center gap-1 text-xs transition-colors {% if c_liked %}text-red-500{% else %}text-slate-300 hover:text-red-400{% endif %}">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24"
+                      fill="{% if c_liked %}currentColor{% else %}none{% endif %}"
+                      stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                    </svg>
+                    <span id="clike-count-{{ c.id }}" class="{% if c_likes == 0 %}hidden{% endif %}">{{ c_likes }}</span>
+                  </button>
+                  <button type="button" onclick="toggleCommentReply({{ c.id }})"
+                    class="text-xs text-slate-300 hover:text-brand transition-colors">
+                    Reply{% if c_replies %} ({{ c_replies | length }}){% endif %}
+                  </button>
+                </div>
+                {% endif %}
+
+                <!-- Nested replies (1 level) -->
+                {% if c_replies %}
+                <div class="mt-2 space-y-2 pl-3 border-l border-slate-100">
+                  {% for rep in c_replies %}
+                  {% set rep_liked = rep.id in user_comment_likes %}
+                  {% set rep_likes = comment_like_counts.get(rep.id, 0) %}
+                  <div>
+                    <div class="flex items-center gap-2 mb-0.5">
+                      <span class="text-xs font-medium text-slate-600">{{ rep.user.name or "Verified chemist" }}</span>
+                      <span class="text-xs text-slate-400">{{ rep.created_at.strftime('%d %b %Y') }}</span>
+                    </div>
+                    <div class="text-sm text-slate-700 leading-relaxed md-content">{{ rep.content | render_md | safe }}</div>
+                    {% if orcid_id %}
+                    <button type="button" onclick="toggleCommentLike({{ rep.id }}, '{{ paper.doi }}')"
+                      id="clike-btn-{{ rep.id }}"
+                      class="flex items-center gap-1 mt-1 text-xs transition-colors {% if rep_liked %}text-red-500{% else %}text-slate-300 hover:text-red-400{% endif %}">
+                      <svg class="w-3 h-3" viewBox="0 0 24 24"
+                        fill="{% if rep_liked %}currentColor{% else %}none{% endif %}"
+                        stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                      </svg>
+                      <span id="clike-count-{{ rep.id }}" class="{% if rep_likes == 0 %}hidden{% endif %}">{{ rep_likes }}</span>
+                    </button>
+                    {% endif %}
+                  </div>
+                  {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- Reply-to-comment form -->
+                {% if orcid_id %}
+                <div id="comment-reply-{{ c.id }}" class="hidden mt-2 pt-2">
+                  <form action="/paper/{{ paper.doi }}/comment/{{ c.id }}/reply" method="post" data-moderate>
+                    <textarea name="content" rows="2" maxlength="2000" required spellcheck="true"
+                      placeholder="Reply to {{ c.user.name or 'this comment' }}…"
+                      class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none"></textarea>
+                    <p class="text-[11px] text-slate-300 mt-0.5 mb-1">Markdown supported</p>
+                    <div class="flex gap-2">
+                      <button type="submit" class="bg-slate-700 hover:bg-slate-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">Post reply</button>
+                      <button type="button" onclick="toggleCommentReply({{ c.id }})" class="text-xs text-slate-400 hover:text-slate-600 px-3 py-1.5">Cancel</button>
+                    </div>
+                  </form>
+                </div>
+                {% endif %}
               </div>
-              <p class="text-sm text-slate-700 leading-relaxed">{{ c.content }}</p>
             </div>
           </div>
           {% endfor %}
@@ -340,10 +420,11 @@
             class="flex items-center gap-1 text-xs transition-colors
                    {% if is_liked %}text-amber-500{% else %}text-slate-400 hover:text-amber-400{% endif %}">
             <svg id="like-svg-{{ r.id }}" class="w-4 h-4" viewBox="0 0 24 24"
-                 fill="{% if is_liked %}currentColor{% else %}none{% endif %}"
-                 stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="7" y1="3" x2="17" y2="3"/>
-              <path d="M9 3 V10 L3 22 H21 L15 10 V3 Z"/>
+                 fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="9" y1="3" x2="15" y2="3"/>
+              <path d="M9 3V10L3 22H21L15 10V3Z"/>
+              <path class="flask-liquid" d="M7.5 13L16.5 13L21 22H3Z"
+                    fill="{% if is_liked %}currentColor{% else %}none{% endif %}" stroke="none"/>
             </svg>
             <span id="like-count-{{ r.id }}" class="font-medium {% if like_count == 0 %}hidden{% endif %}">{{ like_count }}</span>
           </button>
@@ -351,8 +432,8 @@
           <span class="flex items-center gap-1 text-xs text-slate-200 cursor-default" title="Sign in to like">
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="7" y1="3" x2="17" y2="3"/>
-              <path d="M9 3 V10 L3 22 H21 L15 10 V3 Z"/>
+              <line x1="9" y1="3" x2="15" y2="3"/>
+              <path d="M9 3V10L3 22H21L15 10V3Z"/>
             </svg>
             {% if like_count > 0 %}<span>{{ like_count }}</span>{% endif %}
           </span>
@@ -366,7 +447,8 @@
                  stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
-            {% if replies %}<span class="font-medium">{{ replies | length }}</span>{% endif %}
+            {% set top = comment_map.get(r.id, []) %}
+            {% if top %}<span class="font-medium">{{ top | length }}</span>{% endif %}
           </button>
           {% else %}
           <span class="flex items-center gap-1 text-xs text-slate-200 cursor-default" title="Sign in to comment">
@@ -415,7 +497,7 @@
             </div>
           </div>
 
-          <!-- Edit / Delete (own reviews only – right side) -->
+          <!-- Edit / Delete / Message – right side -->
           {% if orcid_id and r.orcid_id == orcid_id %}
           <div class="ml-auto flex items-center gap-3">
             <a href="/paper/{{ paper.doi }}/ratings/{{ r.id }}/edit"
@@ -438,6 +520,16 @@
               </button>
             </form>
           </div>
+          {% elif orcid_id and r.orcid_id != orcid_id %}
+          <div class="ml-auto">
+            <button type="button" onclick="openMessageModal('{{ r.orcid_id }}', '{{ r.user.name | replace("'", "\\'") if r.user else "User" }}')"
+              class="flex items-center gap-1 text-xs text-slate-400 hover:text-brand transition-colors" title="Send private message">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              Message
+            </button>
+          </div>
           {% endif %}
 
         </div>
@@ -447,10 +539,11 @@
         <div id="reply-{{ r.id }}" class="hidden mt-3 pt-3 border-t border-slate-100">
           <form action="/paper/{{ paper.doi }}/comment" method="post" data-moderate>
             <input type="hidden" name="rating_id" value="{{ r.id }}" />
-            <textarea name="content" rows="2" maxlength="2000" required spellcheck="true"
+            <textarea id="reply-ta-{{ r.id }}" name="content" rows="4" maxlength="2000" required spellcheck="true"
               placeholder="{{ prompts.COMMENT_PLACEHOLDER }}"
-              class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none"></textarea>
-            <div class="flex gap-2 mt-1.5">
+              class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
+            <p class="text-[11px] text-slate-300 mt-0.5 mb-1.5">Markdown supported: **bold**, _italic_, `code`, - lists</p>
+            <div class="flex gap-2">
               <button type="submit"
                 class="bg-slate-700 hover:bg-slate-900 text-white text-xs font-medium px-4 py-1.5 rounded-lg transition-colors">
                 Post reply
@@ -494,10 +587,97 @@
   </div><!-- end right column -->
 
 </div>
+
+<!-- Private message modal -->
+<div id="msg-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-base font-semibold text-slate-800">Message <span id="msg-modal-name" class="text-brand"></span></h2>
+      <button type="button" onclick="closeMessageModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <form action="/profile/messages/new" method="post">
+      <input type="hidden" name="recipient_orcid_id" id="msg-modal-recipient" />
+      <input type="hidden" name="source_doi" value="{{ paper.doi }}" />
+      <textarea name="content" rows="5" maxlength="5000" required spellcheck="true"
+        placeholder="Write your message…"
+        class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y mb-3"></textarea>
+      <div class="flex justify-end gap-2">
+        <button type="button" onclick="closeMessageModal()"
+          class="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 transition-colors">Cancel</button>
+        <button type="submit"
+          class="px-4 py-2 text-sm font-medium bg-brand text-white rounded-xl hover:bg-blue-700 transition-colors">Send</button>
+      </div>
+    </form>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+  // ── Private message modal ─────────────────────────────────────────────
+  function openMessageModal(recipientId, recipientName) {
+    document.getElementById('msg-modal-recipient').value = recipientId;
+    document.getElementById('msg-modal-name').textContent = recipientName;
+    document.getElementById('msg-modal').classList.remove('hidden');
+  }
+  function closeMessageModal() {
+    document.getElementById('msg-modal').classList.add('hidden');
+  }
+  document.getElementById('msg-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeMessageModal();
+  });
+
+  // ── Comment like toggle ───────────────────────────────────────────────
+  async function toggleCommentLike(commentId, doi) {
+    const btn = document.getElementById('clike-btn-' + commentId);
+    const svg = btn?.querySelector('svg');
+    const countEl = document.getElementById('clike-count-' + commentId);
+    try {
+      const resp = await fetch(`/paper/${doi}/comment/${commentId}/like`, {
+        method: 'POST', headers: { 'Accept': 'application/json' },
+      });
+      if (!resp.ok) return;
+      const { liked, count } = await resp.json();
+      if (svg) svg.setAttribute('fill', liked ? 'currentColor' : 'none');
+      if (liked) {
+        btn.classList.remove('text-slate-300', 'hover:text-red-400');
+        btn.classList.add('text-red-500');
+      } else {
+        btn.classList.remove('text-red-500');
+        btn.classList.add('text-slate-300', 'hover:text-red-400');
+      }
+      if (countEl) { countEl.textContent = count; countEl.classList.toggle('hidden', count === 0); }
+    } catch (_) {}
+  }
+
+  function toggleCommentReply(commentId) {
+    const el = document.getElementById('comment-reply-' + commentId);
+    if (!el) return;
+    el.classList.toggle('hidden');
+    if (!el.classList.contains('hidden')) el.querySelector('textarea')?.focus();
+  }
+
+  // ── Follow / subscribe toggle ─────────────────────────────────────────
+  async function toggleSubscribe(doi) {
+    const btn = document.getElementById('subscribe-btn');
+    try {
+      const resp = await fetch(`/paper/${doi}/subscribe`, { method: 'POST' });
+      if (!resp.ok) return;
+      const { subscribed } = await resp.json();
+      if (subscribed) {
+        btn.textContent = '🔔 Following';
+        btn.classList.add('border-brand', 'text-brand', 'bg-blue-50');
+        btn.classList.remove('border-slate-200', 'text-slate-500', 'hover:border-brand', 'hover:text-brand');
+      } else {
+        btn.textContent = '🔔 Follow';
+        btn.classList.remove('border-brand', 'text-brand', 'bg-blue-50');
+        btn.classList.add('border-slate-200', 'text-slate-500', 'hover:border-brand', 'hover:text-brand');
+      }
+    } catch (_) {}
+  }
+
   // ── URL filter / sort helper ──────────────────────────────────────────
   function applyFilter(key, value) {
     const params = new URLSearchParams(window.location.search);
@@ -530,7 +710,8 @@
       if (!resp.ok) { window.location.reload(); return; }
       const { liked, count } = await resp.json();
 
-      svg.setAttribute('fill', liked ? 'currentColor' : 'none');
+      const liq = svg?.querySelector('.flask-liquid');
+      if (liq) liq.setAttribute('fill', liked ? 'currentColor' : 'none');
       if (liked) {
         btn.classList.remove('text-slate-400', 'hover:text-amber-400');
         btn.classList.add('text-amber-500');
