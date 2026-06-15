@@ -13,11 +13,13 @@ from app.models import notification as _notif_model          # noqa: F401
 from app.models import paper_subscription as _sub_model      # noqa: F401
 from app.models import author_notification as _author_model  # noqa: F401
 from app.models import message as _message_model             # noqa: F401
+from app.models import user_follow as _user_follow_model     # noqa: F401
 from app.models.comment import CommentLike                   # noqa: F401
 from app.routers import auth, papers, api
 from app.routers import feedback as feedback_router
 from app.routers import profile as profile_router
 from app.routers import messages as messages_router
+from app.routers import follows as follows_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -69,6 +71,7 @@ app.include_router(api.router)
 app.include_router(feedback_router.router)
 app.include_router(profile_router.router)
 app.include_router(messages_router.router)
+app.include_router(follows_router.router)
 
 _templates = Jinja2Templates(directory="app/templates")
 

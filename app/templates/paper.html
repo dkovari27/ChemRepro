@@ -334,7 +334,35 @@
               <div class="w-0.5 bg-slate-200 rounded-full shrink-0 mt-1"></div>
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 mb-0.5">
-                  <span class="text-xs font-medium text-slate-600">{{ c.user.name or "Verified chemist" }}</span>
+                  {% if c.user %}
+                  <span class="relative inline-block">
+                    <button type="button" onclick="toggleCommenterMenu(event,'cm-{{ c.id }}')"
+                      class="text-xs font-medium text-slate-600 hover:text-brand transition-colors cursor-pointer">
+                      {{ c.user.name or "Verified chemist" }}
+                    </button>
+                    <div id="cm-{{ c.id }}" class="commenter-menu hidden absolute left-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-xl shadow-lg z-30 py-1 overflow-hidden">
+                      {% if orcid_id and c.user.orcid_id != orcid_id %}
+                      <button type="button" data-orcid="{{ c.user.orcid_id }}"
+                        onclick="toggleFollowUser(this.dataset.orcid,this);document.getElementById('cm-{{ c.id }}').classList.add('hidden')"
+                        class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
+                        Follow
+                      </button>
+                      <button type="button" data-orcid="{{ c.user.orcid_id }}" data-name="{{ c.user.name or 'Verified chemist' }}"
+                        onclick="openMessageModal(this.dataset.orcid,this.dataset.name);document.getElementById('cm-{{ c.id }}').classList.add('hidden')"
+                        class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
+                        Message
+                      </button>
+                      {% endif %}
+                      <button type="button"
+                        onclick="reportUser();document.getElementById('cm-{{ c.id }}').classList.add('hidden')"
+                        class="w-full text-left px-3 py-2 text-xs text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors">
+                        Report
+                      </button>
+                    </div>
+                  </span>
+                  {% else %}
+                  <span class="text-xs font-medium text-slate-600">Verified chemist</span>
+                  {% endif %}
                   <span class="text-xs text-slate-400">{{ c.created_at.strftime('%d %b %Y') }}</span>
                 </div>
                 <div class="text-sm text-slate-700 leading-relaxed md-content">{{ c.content | render_md | safe }}</div>
@@ -343,11 +371,13 @@
                 <div class="flex items-center gap-3 mt-1.5">
                   <button type="button" onclick="toggleCommentLike({{ c.id }}, '{{ paper.doi }}')"
                     id="clike-btn-{{ c.id }}"
-                    class="flex items-center gap-1 text-xs transition-colors {% if c_liked %}text-red-500{% else %}text-slate-300 hover:text-red-400{% endif %}">
+                    class="flex items-center gap-1 text-xs transition-colors {% if c_liked %}text-amber-500{% else %}text-slate-300 hover:text-amber-400{% endif %}">
                     <svg class="w-3.5 h-3.5" viewBox="0 0 24 24"
-                      fill="{% if c_liked %}currentColor{% else %}none{% endif %}"
-                      stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                      fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="9" y1="3" x2="15" y2="3"/>
+                      <path d="M9 3V10L3 22H21L15 10V3Z"/>
+                      <path class="flask-liquid" d="M7.5 13L16.5 13L21 22H3Z"
+                            fill="{% if c_liked %}currentColor{% else %}none{% endif %}" stroke="none"/>
                     </svg>
                     <span id="clike-count-{{ c.id }}" class="{% if c_likes == 0 %}hidden{% endif %}">{{ c_likes }}</span>
                   </button>
@@ -366,18 +396,48 @@
                   {% set rep_likes = comment_like_counts.get(rep.id, 0) %}
                   <div>
                     <div class="flex items-center gap-2 mb-0.5">
-                      <span class="text-xs font-medium text-slate-600">{{ rep.user.name or "Verified chemist" }}</span>
+                      {% if rep.user %}
+                      <span class="relative inline-block">
+                        <button type="button" onclick="toggleCommenterMenu(event,'cmr-{{ rep.id }}')"
+                          class="text-xs font-medium text-slate-600 hover:text-brand transition-colors cursor-pointer">
+                          {{ rep.user.name or "Verified chemist" }}
+                        </button>
+                        <div id="cmr-{{ rep.id }}" class="commenter-menu hidden absolute left-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-xl shadow-lg z-30 py-1 overflow-hidden">
+                          {% if orcid_id and rep.user.orcid_id != orcid_id %}
+                          <button type="button" data-orcid="{{ rep.user.orcid_id }}"
+                            onclick="toggleFollowUser(this.dataset.orcid,this);document.getElementById('cmr-{{ rep.id }}').classList.add('hidden')"
+                            class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
+                            Follow
+                          </button>
+                          <button type="button" data-orcid="{{ rep.user.orcid_id }}" data-name="{{ rep.user.name or 'Verified chemist' }}"
+                            onclick="openMessageModal(this.dataset.orcid,this.dataset.name);document.getElementById('cmr-{{ rep.id }}').classList.add('hidden')"
+                            class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
+                            Message
+                          </button>
+                          {% endif %}
+                          <button type="button"
+                            onclick="reportUser();document.getElementById('cmr-{{ rep.id }}').classList.add('hidden')"
+                            class="w-full text-left px-3 py-2 text-xs text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors">
+                            Report
+                          </button>
+                        </div>
+                      </span>
+                      {% else %}
+                      <span class="text-xs font-medium text-slate-600">Verified chemist</span>
+                      {% endif %}
                       <span class="text-xs text-slate-400">{{ rep.created_at.strftime('%d %b %Y') }}</span>
                     </div>
                     <div class="text-sm text-slate-700 leading-relaxed md-content">{{ rep.content | render_md | safe }}</div>
                     {% if orcid_id %}
                     <button type="button" onclick="toggleCommentLike({{ rep.id }}, '{{ paper.doi }}')"
                       id="clike-btn-{{ rep.id }}"
-                      class="flex items-center gap-1 mt-1 text-xs transition-colors {% if rep_liked %}text-red-500{% else %}text-slate-300 hover:text-red-400{% endif %}">
+                      class="flex items-center gap-1 mt-1 text-xs transition-colors {% if rep_liked %}text-amber-500{% else %}text-slate-300 hover:text-amber-400{% endif %}">
                       <svg class="w-3 h-3" viewBox="0 0 24 24"
-                        fill="{% if rep_liked %}currentColor{% else %}none{% endif %}"
-                        stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                        fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="9" y1="3" x2="15" y2="3"/>
+                        <path d="M9 3V10L3 22H21L15 10V3Z"/>
+                        <path class="flask-liquid" d="M7.5 13L16.5 13L21 22H3Z"
+                              fill="{% if rep_liked %}currentColor{% else %}none{% endif %}" stroke="none"/>
                       </svg>
                       <span id="clike-count-{{ rep.id }}" class="{% if rep_likes == 0 %}hidden{% endif %}">{{ rep_likes }}</span>
                     </button>
@@ -632,7 +692,7 @@
   // ── Comment like toggle ───────────────────────────────────────────────
   async function toggleCommentLike(commentId, doi) {
     const btn = document.getElementById('clike-btn-' + commentId);
-    const svg = btn?.querySelector('svg');
+    const liq = btn?.querySelector('.flask-liquid');
     const countEl = document.getElementById('clike-count-' + commentId);
     try {
       const resp = await fetch(`/paper/${doi}/comment/${commentId}/like`, {
@@ -640,16 +700,43 @@
       });
       if (!resp.ok) return;
       const { liked, count } = await resp.json();
-      if (svg) svg.setAttribute('fill', liked ? 'currentColor' : 'none');
+      if (liq) liq.setAttribute('fill', liked ? 'currentColor' : 'none');
       if (liked) {
-        btn.classList.remove('text-slate-300', 'hover:text-red-400');
-        btn.classList.add('text-red-500');
+        btn.classList.remove('text-slate-300', 'hover:text-amber-400');
+        btn.classList.add('text-amber-500');
       } else {
-        btn.classList.remove('text-red-500');
-        btn.classList.add('text-slate-300', 'hover:text-red-400');
+        btn.classList.remove('text-amber-500');
+        btn.classList.add('text-slate-300', 'hover:text-amber-400');
       }
       if (countEl) { countEl.textContent = count; countEl.classList.toggle('hidden', count === 0); }
     } catch (_) {}
+  }
+
+  // ── Commenter name dropdown ───────────────────────────────────────────
+  function toggleCommenterMenu(e, id) {
+    e.stopPropagation();
+    document.querySelectorAll('.commenter-menu').forEach(el => {
+      if (el.id !== id) el.classList.add('hidden');
+    });
+    document.getElementById(id)?.classList.toggle('hidden');
+  }
+  document.addEventListener('click', function() {
+    document.querySelectorAll('.commenter-menu').forEach(el => el.classList.add('hidden'));
+  });
+
+  async function toggleFollowUser(orcidId, btn) {
+    try {
+      const resp = await fetch(`/follow/toggle/${encodeURIComponent(orcidId)}`, {
+        method: 'POST', headers: { 'Accept': 'application/json' },
+      });
+      if (!resp.ok) return;
+      const { following } = await resp.json();
+      btn.textContent = following ? 'Following ✓' : 'Follow';
+    } catch (_) {}
+  }
+
+  function reportUser() {
+    alert('Thank you for your report. We will review it shortly.');
   }
 
   function toggleCommentReply(commentId) {
