@@ -5,101 +5,105 @@
 
 <!-- Dev login banner -->
 {% if dev_mode and not orcid_id %}
-<div class="max-w-2xl mx-auto mb-6 bg-amber-50 border border-amber-300 rounded-xl p-4">
-  <p class="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-2">Dev mode – fake login</p>
+<div class="max-w-2xl mx-auto mb-8 bg-amber-50 border border-amber-200 rounded-xl p-4">
+  <p class="text-xs font-semibold text-amber-700 uppercase tracking-widest mb-2">Dev mode – fake login</p>
   <div class="flex gap-2 flex-wrap">
     {% for i, name in dev_users %}
     <a href="/auth/dev-login/{{ i }}"
-       class="text-sm bg-white border border-amber-300 text-amber-800 rounded-md px-3 py-1.5 hover:bg-amber-100 transition-colors">
-      Sign in as {{ name }}
+       class="text-sm bg-white border border-amber-300 text-amber-800 rounded-lg px-3 py-1.5 hover:bg-amber-50 transition-colors">
+      {{ name }}
     </a>
     {% endfor %}
   </div>
 </div>
 {% endif %}
 
-<!-- Hero -->
-<div class="text-center mb-10">
-  <h1 class="text-3xl font-bold text-slate-800 mb-2">Did that synthesis actually work?</h1>
-  <p class="text-slate-500 max-w-xl mx-auto">
-    ChemRepro collects reproducibility ratings from verified synthetic chemists.
-    Enter a DOI to see ratings, or sign in with ORCID to contribute your experience.
+<!-- ── Hero ─────────────────────────────────────────────────────── -->
+<div class="text-center mb-10 pt-4">
+  <p class="text-xs font-semibold uppercase tracking-widest text-brand/70 mb-3">Community reproducibility ratings</p>
+  <h1 class="text-[2.5rem] font-bold tracking-[-0.025em] text-[#111c17] mb-4 text-balance leading-[1.1]">
+    Did that synthesis<br class="hidden sm:block" /> actually work?
+  </h1>
+  <p class="text-slate-500 text-base max-w-md mx-auto leading-relaxed">
+    Peer ratings from verified synthetic chemists.
+    Look up a DOI to see what others experienced in the lab.
   </p>
 </div>
 
-<!-- DOI search -->
+<!-- ── Search ────────────────────────────────────────────────────── -->
 <form action="/search" method="get" class="flex gap-2 max-w-2xl mx-auto mb-10">
   <input
     type="text"
     name="doi"
     placeholder="Paste a DOI – e.g. 10.1021/jacs.2c00001"
-    class="flex-1 border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+    class="flex-1 bg-[#f2f7f5] border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/25 focus:border-brand/50 transition-colors placeholder:text-slate-400"
     autofocus
   />
   <button
     type="submit"
-    class="bg-brand text-white rounded-lg px-5 py-2.5 text-sm font-medium hover:bg-blue-700 transition-colors whitespace-nowrap"
+    class="bg-brand text-white rounded-xl px-5 py-3 text-sm font-medium hover:bg-brand-dark transition-colors whitespace-nowrap shadow-sm"
   >
     Look up paper
   </button>
 </form>
 
 {% if error %}
-<div class="max-w-2xl mx-auto mb-6 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">
+<div class="max-w-2xl mx-auto mb-6 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
   {{ error }}
 </div>
 {% endif %}
 
+<!-- ── Paper card macro ──────────────────────────────────────────── -->
 {% macro paper_card(entry) %}
 {% set p = entry.paper %}
 <a href="{% if site_version == 'classic' %}/classic{% endif %}/paper/{{ p.doi }}"
-   class="block bg-white border border-slate-200 rounded-xl p-4 hover:border-brand hover:shadow-sm transition-all">
-  <div class="flex items-center gap-4">
+   class="paper-card block bg-white border border-slate-200 rounded-xl p-5 group">
+  <div class="flex items-center gap-5">
+
+    <!-- Text column -->
     <div class="flex-1 min-w-0">
-      <p class="font-medium text-slate-800 text-sm leading-snug line-clamp-2 mb-0.5">{{ p.title }}</p>
+      <p class="font-semibold text-[#111c17] text-sm leading-snug line-clamp-2 mb-1 group-hover:text-brand transition-colors">{{ p.title }}</p>
       <p class="text-xs text-slate-500 truncate mb-0.5">{{ entry.display_authors }}</p>
-      <p class="text-xs text-slate-400 truncate">
-        {{ p.journal or "–" }}{% if p.year %} &middot; {{ p.year }}{% endif %}
-        &middot; <span class="font-mono">{{ p.doi }}</span>
+      <p class="text-[11px] text-slate-400 truncate">
+        {{ p.journal or "–" }}{% if p.year %} · {{ p.year }}{% endif %}
+        <span class="font-mono ml-1">{{ p.doi }}</span>
       </p>
     </div>
-    {# ── Score column — Standard: single score | Classic: dual stars ── #}
+
+    {# Score column — Standard: single score | Classic: dual stars #}
     {% if site_version == 'classic' %}
 
-    {# Classic: amber repro + blue extension, side by side #}
     {% set repro_labels = {5: 'Reproduced exactly', 4: none, 3: 'Partially reproduced', 2: none, 1: 'Failed completely'} %}
     {% set ext_labels   = {5: 'Major – new scaffold', 4: none, 3: 'Medium – new scaffold', 2: none, 1: 'Minor – same scaffold'} %}
-    <div class="shrink-0 group relative cursor-default flex gap-3 items-center" onclick="return false;">
+    <div class="shrink-0 group/score relative cursor-default flex gap-4 items-center" onclick="return false;">
       {% if entry.avg_repro or entry.avg_ext %}
 
       {% if entry.avg_repro %}
-      <div class="text-center">
-        <div class="text-xs font-medium text-slate-800 mb-0.5">Repro</div>
-        <div class="text-base font-bold text-amber-500">★ {{ entry.avg_repro }}</div>
-        <div class="text-xs text-slate-400">{{ entry.total_repro }} rating{{ 's' if entry.total_repro != 1 }}</div>
+      <div class="text-center min-w-[3rem]">
+        <p class="text-[10px] font-semibold uppercase tracking-widest text-amber-600 mb-0.5">Repro</p>
+        <p class="text-base font-bold text-amber-500 leading-none">★ {{ entry.avg_repro }}</p>
+        <p class="text-[10px] text-slate-400 mt-0.5">{{ entry.total_repro }}×</p>
       </div>
       {% endif %}
 
-      {% if entry.avg_repro and entry.avg_ext %}<div class="w-px h-12 bg-slate-200"></div>{% endif %}
+      {% if entry.avg_repro and entry.avg_ext %}<div class="w-px h-10 bg-slate-200 rounded-full"></div>{% endif %}
 
       {% if entry.avg_ext %}
-      <div class="text-center">
-        <div class="text-xs font-medium text-slate-800 mb-0.5">Ext</div>
-        <div class="text-base font-bold text-blue-500">★ {{ entry.avg_ext }}</div>
-        <div class="text-xs text-slate-400">{{ entry.total_ext }} rating{{ 's' if entry.total_ext != 1 }}</div>
+      <div class="text-center min-w-[3rem]">
+        <p class="text-[10px] font-semibold uppercase tracking-widest text-blue-600 mb-0.5">Ext</p>
+        <p class="text-base font-bold text-blue-500 leading-none">★ {{ entry.avg_ext }}</p>
+        <p class="text-[10px] text-slate-400 mt-0.5">{{ entry.total_ext }}×</p>
       </div>
       {% endif %}
 
-      {# Hover tooltip: repro left | extension right, labels at 1/3/5, ×N counts #}
-      <div class="absolute right-0 bottom-full mb-2 hidden group-hover:block
+      <!-- Breakdown tooltip -->
+      <div class="absolute right-0 bottom-full mb-2 hidden group-hover/score:block
                   bg-white border border-slate-200 rounded-xl shadow-lg p-4 z-20 pointer-events-none"
            style="min-width:440px">
-        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3 text-center">Rating breakdown</p>
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3 text-center">Rating breakdown</p>
         <div class="flex gap-5">
-
-          {# Repro #}
           <div class="flex-1">
-            <p class="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-2">Reproducibility</p>
+            <p class="text-[10px] font-semibold text-amber-600 uppercase tracking-widest mb-2">Reproducibility</p>
             {% for i in [5,4,3,2,1] %}
             {% set cnt   = entry.repro_dist.get(i, 0) if entry.repro_dist is defined else 0 %}
             {% set total = entry.total_repro if entry.total_repro is defined and entry.total_repro else 1 %}
@@ -107,25 +111,22 @@
             <div class="mb-1.5">
               <div class="flex justify-between text-xs mb-0.5">
                 <span class="text-amber-600 font-medium leading-tight">
-                  <span class="font-bold">{{ i }}</span>{% if lbl %}<span class="mx-0.5 opacity-60">–</span>{{ lbl }}{% endif %}
+                  <span class="font-bold">{{ i }}</span>{% if lbl %} – {{ lbl }}{% endif %}
                 </span>
                 <span class="font-semibold shrink-0 ml-2 {% if cnt > 0 %}text-slate-600{% else %}text-slate-300{% endif %}">
                   {% if cnt > 0 %}×{{ cnt }}{% else %}–{% endif %}
                 </span>
               </div>
-              <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+              <div class="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
                 <div class="h-full bg-amber-400 rounded-full {% if cnt == 0 %}opacity-0{% endif %}"
                      style="width:{{ (cnt/total*100)|int }}%"></div>
               </div>
             </div>
             {% endfor %}
           </div>
-
           <div class="w-px bg-slate-100 self-stretch"></div>
-
-          {# Extension #}
           <div class="flex-1">
-            <p class="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-2">Extension</p>
+            <p class="text-[10px] font-semibold text-blue-600 uppercase tracking-widest mb-2">Extension</p>
             {% for i in [5,4,3,2,1] %}
             {% set cnt   = entry.ext_dist.get(i, 0) if entry.ext_dist is defined else 0 %}
             {% set total = entry.total_ext if entry.total_ext is defined and entry.total_ext else 1 %}
@@ -133,38 +134,38 @@
             <div class="mb-1.5">
               <div class="flex justify-between text-xs mb-0.5">
                 <span class="text-blue-600 font-medium leading-tight">
-                  <span class="font-bold">{{ i }}</span>{% if lbl %}<span class="mx-0.5 opacity-60">–</span>{{ lbl }}{% endif %}
+                  <span class="font-bold">{{ i }}</span>{% if lbl %} – {{ lbl }}{% endif %}
                 </span>
                 <span class="font-semibold shrink-0 ml-2 {% if cnt > 0 %}text-slate-600{% else %}text-slate-300{% endif %}">
                   {% if cnt > 0 %}×{{ cnt }}{% else %}–{% endif %}
                 </span>
               </div>
-              <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+              <div class="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
                 <div class="h-full bg-blue-400 rounded-full {% if cnt == 0 %}opacity-0{% endif %}"
                      style="width:{{ (cnt/total*100)|int }}%"></div>
               </div>
             </div>
             {% endfor %}
           </div>
-
         </div>
       </div>
 
       {% else %}
-      <div class="text-xs text-slate-400 italic text-center">No Classic<br>ratings yet</div>
+      <p class="text-xs text-slate-400 italic">No Classic<br>ratings yet</p>
       {% endif %}
     </div>
 
     {% else %}
 
-    {# Standard: single outcome score with outcome breakdown #}
-    <div class="shrink-0 text-center w-24 group relative cursor-default" onclick="return false;">
+    <!-- Standard: single outcome score -->
+    <div class="shrink-0 text-center w-20 group/score relative cursor-default" onclick="return false;">
       {% if entry.rating_count > 0 and entry.avg_score %}
-        <div class="text-lg font-bold text-slate-700">★ {{ entry.avg_score }}</div>
-        <div class="text-xs text-slate-400">{{ entry.rating_count }} rating{{ 's' if entry.rating_count != 1 }}</div>
-        <div class="absolute right-0 bottom-full mb-2 hidden group-hover:block
-                    bg-white border border-slate-200 rounded-xl shadow-lg p-4 w-60 z-20 text-left pointer-events-none">
-          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3 text-center">Rating breakdown</p>
+        <p class="text-xl font-bold text-[#111c17] leading-none">{{ entry.avg_score }}</p>
+        <p class="text-[10px] text-slate-400 mt-0.5 font-medium uppercase tracking-widest">{{ entry.rating_count }} rating{{ 's' if entry.rating_count != 1 }}</p>
+        <!-- Breakdown tooltip -->
+        <div class="absolute right-0 bottom-full mb-2 hidden group-hover/score:block
+                    bg-white border border-slate-200 rounded-xl shadow-lg p-4 w-64 z-20 text-left pointer-events-none">
+          <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3 text-center">Rating breakdown</p>
           <div class="space-y-2">
             {% for outcome in outcome_order %}
             {% set count = entry.breakdown.get(outcome, 0) %}
@@ -180,7 +181,7 @@
                   {% if count > 0 %}×{{ count }}{% else %}–{% endif %}
                 </span>
               </div>
-              <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+              <div class="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
                 <div class="h-full rounded-full {{ bar_cls }} {% if count == 0 %}opacity-0{% endif %}"
                      style="width: {{ (count / entry.rating_count * 100) | int }}%"></div>
               </div>
@@ -189,7 +190,7 @@
           </div>
         </div>
       {% else %}
-        <div class="text-xs text-slate-400 italic">No ratings<br>yet</div>
+        <p class="text-[11px] text-slate-400 italic leading-tight">No<br>ratings</p>
       {% endif %}
     </div>
 
@@ -198,28 +199,34 @@
 </a>
 {% endmacro %}
 
-<!-- My rated papers (logged-in users only) -->
+<!-- ── My reviewed papers ─────────────────────────────────────────── -->
 {% if my_papers %}
-<div class="mb-4 flex items-center justify-between">
-  <h2 class="text-lg font-semibold text-slate-700">My reviewed papers</h2>
+<div class="mb-3 flex items-center justify-between">
+  <h2 class="text-sm font-semibold uppercase tracking-widest text-slate-400">My reviewed papers</h2>
 </div>
-<div class="space-y-3 mb-8">
+<div class="space-y-2 mb-10">
   {% for entry in my_papers %}{{ paper_card(entry) }}{% endfor %}
 </div>
 {% endif %}
 
-<!-- Community feed -->
+<!-- ── Community feed ─────────────────────────────────────────────── -->
 {% if community_papers %}
-<div class="mb-4 flex items-center justify-between">
-  <h2 class="text-lg font-semibold text-slate-700">{% if my_papers %}Recently rated by the community{% else %}Recently rated papers{% endif %}</h2>
-  <a href="/api/v1/papers" target="_blank" class="text-xs text-slate-400 hover:text-brand">View as JSON →</a>
+<div class="mb-3 flex items-center justify-between">
+  <h2 class="text-sm font-semibold uppercase tracking-widest text-slate-400">
+    {% if my_papers %}Recently rated by the community{% else %}Recently rated papers{% endif %}
+  </h2>
+  <a href="/api/v1/papers" target="_blank" class="text-xs text-slate-400 hover:text-brand transition-colors">
+    JSON →
+  </a>
 </div>
-<div class="space-y-3">
+<div class="space-y-2">
   {% for entry in community_papers %}{{ paper_card(entry) }}{% endfor %}
 </div>
+
 {% elif not my_papers %}
-<div class="text-center text-slate-400 mt-16 text-sm">
-  No papers yet. Be the first – look up a DOI above.
+<div class="text-center text-slate-400 mt-20 text-sm">
+  <p class="text-3xl mb-3">⚗️</p>
+  <p>No papers yet. Be the first — look up a DOI above.</p>
 </div>
 {% endif %}
 
