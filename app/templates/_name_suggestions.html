@@ -8,12 +8,12 @@
   <!-- Existing suggestions -->
   {% if suggestions %}
   <div class="flex flex-wrap gap-2 mb-5">
-    {% for s in suggestions %}
+    {% for s in suggestions | sort(attribute='name') %}
     <button type="button" id="sug-btn-{{ s.id }}"
       onclick="voteFor({{ s.id }}, this)"
       class="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-all
              {% if s.voted %}border-brand bg-brand text-white{% else %}border-slate-200 text-slate-600 hover:border-brand hover:text-brand{% endif %}">
-      <span class="vote-label">{% if s.voted %}✓ {% endif %}{{ s.name }}</span>
+      <span class="vote-label">{{ s.name }}</span>
       <span id="vcount-{{ s.id }}"
         class="text-xs tabular-nums {% if s.voted %}text-white/70{% else %}text-slate-400{% endif %}">
         {{ s.votes }}
@@ -52,12 +52,10 @@ async function voteFor(id, btn) {
       btn.classList.remove('border-slate-200', 'text-slate-600', 'hover:border-brand', 'hover:text-brand');
       btn.classList.add('border-brand', 'bg-brand', 'text-white');
       if (count) { count.classList.remove('text-slate-400'); count.classList.add('text-white/70'); }
-      if (label) label.textContent = '✓ ' + label.textContent.replace(/^✓ /, '');
     } else {
       btn.classList.remove('border-brand', 'bg-brand', 'text-white');
       btn.classList.add('border-slate-200', 'text-slate-600', 'hover:border-brand', 'hover:text-brand');
       if (count) { count.classList.remove('text-white/70'); count.classList.add('text-slate-400'); }
-      if (label) label.textContent = label.textContent.replace(/^✓ /, '');
     }
     if (count) count.textContent = votes;
   } catch (_) {}
