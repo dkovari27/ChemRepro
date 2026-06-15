@@ -91,7 +91,6 @@ async def submit_feedback(
     db: Session = Depends(get_db),
     preference: str = Form(""),
     comment: str = Form(""),
-    suggested_names: str = Form(""),
 ):
     if preference not in VALID_PREFS:
         return RedirectResponse("/feedback", status_code=303)
@@ -105,10 +104,6 @@ async def submit_feedback(
     ))
     db.commit()
     background_tasks.add_task(send_feedback_notification, preference, trimmed_comment, orcid_id)
-
-    if suggested_names.strip():
-        _upsert_names(suggested_names, _voter_id(request), db)
-
     return RedirectResponse("/feedback?submitted=1", status_code=303)
 
 
