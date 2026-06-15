@@ -6,6 +6,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
+from app.utils.design import register_globals
 from sqlalchemy import text
 
 from app.database import Base, engine
@@ -75,6 +76,7 @@ app.include_router(messages_router.router)
 app.include_router(follows_router.router)
 
 _templates = Jinja2Templates(directory="app/templates")
+register_globals(_templates)
 
 
 @app.exception_handler(StarletteHTTPException)

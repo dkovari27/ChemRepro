@@ -84,18 +84,35 @@
         ChemRepro
       </a>
 
-      <!-- Version switcher: centered -->
-      <div class="absolute left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-slate-100 rounded-lg p-0.5 text-xs font-medium select-none">
-        <a href="{{ switch_urls.standard if switch_urls is defined else '/' }}"
-           class="px-3 py-1.5 rounded-md transition-colors
-                  {% if site_version == 'classic' %}text-slate-500 hover:text-slate-700{% else %}vsw-active text-slate-800{% endif %}">
-          Standard
-        </a>
-        <a href="{{ switch_urls.classic if switch_urls is defined else '/classic/' }}"
-           class="px-3 py-1.5 rounded-md transition-colors
-                  {% if site_version == 'classic' %}vsw-active text-slate-800{% else %}text-slate-500 hover:text-slate-700{% endif %}">
-          Classic
-        </a>
+      <!-- Version switchers: centered -->
+      <div class="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 select-none">
+        <!-- Scoring mode -->
+        <div class="flex items-center gap-0.5 bg-slate-100 rounded-lg p-0.5 text-xs font-medium">
+          <a href="{{ switch_urls.standard if switch_urls is defined else '/' }}"
+             class="px-3 py-1.5 rounded-md transition-colors
+                    {% if site_version == 'classic' %}text-slate-500 hover:text-slate-700{% else %}vsw-active text-slate-800{% endif %}">
+            Standard
+          </a>
+          <a href="{{ switch_urls.classic if switch_urls is defined else '/classic/' }}"
+             class="px-3 py-1.5 rounded-md transition-colors
+                    {% if site_version == 'classic' %}vsw-active text-slate-800{% else %}text-slate-500 hover:text-slate-700{% endif %}">
+            Classic
+          </a>
+        </div>
+        <!-- Design version -->
+        {% set dver = design_ver(request) %}
+        <div class="flex items-center gap-0.5 bg-slate-100 rounded-lg p-0.5 text-xs font-medium">
+          <a href="/design/v1"
+             class="px-2.5 py-1.5 rounded-md transition-colors
+                    {% if dver == 'v1' %}vsw-active text-slate-800{% else %}text-slate-500 hover:text-slate-700{% endif %}">
+            v1
+          </a>
+          <a href="/design/v2"
+             class="px-2.5 py-1.5 rounded-md transition-colors
+                    {% if dver != 'v1' %}vsw-active text-slate-800{% else %}text-slate-500 hover:text-slate-700{% endif %}">
+            v2
+          </a>
+        </div>
       </div>
 
       <!-- Right controls -->

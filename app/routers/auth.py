@@ -1,7 +1,8 @@
-import secrets
+﻿import secrets
 import uuid
 from datetime import datetime, timezone
 
+from app.utils.design import register_globals
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -13,6 +14,7 @@ from app.models.user import CAREER_STAGES, User
 from app.services.orcid import exchange_code_for_token, fetch_orcid_name, get_auth_url
 
 templates = Jinja2Templates(directory="app/templates")
+register_globals(templates)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

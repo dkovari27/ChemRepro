@@ -1,3 +1,4 @@
+﻿from app.utils.design import register_globals
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -12,6 +13,7 @@ from app.utils.email import send_feedback_notification
 
 router = APIRouter(tags=["feedback"])
 templates = Jinja2Templates(directory="app/templates")
+register_globals(templates)
 
 VALID_PREFS = {"standard", "classic", "both", "unsure"}
 

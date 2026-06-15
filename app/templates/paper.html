@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends design_base(request) %}
 {% block title %}{{ paper.title | truncate(60, true, '…') }} – ChemRepro{% endblock %}
 
 {% block content %}

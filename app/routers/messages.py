@@ -1,5 +1,6 @@
-import re
+﻿import re
 
+from app.utils.design import register_globals
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -25,6 +26,7 @@ def _is_clean(text: str | None) -> bool:
 
 router = APIRouter(prefix="/profile", tags=["messages"])
 templates = Jinja2Templates(directory="app/templates")
+register_globals(templates)
 
 
 def _base_ctx(request: Request) -> dict:

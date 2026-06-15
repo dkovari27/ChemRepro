@@ -1,3 +1,4 @@
+﻿from app.utils.design import register_globals
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -14,6 +15,7 @@ from app.routers.papers import OUTCOME_SCORES
 
 router = APIRouter(tags=["profile"])
 templates = Jinja2Templates(directory="app/templates")
+register_globals(templates)
 
 
 @router.get("/profile/my-reviews", response_class=HTMLResponse)

@@ -1,0 +1,54 @@
+﻿{% extends design_base(request) %}
+{% block title %}Message – ChemRepro{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto flex flex-col" style="height: calc(100vh - 12rem)">
+
+  <!-- Header -->
+  <div class="flex items-center gap-3 mb-4">
+    <a href="/profile/inbox" class="text-sm text-slate-400 hover:text-brand transition-colors">← Inbox</a>
+    <div class="w-0.5 h-4 bg-slate-200 rounded-full"></div>
+    <div class="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 text-sm font-semibold">
+      {{ (other_user.name or '?')[0].upper() }}
+    </div>
+    <span class="text-sm font-semibold text-slate-700">{{ other_user.name or 'Unknown user' }}</span>
+  </div>
+
+  <!-- Message thread -->
+  <div class="flex-1 overflow-y-auto space-y-3 mb-4 pr-1">
+    {% for msg in messages %}
+    {% set is_mine = msg.sender_orcid_id == orcid_id %}
+    <div class="flex {% if is_mine %}justify-end{% endif %}">
+      <div class="max-w-[75%] {% if is_mine %}bg-brand text-white{% else %}bg-white border border-slate-200 text-slate-700{% endif %} rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm">
+        {{ msg.content }}
+        <p class="text-[10px] mt-1 {% if is_mine %}text-blue-200{% else %}text-slate-400{% endif %}">
+          {{ msg.created_at.strftime('%d %b, %H:%M') }}
+        </p>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Reply form -->
+  <form action="/profile/inbox/{{ thread_id }}/reply" method="post" class="flex gap-2 pt-3 border-t border-slate-100">
+    <textarea name="content" rows="2" maxlength="5000" required spellcheck="true"
+      placeholder="Write a message…"
+      class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none"></textarea>
+    <button type="submit"
+      class="self-end bg-brand text-white rounded-xl px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-colors">
+      Send
+    </button>
+  </form>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Auto-scroll to bottom of thread
+  document.addEventListener('DOMContentLoaded', () => {
+    const thread = document.querySelector('.overflow-y-auto');
+    if (thread) thread.scrollTop = thread.scrollHeight;
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,17 @@
+﻿{% extends design_base(request) %}
+{% block title %}Unsubscribed – ChemRepro{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto text-center mt-16">
+  {% if success %}
+  <p class="text-4xl mb-4">✅</p>
+  <h1 class="text-xl font-bold text-slate-800 mb-2">You've been unsubscribed</h1>
+  <p class="text-sm text-slate-500">You will no longer receive email notifications for this paper from ChemRepro.</p>
+  {% else %}
+  <p class="text-4xl mb-4">❓</p>
+  <h1 class="text-xl font-bold text-slate-800 mb-2">Link not found</h1>
+  <p class="text-sm text-slate-500">This opt-out link is invalid or has already been used.</p>
+  {% endif %}
+  <a href="/" class="inline-block mt-6 text-sm text-brand hover:underline">Back to ChemRepro →</a>
+</div>
+{% endblock %}

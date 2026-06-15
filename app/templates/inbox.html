@@ -1,0 +1,45 @@
+﻿{% extends design_base(request) %}
+{% block title %}Inbox – ChemRepro{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+
+  <div class="mb-6">
+    <h1 class="text-xl font-bold text-slate-800">Inbox</h1>
+    <p class="text-sm text-slate-400 mt-1">Private messages</p>
+  </div>
+
+  {% if threads %}
+  <div class="space-y-2">
+    {% for t in threads %}
+    <a href="/profile/inbox/{{ t.thread_id }}"
+       class="flex items-center gap-3 bg-white border rounded-xl px-4 py-3 hover:border-brand transition-colors
+              {% if t.unread > 0 %}border-brand/40 bg-blue-50/30{% else %}border-slate-200{% endif %}">
+      <!-- Avatar placeholder -->
+      <div class="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 text-sm font-semibold shrink-0">
+        {{ (t.other_user.name or '?')[0].upper() }}
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-sm font-semibold text-slate-700 truncate">{{ t.other_user.name or 'Unknown user' }}</span>
+          <span class="text-xs text-slate-400 shrink-0">{{ t.last_message.created_at.strftime('%d %b') }}</span>
+        </div>
+        <p class="text-xs text-slate-500 truncate mt-0.5">{{ t.last_message.content | truncate(80) }}</p>
+      </div>
+      {% if t.unread > 0 %}
+      <span class="shrink-0 w-5 h-5 bg-brand text-white text-[10px] font-bold rounded-full flex items-center justify-center">{{ t.unread }}</span>
+      {% endif %}
+    </a>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="bg-white border border-slate-200 rounded-xl px-6 py-12 text-center">
+    <p class="text-3xl mb-2">✉️</p>
+    <p class="text-slate-500 text-sm">No messages yet.</p>
+    <p class="text-slate-400 text-xs mt-1">Start a conversation by clicking "Message" on someone's review.</p>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

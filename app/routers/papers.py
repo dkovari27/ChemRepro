@@ -1,10 +1,11 @@
-import json
+﻿import json
 import re
 from datetime import datetime, timezone
 
 import bleach
 import markdown as _md_lib
 
+from app.utils.design import register_globals
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -28,6 +29,17 @@ from app.services.crossref import fetch_paper_metadata, is_valid_doi, normalise_
 
 router = APIRouter(tags=["papers"])
 templates = Jinja2Templates(directory="app/templates")
+register_globals(templates)
+
+
+@router.get("/design/{ver}")
+async def set_design_version(ver: str, request: Request):
+    from fastapi.responses import RedirectResponse as _Redir
+    if ver in ("v1", "v2"):
+        request.session["design_ver"] = ver
+    back = request.headers.get("referer", "/")
+    return _Redir(back, status_code=303)
+
 
 _MD_ALLOWED_TAGS = [
     "p", "br", "strong", "em", "b", "i", "code", "pre",
