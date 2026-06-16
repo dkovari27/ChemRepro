@@ -19,6 +19,8 @@ class User(Base):
 
     orcid_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     name: Mapped[str | None] = mapped_column(String(255))
+    nickname: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    notification_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     career_stage: Mapped[str | None] = mapped_column(String(60), nullable=True)
     career_stage_set: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     verified_at: Mapped[datetime] = mapped_column(

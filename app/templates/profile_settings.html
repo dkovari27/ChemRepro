@@ -1,0 +1,83 @@
+{% extends design_base(request) %}
+{% block title %}Settings – ChemRepro{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto">
+
+  <div class="mb-6">
+    <h1 class="text-xl font-bold text-slate-800">Settings</h1>
+    <p class="text-sm text-slate-400 mt-1">Manage your profile and notification preferences</p>
+  </div>
+
+  {% if saved %}
+  <div class="mb-4 bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-3 text-sm font-medium">
+    Changes saved.
+  </div>
+  {% endif %}
+
+  <form action="/profile/settings" method="post" class="space-y-4">
+
+    <!-- Identity -->
+    <div class="bg-white border border-slate-200 rounded-xl p-6">
+      <h2 class="text-sm font-semibold text-slate-700 mb-4">Your identity</h2>
+
+      <!-- ORCID name (read-only) -->
+      <div class="mb-4">
+        <label class="block text-xs font-medium text-slate-500 mb-1">ORCID name <span class="text-slate-300">(from ORCID, cannot be changed here)</span></label>
+        <p class="text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">{{ user.name or "–" }}</p>
+      </div>
+
+      <!-- Nickname -->
+      <div class="mb-4">
+        <label for="nickname" class="block text-xs font-medium text-slate-500 mb-1">
+          Display nickname <span class="text-slate-400 font-normal">(optional)</span>
+        </label>
+        <input id="nickname" name="nickname" type="text" maxlength="60"
+          value="{{ user.nickname or '' }}"
+          placeholder="Leave blank to use your ORCID name"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/25 focus:border-brand/50 transition-colors" />
+        <p class="text-xs text-slate-400 mt-1">If set, this appears instead of your ORCID name on your reviews and comments.</p>
+      </div>
+
+      <!-- Career stage -->
+      <div>
+        <label for="career_stage" class="block text-xs font-medium text-slate-500 mb-1">Career stage</label>
+        <select id="career_stage" name="career_stage"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/25 focus:border-brand/50 transition-colors bg-white">
+          <option value="">— Select —</option>
+          {% for stage in career_stages %}
+          <option value="{{ stage }}" {% if user.career_stage == stage %}selected{% endif %}>{{ stage }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <!-- Notifications -->
+    <div class="bg-white border border-slate-200 rounded-xl p-6">
+      <h2 class="text-sm font-semibold text-slate-700 mb-1">Notification email</h2>
+      <p class="text-xs text-slate-400 mb-4">Where we send alerts for papers and people you follow. Not used for login.</p>
+
+      <input id="notification_email" name="notification_email" type="email" maxlength="255"
+        value="{{ user.notification_email or '' }}"
+        placeholder="your@email.com"
+        class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/25 focus:border-brand/50 transition-colors" />
+      <p class="text-xs text-slate-400 mt-1">Leave blank to receive only in-app notifications.</p>
+    </div>
+
+    <button type="submit"
+      class="w-full bg-brand text-white rounded-lg px-4 py-3 text-sm font-medium hover:bg-brand-dark transition-colors">
+      Save changes
+    </button>
+
+  </form>
+
+  <!-- ORCID info -->
+  <div class="mt-4 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
+    <p class="text-xs text-slate-400">
+      Signed in via ORCID &middot;
+      <span class="font-mono">{{ orcid_id }}</span>
+    </p>
+  </div>
+
+</div>
+{% endblock %}

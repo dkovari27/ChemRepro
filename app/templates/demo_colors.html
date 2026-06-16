@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Color Scheme Demo – ChemRepro</title>
+  <link rel="preconnect" href="https://rsms.me/" />
+  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>body { font-family: 'Inter var', Inter, system-ui, sans-serif; font-feature-settings: 'cv11','ss01'; }</style>
+</head>
+<body class="bg-slate-100 antialiased min-h-screen">
+
+  <div class="max-w-5xl mx-auto px-4 py-12">
+
+    <!-- Header -->
+    <div class="text-center mb-10">
+      <p class="text-[11px] font-semibold uppercase tracking-widest text-slate-400 mb-3">Internal design demo</p>
+      <h1 class="text-2xl font-bold text-slate-800 mb-2">5 Alternative Colour Schemes</h1>
+      <p class="text-sm text-slate-500 max-w-sm mx-auto">
+        Replacing the current green
+        <span class="font-mono text-xs bg-white border border-slate-200 rounded px-1.5 py-0.5 mx-0.5">#0f6b47</span>
+        — all options avoid green to stay visually distinct from PubPeer.
+      </p>
+    </div>
+
+    <!-- Grid of scheme cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+
+      <!-- ── 1. Navy Blue ───────────────────────────────────────────── -->
+      {% set c = "#1e3a8a" %}
+      <div class="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm flex flex-col">
+        <!-- Mini nav -->
+        <div class="h-10 flex items-center px-3 bg-white border-b border-slate-100">
+          <span class="font-bold text-sm tracking-tight" style="color:#1e3a8a">ChemRepro</span>
+          <div class="ml-auto flex items-center gap-1.5">
+            <span class="text-[10px] text-slate-400">Demo User</span>
+            <span class="inline-block text-white text-[10px] rounded px-2 py-0.5 font-medium" style="background:#1e3a8a">Sign in</span>
+          </div>
+        </div>
+        <!-- Mini content -->
+        <div class="p-4 flex-1">
+          <!-- Paper card -->
+          <div class="border border-slate-200 rounded-xl p-3 mb-3 bg-slate-50/60">
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <p class="text-[11px] font-semibold text-slate-700 leading-snug flex-1 line-clamp-2">Pd-catalysed asymmetric allylic alkylation of glycine...</p>
+              <div class="text-center shrink-0">
+                <p class="text-sm font-bold leading-none" style="color:#1e3a8a">★ 4.2</p>
+                <p class="text-[9px] text-slate-400 mt-0.5">3 ratings</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="text-[10px] border rounded-full px-2 py-0.5 font-medium" style="color:#1e3a8a;border-color:#1e3a8a">Reproduced ✓</span>
+              <button class="ml-auto text-white text-[10px] rounded-md px-2 py-0.5 font-medium" style="background:#1e3a8a">🔔 Follow</button>
+            </div>
+          </div>
+          <!-- Score button -->
+          <button class="w-full text-white text-xs rounded-lg py-2 font-medium" style="background:#1e3a8a">Rate this paper</button>
+        </div>
+        <!-- Label -->
+        <div class="px-4 pt-1 pb-4 border-t border-slate-100 mt-auto">
+          <div class="flex items-center gap-2 mb-1">
+            <div class="w-4 h-4 rounded-full shrink-0" style="background:#1e3a8a"></div>
+            <p class="text-sm font-bold text-slate-800">Navy Blue</p>
+            <span class="ml-auto font-mono text-[11px] text-slate-400">#1e3a8a</span>
+          </div>
+          <p class="text-[11px] text-slate-500 leading-snug">Academic authority — the colour of science textbooks and trusted journals.</p>
+        </div>
+      </div>
+
+      <!-- ── 2. Amber ───────────────────────────────────────────────── -->
+      <div class="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm flex flex-col">
+        <div class="h-10 flex items-center px-3 bg-white border-b border-slate-100">
+          <span class="font-bold text-sm tracking-tight" style="color:#b45309">ChemRepro</span>
+          <div class="ml-auto flex items-center gap-1.5">
+            <span class="text-[10px] text-slate-400">Demo User</span>
+            <span class="inline-block text-white text-[10px] rounded px-2 py-0.5 font-medium" style="background:#b45309">Sign in</span>
+          </div>
+        </div>
+        <div class="p-4 flex-1">
+          <div class="border border-slate-200 rounded-xl p-3 mb-3 bg-slate-50/60">
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <p class="text-[11px] font-semibold text-slate-700 leading-snug flex-1 line-clamp-2">Pd-catalysed asymmetric allylic alkylation of glycine...</p>
+              <div class="text-center shrink-0">
+                <p class="text-sm font-bold leading-none" style="color:#b45309">★ 4.2</p>
+                <p class="text-[9px] text-slate-400 mt-0.5">3 ratings</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="text-[10px] border rounded-full px-2 py-0.5 font-medium" style="color:#b45309;border-color:#b45309">Reproduced ✓</span>
+              <button class="ml-auto text-white text-[10px] rounded-md px-2 py-0.5 font-medium" style="background:#b45309">🔔 Follow</button>
+            </div>
+          </div>
+          <button class="w-full text-white text-xs rounded-lg py-2 font-medium" style="background:#b45309">Rate this paper</button>
+        </div>
+        <div class="px-4 pt-1 pb-4 border-t border-slate-100 mt-auto">
+          <div class="flex items-center gap-2 mb-1">
+            <div class="w-4 h-4 rounded-full shrink-0" style="background:#b45309"></div>
+            <p class="text-sm font-bold text-slate-800">Amber</p>
+            <span class="ml-auto font-mono text-[11px] text-slate-400">#b45309</span>
+          </div>
+          <p class="text-[11px] text-slate-500 leading-snug">Chemistry-coded warmth — evokes the flask icon, fire and reaction heat.</p>
+        </div>
+      </div>
+
+      <!-- ── 3. Violet ──────────────────────────────────────────────── -->
+      <div class="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm flex flex-col">
+        <div class="h-10 flex items-center px-3 bg-white border-b border-slate-100">
+          <span class="font-bold text-sm tracking-tight" style="color:#6d28d9">ChemRepro</span>
+          <div class="ml-auto flex items-center gap-1.5">
+            <span class="text-[10px] text-slate-400">Demo User</span>
+            <span class="inline-block text-white text-[10px] rounded px-2 py-0.5 font-medium" style="background:#6d28d9">Sign in</span>
+          </div>
+        </div>
+        <div class="p-4 flex-1">
+          <div class="border border-slate-200 rounded-xl p-3 mb-3 bg-slate-50/60">
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <p class="text-[11px] font-semibold text-slate-700 leading-snug flex-1 line-clamp-2">Pd-catalysed asymmetric allylic alkylation of glycine...</p>
+              <div class="text-center shrink-0">
+                <p class="text-sm font-bold leading-none" style="color:#6d28d9">★ 4.2</p>
+                <p class="text-[9px] text-slate-400 mt-0.5">3 ratings</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="text-[10px] border rounded-full px-2 py-0.5 font-medium" style="color:#6d28d9;border-color:#6d28d9">Reproduced ✓</span>
+              <button class="ml-auto text-white text-[10px] rounded-md px-2 py-0.5 font-medium" style="background:#6d28d9">🔔 Follow</button>
+            </div>
+          </div>
+          <button class="w-full text-white text-xs rounded-lg py-2 font-medium" style="background:#6d28d9">Rate this paper</button>
+        </div>
+        <div class="px-4 pt-1 pb-4 border-t border-slate-100 mt-auto">
+          <div class="flex items-center gap-2 mb-1">
+            <div class="w-4 h-4 rounded-full shrink-0" style="background:#6d28d9"></div>
+            <p class="text-sm font-bold text-slate-800">Violet</p>
+            <span class="ml-auto font-mono text-[11px] text-slate-400">#6d28d9</span>
+          </div>
+          <p class="text-[11px] text-slate-500 leading-snug">Scientific premium — echoes Nature's purple and high-impact journal aesthetics.</p>
+        </div>
+      </div>
+
+      <!-- ── 4. Crimson ─────────────────────────────────────────────── -->
+      <div class="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm flex flex-col">
+        <div class="h-10 flex items-center px-3 bg-white border-b border-slate-100">
+          <span class="font-bold text-sm tracking-tight" style="color:#9f1239">ChemRepro</span>
+          <div class="ml-auto flex items-center gap-1.5">
+            <span class="text-[10px] text-slate-400">Demo User</span>
+            <span class="inline-block text-white text-[10px] rounded px-2 py-0.5 font-medium" style="background:#9f1239">Sign in</span>
+          </div>
+        </div>
+        <div class="p-4 flex-1">
+          <div class="border border-slate-200 rounded-xl p-3 mb-3 bg-slate-50/60">
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <p class="text-[11px] font-semibold text-slate-700 leading-snug flex-1 line-clamp-2">Pd-catalysed asymmetric allylic alkylation of glycine...</p>
+              <div class="text-center shrink-0">
+                <p class="text-sm font-bold leading-none" style="color:#9f1239">★ 4.2</p>
+                <p class="text-[9px] text-slate-400 mt-0.5">3 ratings</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="text-[10px] border rounded-full px-2 py-0.5 font-medium" style="color:#9f1239;border-color:#9f1239">Reproduced ✓</span>
+              <button class="ml-auto text-white text-[10px] rounded-md px-2 py-0.5 font-medium" style="background:#9f1239">🔔 Follow</button>
+            </div>
+          </div>
+          <button class="w-full text-white text-xs rounded-lg py-2 font-medium" style="background:#9f1239">Rate this paper</button>
+        </div>
+        <div class="px-4 pt-1 pb-4 border-t border-slate-100 mt-auto">
+          <div class="flex items-center gap-2 mb-1">
+            <div class="w-4 h-4 rounded-full shrink-0" style="background:#9f1239"></div>
+            <p class="text-sm font-bold text-slate-800">Crimson</p>
+            <span class="ml-auto font-mono text-[11px] text-slate-400">#9f1239</span>
+          </div>
+          <p class="text-[11px] text-slate-500 leading-snug">Bold and unmissable — no overlap with any existing chemistry platform.</p>
+        </div>
+      </div>
+
+      <!-- ── 5. Indigo ───────────────────────────────────────────────── -->
+      <div class="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm flex flex-col">
+        <div class="h-10 flex items-center px-3 bg-white border-b border-slate-100">
+          <span class="font-bold text-sm tracking-tight" style="color:#4338ca">ChemRepro</span>
+          <div class="ml-auto flex items-center gap-1.5">
+            <span class="text-[10px] text-slate-400">Demo User</span>
+            <span class="inline-block text-white text-[10px] rounded px-2 py-0.5 font-medium" style="background:#4338ca">Sign in</span>
+          </div>
+        </div>
+        <div class="p-4 flex-1">
+          <div class="border border-slate-200 rounded-xl p-3 mb-3 bg-slate-50/60">
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <p class="text-[11px] font-semibold text-slate-700 leading-snug flex-1 line-clamp-2">Pd-catalysed asymmetric allylic alkylation of glycine...</p>
+              <div class="text-center shrink-0">
+                <p class="text-sm font-bold leading-none" style="color:#4338ca">★ 4.2</p>
+                <p class="text-[9px] text-slate-400 mt-0.5">3 ratings</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="text-[10px] border rounded-full px-2 py-0.5 font-medium" style="color:#4338ca;border-color:#4338ca">Reproduced ✓</span>
+              <button class="ml-auto text-white text-[10px] rounded-md px-2 py-0.5 font-medium" style="background:#4338ca">🔔 Follow</button>
+            </div>
+          </div>
+          <button class="w-full text-white text-xs rounded-lg py-2 font-medium" style="background:#4338ca">Rate this paper</button>
+        </div>
+        <div class="px-4 pt-1 pb-4 border-t border-slate-100 mt-auto">
+          <div class="flex items-center gap-2 mb-1">
+            <div class="w-4 h-4 rounded-full shrink-0" style="background:#4338ca"></div>
+            <p class="text-sm font-bold text-slate-800">Indigo</p>
+            <span class="ml-auto font-mono text-[11px] text-slate-400">#4338ca</span>
+          </div>
+          <p class="text-[11px] text-slate-500 leading-snug">Confident blue-purple — sits between Cobalt and Violet, very readable.</p>
+        </div>
+      </div>
+
+      <!-- ── 6. Cobalt ─────────────────────────────────────────────── -->
+      <div class="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm flex flex-col">
+        <div class="h-10 flex items-center px-3 bg-white border-b border-slate-100">
+          <span class="font-bold text-sm tracking-tight" style="color:#1e6091">ChemRepro</span>
+          <div class="ml-auto flex items-center gap-1.5">
+            <span class="text-[10px] text-slate-400">Demo User</span>
+            <span class="inline-block text-white text-[10px] rounded px-2 py-0.5 font-medium" style="background:#1e6091">Sign in</span>
+          </div>
+        </div>
+        <div class="p-4 flex-1">
+          <div class="border border-slate-200 rounded-xl p-3 mb-3 bg-slate-50/60">
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <p class="text-[11px] font-semibold text-slate-700 leading-snug flex-1 line-clamp-2">Pd-catalysed asymmetric allylic alkylation of glycine...</p>
+              <div class="text-center shrink-0">
+                <p class="text-sm font-bold leading-none" style="color:#1e6091">★ 4.2</p>
+                <p class="text-[9px] text-slate-400 mt-0.5">3 ratings</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="text-[10px] border rounded-full px-2 py-0.5 font-medium" style="color:#1e6091;border-color:#1e6091">Reproduced ✓</span>
+              <button class="ml-auto text-white text-[10px] rounded-md px-2 py-0.5 font-medium" style="background:#1e6091">🔔 Follow</button>
+            </div>
+          </div>
+          <button class="w-full text-white text-xs rounded-lg py-2 font-medium" style="background:#1e6091">Rate this paper</button>
+        </div>
+        <div class="px-4 pt-1 pb-4 border-t border-slate-100 mt-auto">
+          <div class="flex items-center gap-2 mb-1">
+            <div class="w-4 h-4 rounded-full shrink-0" style="background:#1e6091"></div>
+            <p class="text-sm font-bold text-slate-800">Cobalt</p>
+            <span class="ml-auto font-mono text-[11px] text-slate-400">#1e6091</span>
+          </div>
+          <p class="text-[11px] text-slate-500 leading-snug">Mid-depth blue — lighter and warmer than Navy, still highly professional.</p>
+        </div>
+      </div>
+
+      <!-- ── 7. Burnt Orange ────────────────────────────────────────── -->
+      <div class="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm flex flex-col">
+        <div class="h-10 flex items-center px-3 bg-white border-b border-slate-100">
+          <span class="font-bold text-sm tracking-tight" style="color:#c2410c">ChemRepro</span>
+          <div class="ml-auto flex items-center gap-1.5">
+            <span class="text-[10px] text-slate-400">Demo User</span>
+            <span class="inline-block text-white text-[10px] rounded px-2 py-0.5 font-medium" style="background:#c2410c">Sign in</span>
+          </div>
+        </div>
+        <div class="p-4 flex-1">
+          <div class="border border-slate-200 rounded-xl p-3 mb-3 bg-slate-50/60">
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <p class="text-[11px] font-semibold text-slate-700 leading-snug flex-1 line-clamp-2">Pd-catalysed asymmetric allylic alkylation of glycine...</p>
+              <div class="text-center shrink-0">
+                <p class="text-sm font-bold leading-none" style="color:#c2410c">★ 4.2</p>
+                <p class="text-[9px] text-slate-400 mt-0.5">3 ratings</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="text-[10px] border rounded-full px-2 py-0.5 font-medium" style="color:#c2410c;border-color:#c2410c">Reproduced ✓</span>
+              <button class="ml-auto text-white text-[10px] rounded-md px-2 py-0.5 font-medium" style="background:#c2410c">🔔 Follow</button>
+            </div>
+          </div>
+          <button class="w-full text-white text-xs rounded-lg py-2 font-medium" style="background:#c2410c">Rate this paper</button>
+        </div>
+        <div class="px-4 pt-1 pb-4 border-t border-slate-100 mt-auto">
+          <div class="flex items-center gap-2 mb-1">
+            <div class="w-4 h-4 rounded-full shrink-0" style="background:#c2410c"></div>
+            <p class="text-sm font-bold text-slate-800">Burnt Orange</p>
+            <span class="ml-auto font-mono text-[11px] text-slate-400">#c2410c</span>
+          </div>
+          <p class="text-[11px] text-slate-500 leading-snug">Energetic and fiery — evokes reaction heat and bunsen burner flames.</p>
+        </div>
+      </div>
+
+      <!-- ── 8. Magenta ─────────────────────────────────────────────── -->
+      <div class="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm flex flex-col">
+        <div class="h-10 flex items-center px-3 bg-white border-b border-slate-100">
+          <span class="font-bold text-sm tracking-tight" style="color:#be185d">ChemRepro</span>
+          <div class="ml-auto flex items-center gap-1.5">
+            <span class="text-[10px] text-slate-400">Demo User</span>
+            <span class="inline-block text-white text-[10px] rounded px-2 py-0.5 font-medium" style="background:#be185d">Sign in</span>
+          </div>
+        </div>
+        <div class="p-4 flex-1">
+          <div class="border border-slate-200 rounded-xl p-3 mb-3 bg-slate-50/60">
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <p class="text-[11px] font-semibold text-slate-700 leading-snug flex-1 line-clamp-2">Pd-catalysed asymmetric allylic alkylation of glycine...</p>
+              <div class="text-center shrink-0">
+                <p class="text-sm font-bold leading-none" style="color:#be185d">★ 4.2</p>
+                <p class="text-[9px] text-slate-400 mt-0.5">3 ratings</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="text-[10px] border rounded-full px-2 py-0.5 font-medium" style="color:#be185d;border-color:#be185d">Reproduced ✓</span>
+              <button class="ml-auto text-white text-[10px] rounded-md px-2 py-0.5 font-medium" style="background:#be185d">🔔 Follow</button>
+            </div>
+          </div>
+          <button class="w-full text-white text-xs rounded-lg py-2 font-medium" style="background:#be185d">Rate this paper</button>
+        </div>
+        <div class="px-4 pt-1 pb-4 border-t border-slate-100 mt-auto">
+          <div class="flex items-center gap-2 mb-1">
+            <div class="w-4 h-4 rounded-full shrink-0" style="background:#be185d"></div>
+            <p class="text-sm font-bold text-slate-800">Magenta</p>
+            <span class="ml-auto font-mono text-[11px] text-slate-400">#be185d</span>
+          </div>
+          <p class="text-[11px] text-slate-500 leading-snug">Bold and modern — completely unique in academic science tooling.</p>
+        </div>
+      </div>
+
+      <!-- ── 9. Charcoal ────────────────────────────────────────────── -->
+      <div class="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm flex flex-col">
+        <div class="h-10 flex items-center px-3 bg-white border-b border-slate-100">
+          <span class="font-bold text-sm tracking-tight" style="color:#1e293b">ChemRepro</span>
+          <div class="ml-auto flex items-center gap-1.5">
+            <span class="text-[10px] text-slate-400">Demo User</span>
+            <span class="inline-block text-white text-[10px] rounded px-2 py-0.5 font-medium" style="background:#1e293b">Sign in</span>
+          </div>
+        </div>
+        <div class="p-4 flex-1">
+          <div class="border border-slate-200 rounded-xl p-3 mb-3 bg-slate-50/60">
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <p class="text-[11px] font-semibold text-slate-700 leading-snug flex-1 line-clamp-2">Pd-catalysed asymmetric allylic alkylation of glycine...</p>
+              <div class="text-center shrink-0">
+                <p class="text-sm font-bold leading-none" style="color:#1e293b">★ 4.2</p>
+                <p class="text-[9px] text-slate-400 mt-0.5">3 ratings</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="text-[10px] border rounded-full px-2 py-0.5 font-medium" style="color:#1e293b;border-color:#1e293b">Reproduced ✓</span>
+              <button class="ml-auto text-white text-[10px] rounded-md px-2 py-0.5 font-medium" style="background:#1e293b">🔔 Follow</button>
+            </div>
+          </div>
+          <button class="w-full text-white text-xs rounded-lg py-2 font-medium" style="background:#1e293b">Rate this paper</button>
+        </div>
+        <div class="px-4 pt-1 pb-4 border-t border-slate-100 mt-auto">
+          <div class="flex items-center gap-2 mb-1">
+            <div class="w-4 h-4 rounded-full shrink-0" style="background:#1e293b"></div>
+            <p class="text-sm font-bold text-slate-800">Charcoal</p>
+            <span class="ml-auto font-mono text-[11px] text-slate-400">#1e293b</span>
+          </div>
+          <p class="text-[11px] text-slate-500 leading-snug">Minimal and serious — lets the data speak; typographic, like Notion or Linear.</p>
+        </div>
+      </div>
+
+      <!-- ── 10. Teal Blue ──────────────────────────────────────────── -->
+      <div class="bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm flex flex-col">
+        <div class="h-10 flex items-center px-3 bg-white border-b border-slate-100">
+          <span class="font-bold text-sm tracking-tight" style="color:#0e7490">ChemRepro</span>
+          <div class="ml-auto flex items-center gap-1.5">
+            <span class="text-[10px] text-slate-400">Demo User</span>
+            <span class="inline-block text-white text-[10px] rounded px-2 py-0.5 font-medium" style="background:#0e7490">Sign in</span>
+          </div>
+        </div>
+        <div class="p-4 flex-1">
+          <div class="border border-slate-200 rounded-xl p-3 mb-3 bg-slate-50/60">
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <p class="text-[11px] font-semibold text-slate-700 leading-snug flex-1 line-clamp-2">Pd-catalysed asymmetric allylic alkylation of glycine...</p>
+              <div class="text-center shrink-0">
+                <p class="text-sm font-bold leading-none" style="color:#0e7490">★ 4.2</p>
+                <p class="text-[9px] text-slate-400 mt-0.5">3 ratings</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="text-[10px] border rounded-full px-2 py-0.5 font-medium" style="color:#0e7490;border-color:#0e7490">Reproduced ✓</span>
+              <button class="ml-auto text-white text-[10px] rounded-md px-2 py-0.5 font-medium" style="background:#0e7490">🔔 Follow</button>
+            </div>
+          </div>
+          <button class="w-full text-white text-xs rounded-lg py-2 font-medium" style="background:#0e7490">Rate this paper</button>
+        </div>
+        <div class="px-4 pt-1 pb-4 border-t border-slate-100 mt-auto">
+          <div class="flex items-center gap-2 mb-1">
+            <div class="w-4 h-4 rounded-full shrink-0" style="background:#0e7490"></div>
+            <p class="text-sm font-bold text-slate-800">Teal Blue</p>
+            <span class="ml-auto font-mono text-[11px] text-slate-400">#0e7490</span>
+          </div>
+          <p class="text-[11px] text-slate-500 leading-snug">Cyan-teal — clearly blue-shifted from PubPeer's yellow-green; clean and clinical.</p>
+        </div>
+      </div>
+
+      <!-- ── Current (for reference) ────────────────────────────────── -->
+      <div class="bg-white rounded-2xl overflow-hidden border-2 border-dashed border-slate-300 shadow-sm flex flex-col opacity-60">
+        <div class="h-10 flex items-center px-3 bg-white border-b border-slate-100">
+          <span class="font-bold text-sm tracking-tight" style="color:#0f6b47">ChemRepro</span>
+          <div class="ml-auto flex items-center gap-1.5">
+            <span class="text-[10px] text-slate-400">Demo User</span>
+            <span class="inline-block text-white text-[10px] rounded px-2 py-0.5 font-medium" style="background:#0f6b47">Sign in</span>
+          </div>
+        </div>
+        <div class="p-4 flex-1">
+          <div class="border border-slate-200 rounded-xl p-3 mb-3 bg-slate-50/60">
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <p class="text-[11px] font-semibold text-slate-700 leading-snug flex-1 line-clamp-2">Pd-catalysed asymmetric allylic alkylation of glycine...</p>
+              <div class="text-center shrink-0">
+                <p class="text-sm font-bold leading-none" style="color:#0f6b47">★ 4.2</p>
+                <p class="text-[9px] text-slate-400 mt-0.5">3 ratings</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="text-[10px] border rounded-full px-2 py-0.5 font-medium" style="color:#0f6b47;border-color:#0f6b47">Reproduced ✓</span>
+              <button class="ml-auto text-white text-[10px] rounded-md px-2 py-0.5 font-medium" style="background:#0f6b47">🔔 Follow</button>
+            </div>
+          </div>
+          <button class="w-full text-white text-xs rounded-lg py-2 font-medium" style="background:#0f6b47">Rate this paper</button>
+        </div>
+        <div class="px-4 pt-1 pb-4 border-t border-slate-100 mt-auto">
+          <div class="flex items-center gap-2 mb-1">
+            <div class="w-4 h-4 rounded-full shrink-0" style="background:#0f6b47"></div>
+            <p class="text-sm font-bold text-slate-600">Current green</p>
+            <span class="ml-auto font-mono text-[11px] text-slate-400">#0f6b47</span>
+          </div>
+          <p class="text-[11px] text-slate-400 leading-snug italic">Current colour — shown here for comparison only.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="mt-10 text-center">
+      <p class="text-xs text-slate-400 mb-3">Tell Daniel which one to apply — it's a single variable change across the whole site.</p>
+      <a href="/" class="text-sm text-slate-500 hover:text-slate-800 transition-colors border border-slate-200 bg-white rounded-lg px-4 py-2">
+        ← Back to site
+      </a>
+    </div>
+
+  </div>
+
+</body>
+</html>

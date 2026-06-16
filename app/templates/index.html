@@ -10,7 +10,7 @@
   <div class="flex gap-2 flex-wrap">
     {% for i, name in dev_users %}
     <a href="/auth/dev-login/{{ i }}"
-       class="text-sm bg-white border border-amber-300 text-amber-800 rounded-lg px-3 py-1.5 hover:bg-amber-50 transition-colors">
+      class="text-sm bg-white border border-amber-300 text-amber-800 rounded-lg px-3 py-1.5 hover:bg-amber-50 transition-colors">
       {{ name }}
     </a>
     {% endfor %}
@@ -20,29 +20,21 @@
 
 <!-- ── Hero ─────────────────────────────────────────────────────── -->
 <div class="text-center mb-10 pt-4">
-  <p class="text-xs font-semibold uppercase tracking-widest text-brand/70 mb-3">Community reproducibility ratings</p>
-  <h1 class="text-[2.5rem] font-bold tracking-[-0.025em] text-[#111c17] mb-4 text-balance leading-[1.1]">
-    Did that synthesis<br class="hidden sm:block" /> actually work?
+  <h1 class="text-[2.5rem] font-bold tracking-[-0.025em] text-[#111c17] mb-4 leading-[1.2]">
+    Did that synthesis actually work?<br />Tell us more!
   </h1>
-  <p class="text-slate-500 text-base max-w-md mx-auto leading-relaxed">
-    Peer ratings from verified synthetic chemists.
-    Look up a DOI to see what others experienced in the lab.
+  <p class="text-slate-500 text-base max-w-xl mx-auto leading-relaxed">
+    Peer ratings from verified synthetic chemists.<br /> Look up a DOI to see what others experienced in the lab.
   </p>
 </div>
 
 <!-- ── Search ────────────────────────────────────────────────────── -->
 <form action="/search" method="get" class="flex gap-2 max-w-2xl mx-auto mb-10">
-  <input
-    type="text"
-    name="doi"
-    placeholder="Paste a DOI – e.g. 10.1021/jacs.2c00001"
+  <input type="text" name="doi" placeholder="Paste a DOI – e.g. 10.1021/jacs.2c00001"
     class="flex-1 bg-[#f2f7f5] border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/25 focus:border-brand/50 transition-colors placeholder:text-slate-400"
-    autofocus
-  />
-  <button
-    type="submit"
-    class="bg-brand text-white rounded-xl px-5 py-3 text-sm font-medium hover:bg-brand-dark transition-colors whitespace-nowrap shadow-sm"
-  >
+    autofocus />
+  <button type="submit"
+    class="bg-brand text-white rounded-xl px-5 py-3 text-sm font-medium hover:bg-brand-dark transition-colors whitespace-nowrap shadow-sm">
     Look up paper
   </button>
 </form>
@@ -57,12 +49,14 @@
 {% macro paper_card(entry) %}
 {% set p = entry.paper %}
 <a href="{% if site_version == 'classic' %}/classic{% endif %}/paper/{{ p.doi }}"
-   class="paper-card block bg-white border border-slate-200 rounded-xl p-5 group">
+  class="paper-card block bg-white border border-slate-200 rounded-xl p-5 group">
   <div class="flex items-center gap-5">
 
     <!-- Text column -->
     <div class="flex-1 min-w-0">
-      <p class="font-semibold text-[#111c17] text-sm leading-snug line-clamp-2 mb-1 group-hover:text-brand transition-colors">{{ p.title }}</p>
+      <p
+        class="font-semibold text-[#111c17] text-sm leading-snug line-clamp-2 mb-1 group-hover:text-brand transition-colors">
+        {{ p.title }}</p>
       <p class="text-xs text-slate-500 truncate mb-0.5">{{ entry.display_authors }}</p>
       <p class="text-[11px] text-slate-400 truncate">
         {{ p.journal or "–" }}{% if p.year %} · {{ p.year }}{% endif %}
@@ -73,8 +67,10 @@
     {# Score column — Standard: single score | Classic: dual stars #}
     {% if site_version == 'classic' %}
 
-    {% set repro_labels = {5: 'Reproduced exactly', 4: none, 3: 'Partially reproduced', 2: none, 1: 'Failed completely'} %}
-    {% set ext_labels   = {5: 'Major – new scaffold', 4: none, 3: 'Medium – new scaffold', 2: none, 1: 'Minor – same scaffold'} %}
+    {% set repro_labels = {5: 'Reproduced exactly', 4: none, 3: 'Partially reproduced', 2: none, 1: 'Failed completely'}
+    %}
+    {% set ext_labels = {5: 'Major – new scaffold', 4: none, 3: 'Medium – new scaffold', 2: none, 1: 'Minor – same
+    scaffold'} %}
     <div class="shrink-0 group/score relative cursor-default flex gap-4 items-center" onclick="return false;">
       {% if entry.avg_repro or entry.avg_ext %}
 
@@ -82,7 +78,8 @@
       <div class="text-center min-w-[3.5rem]">
         <p class="text-[10px] font-semibold uppercase tracking-widest text-amber-600 mb-0.5">Repro</p>
         <p class="text-base font-bold text-amber-500 leading-none">★ {{ entry.avg_repro }}</p>
-        <p class="text-[10px] text-slate-400 mt-0.5 font-medium uppercase tracking-widest">{{ entry.total_repro }} rating{{ 's' if entry.total_repro != 1 }}</p>
+        <p class="text-[10px] text-slate-400 mt-0.5 font-medium uppercase tracking-widest">{{ entry.total_repro }}
+          rating{{ 's' if entry.total_repro != 1 }}</p>
       </div>
       {% endif %}
 
@@ -92,7 +89,8 @@
       <div class="text-center min-w-[3.5rem]">
         <p class="text-[10px] font-semibold uppercase tracking-widest text-blue-600 mb-0.5">Ext</p>
         <p class="text-base font-bold text-blue-500 leading-none">★ {{ entry.avg_ext }}</p>
-        <p class="text-[10px] text-slate-400 mt-0.5 font-medium uppercase tracking-widest">{{ entry.total_ext }} rating{{ 's' if entry.total_ext != 1 }}</p>
+        <p class="text-[10px] text-slate-400 mt-0.5 font-medium uppercase tracking-widest">{{ entry.total_ext }}
+          rating{{ 's' if entry.total_ext != 1 }}</p>
       </div>
       {% endif %}
 
@@ -105,21 +103,22 @@
           <div class="flex-1">
             <p class="text-[10px] font-semibold text-amber-600 uppercase tracking-widest mb-2">Reproducibility</p>
             {% for i in [5,4,3,2,1] %}
-            {% set cnt   = entry.repro_dist.get(i, 0) if entry.repro_dist is defined else 0 %}
+            {% set cnt = entry.repro_dist.get(i, 0) if entry.repro_dist is defined else 0 %}
             {% set total = entry.total_repro if entry.total_repro is defined and entry.total_repro else 1 %}
-            {% set lbl   = repro_labels[i] %}
+            {% set lbl = repro_labels[i] %}
             <div class="mb-1.5">
               <div class="flex justify-between text-xs mb-0.5">
                 <span class="text-amber-600 font-medium leading-tight">
                   <span class="font-bold">{{ i }}</span>{% if lbl %} – {{ lbl }}{% endif %}
                 </span>
-                <span class="font-semibold shrink-0 ml-2 {% if cnt > 0 %}text-slate-600{% else %}text-slate-300{% endif %}">
+                <span
+                  class="font-semibold shrink-0 ml-2 {% if cnt > 0 %}text-slate-600{% else %}text-slate-300{% endif %}">
                   {% if cnt > 0 %}×{{ cnt }}{% else %}–{% endif %}
                 </span>
               </div>
               <div class="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
                 <div class="h-full bg-amber-400 rounded-full {% if cnt == 0 %}opacity-0{% endif %}"
-                     style="width:{{ (cnt/total*100)|int }}%"></div>
+                  style="width:{{ (cnt/total*100)|int }}%"></div>
               </div>
             </div>
             {% endfor %}
@@ -128,21 +127,22 @@
           <div class="flex-1">
             <p class="text-[10px] font-semibold text-blue-600 uppercase tracking-widest mb-2">Extension</p>
             {% for i in [5,4,3,2,1] %}
-            {% set cnt   = entry.ext_dist.get(i, 0) if entry.ext_dist is defined else 0 %}
+            {% set cnt = entry.ext_dist.get(i, 0) if entry.ext_dist is defined else 0 %}
             {% set total = entry.total_ext if entry.total_ext is defined and entry.total_ext else 1 %}
-            {% set lbl   = ext_labels[i] %}
+            {% set lbl = ext_labels[i] %}
             <div class="mb-1.5">
               <div class="flex justify-between text-xs mb-0.5">
                 <span class="text-blue-600 font-medium leading-tight">
                   <span class="font-bold">{{ i }}</span>{% if lbl %} – {{ lbl }}{% endif %}
                 </span>
-                <span class="font-semibold shrink-0 ml-2 {% if cnt > 0 %}text-slate-600{% else %}text-slate-300{% endif %}">
+                <span
+                  class="font-semibold shrink-0 ml-2 {% if cnt > 0 %}text-slate-600{% else %}text-slate-300{% endif %}">
                   {% if cnt > 0 %}×{{ cnt }}{% else %}–{% endif %}
                 </span>
               </div>
               <div class="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
                 <div class="h-full bg-blue-400 rounded-full {% if cnt == 0 %}opacity-0{% endif %}"
-                     style="width:{{ (cnt/total*100)|int }}%"></div>
+                  style="width:{{ (cnt/total*100)|int }}%"></div>
               </div>
             </div>
             {% endfor %}
@@ -160,37 +160,40 @@
     <!-- Standard: single outcome score -->
     <div class="shrink-0 text-center w-20 group/score relative cursor-default" onclick="return false;">
       {% if entry.rating_count > 0 and entry.avg_score %}
-        <p class="text-xl font-bold text-[#111c17] leading-none">★ {{ entry.avg_score }}</p>
-        <p class="text-[10px] text-slate-400 mt-0.5 font-medium uppercase tracking-widest">{{ entry.rating_count }} rating{{ 's' if entry.rating_count != 1 }}</p>
-        <!-- Breakdown tooltip -->
-        <div class="absolute right-0 bottom-full mb-2 hidden group-hover/score:block
+      <p class="text-xl font-bold text-[#111c17] leading-none">★ {{ entry.avg_score }}</p>
+      <p class="text-[10px] text-slate-400 mt-0.5 font-medium uppercase tracking-widest">{{ entry.rating_count }}
+        rating{{ 's' if entry.rating_count != 1 }}</p>
+      <!-- Breakdown tooltip -->
+      <div class="absolute right-0 bottom-full mb-2 hidden group-hover/score:block
                     bg-white border border-slate-200 rounded-xl shadow-lg p-4 w-64 z-20 text-left pointer-events-none">
-          <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3 text-center">Rating breakdown</p>
-          <div class="space-y-2">
-            {% for outcome in outcome_order %}
-            {% set count = entry.breakdown.get(outcome, 0) %}
-            {% set bar_cls = outcome_colors[outcome][0] %}
-            {% set txt_cls = outcome_colors[outcome][1] %}
-            <div>
-              <div class="flex justify-between text-xs mb-0.5">
-                <span class="{{ txt_cls }} font-medium leading-tight">
-                  <span class="font-bold">{{ outcome_scores[outcome] }}</span>
-                  <span class="mx-0.5 opacity-60">–</span>{{ outcome_labels[outcome] }}
-                </span>
-                <span class="font-semibold shrink-0 ml-3 {% if count > 0 %}text-slate-600{% else %}text-slate-300{% endif %}">
-                  {% if count > 0 %}×{{ count }}{% else %}–{% endif %}
-                </span>
-              </div>
-              <div class="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div class="h-full rounded-full {{ bar_cls }} {% if count == 0 %}opacity-0{% endif %}"
-                     style="width: {{ (count / entry.rating_count * 100) | int }}%"></div>
-              </div>
+        <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3 text-center">Rating breakdown
+        </p>
+        <div class="space-y-2">
+          {% for outcome in outcome_order %}
+          {% set count = entry.breakdown.get(outcome, 0) %}
+          {% set bar_cls = outcome_colors[outcome][0] %}
+          {% set txt_cls = outcome_colors[outcome][1] %}
+          <div>
+            <div class="flex justify-between text-xs mb-0.5">
+              <span class="{{ txt_cls }} font-medium leading-tight">
+                <span class="font-bold">{{ outcome_scores[outcome] }}</span>
+                <span class="mx-0.5 opacity-60">–</span>{{ outcome_labels[outcome] }}
+              </span>
+              <span
+                class="font-semibold shrink-0 ml-3 {% if count > 0 %}text-slate-600{% else %}text-slate-300{% endif %}">
+                {% if count > 0 %}×{{ count }}{% else %}–{% endif %}
+              </span>
             </div>
-            {% endfor %}
+            <div class="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
+              <div class="h-full rounded-full {{ bar_cls }} {% if count == 0 %}opacity-0{% endif %}"
+                style="width: {{ (count / entry.rating_count * 100) | int }}%"></div>
+            </div>
           </div>
+          {% endfor %}
         </div>
+      </div>
       {% else %}
-        <p class="text-[11px] text-slate-400 italic leading-tight">No<br>ratings</p>
+      <p class="text-[11px] text-slate-400 italic leading-tight">No<br>ratings</p>
       {% endif %}
     </div>
 

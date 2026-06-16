@@ -35,6 +35,10 @@ def _migrate():
                 conn.execute(text("ALTER TABLE users ADD COLUMN career_stage VARCHAR(60)"))
             if "career_stage_set" not in cols:
                 conn.execute(text("ALTER TABLE users ADD COLUMN career_stage_set BOOLEAN NOT NULL DEFAULT 0"))
+            if "nickname" not in cols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN nickname VARCHAR(60)"))
+            if "notification_email" not in cols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN notification_email VARCHAR(255)"))
             rating_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(ratings)"))]
             if "updated_at" not in rating_cols:
                 conn.execute(text("ALTER TABLE ratings ADD COLUMN updated_at DATETIME"))
@@ -44,6 +48,8 @@ def _migrate():
         else:
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS career_stage VARCHAR(60)"))
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS career_stage_set BOOLEAN NOT NULL DEFAULT FALSE"))
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS nickname VARCHAR(60)"))
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_email VARCHAR(255)"))
             conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE"))
             conn.execute(text("ALTER TABLE comments ADD COLUMN IF NOT EXISTS parent_id INTEGER REFERENCES comments(id)"))
         conn.commit()
@@ -77,6 +83,11 @@ app.include_router(follows_router.router)
 
 _templates = Jinja2Templates(directory="app/templates")
 register_globals(_templates)
+
+
+@app.get("/demo/colors", response_class=HTMLResponse)
+async def demo_colors(request: Request):
+    return _templates.TemplateResponse("demo_colors.html", {"request": request})
 
 
 @app.exception_handler(StarletteHTTPException)

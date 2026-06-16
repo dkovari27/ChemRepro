@@ -1,0 +1,108 @@
+{% extends design_base(request) %}
+{% block title %}My Subscriptions – ChemRepro{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+
+  <div class="mb-6">
+    <h1 class="text-xl font-bold text-slate-800">My Subscriptions</h1>
+    <p class="text-sm text-slate-400 mt-1">Papers and people you follow</p>
+  </div>
+
+  <!-- Papers I follow -->
+  <div class="mb-8">
+    <h2 class="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-3">
+      Papers I follow
+      <span class="ml-1.5 font-normal normal-case text-slate-300">{{ paper_subs | length }}</span>
+    </h2>
+
+    {% if paper_subs %}
+    <div class="space-y-2">
+      {% for sub in paper_subs %}
+      {% set paper = papers_map.get(sub.doi) %}
+      <div class="bg-white border border-slate-200 rounded-xl p-4 flex items-start gap-3">
+        <div class="flex-1 min-w-0">
+          {% if paper %}
+          <a href="/paper/{{ sub.doi }}"
+             class="text-sm font-semibold text-slate-800 hover:text-brand transition-colors leading-snug line-clamp-2">
+            {{ paper.title }}
+          </a>
+          <p class="text-xs text-slate-400 mt-0.5 font-mono truncate">{{ sub.doi }}</p>
+          {% else %}
+          <a href="/paper/{{ sub.doi }}"
+             class="text-sm font-mono text-brand hover:underline">{{ sub.doi }}</a>
+          {% endif %}
+        </div>
+        <form action="/paper/{{ sub.doi }}/subscribe" method="post" class="shrink-0">
+          <button type="submit"
+            class="text-xs border border-slate-200 text-slate-400 rounded-md px-2.5 py-1.5 hover:border-red-300 hover:text-red-500 transition-colors">
+            Unfollow
+          </button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+
+    {% else %}
+    <div class="bg-white border border-slate-200 rounded-xl px-6 py-8 text-center">
+      <p class="text-slate-400 text-sm">You're not following any papers yet.</p>
+      <p class="text-slate-300 text-xs mt-1">Open a paper page and click the Follow button to get notified of new reviews.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- People I follow -->
+  <div>
+    <h2 class="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-3">
+      People I follow
+      <span class="ml-1.5 font-normal normal-case text-slate-300">{{ user_follows | length }}</span>
+    </h2>
+
+    {% if user_follows %}
+    <div class="space-y-2">
+      {% for follow in user_follows %}
+      {% set followed_user = users_map.get(follow.followed_orcid_id) %}
+      <div class="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-3">
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-slate-800">
+            {{ followed_user.nickname or followed_user.name if followed_user else follow.followed_orcid_id }}
+          </p>
+          {% if followed_user %}
+          <p class="text-xs text-slate-400 mt-0.5">
+            {{ followed_user.career_stage or "" }}
+            {% if followed_user.career_stage %}&middot;{% endif %}
+            <span class="font-mono">{{ follow.followed_orcid_id }}</span>
+          </p>
+          {% endif %}
+        </div>
+        <button type="button"
+          onclick="unfollowUser('{{ follow.followed_orcid_id }}', this)"
+          class="shrink-0 text-xs border border-slate-200 text-slate-400 rounded-md px-2.5 py-1.5 hover:border-red-300 hover:text-red-500 transition-colors">
+          Unfollow
+        </button>
+      </div>
+      {% endfor %}
+    </div>
+
+    {% else %}
+    <div class="bg-white border border-slate-200 rounded-xl px-6 py-8 text-center">
+      <p class="text-slate-400 text-sm">You're not following anyone yet.</p>
+      <p class="text-slate-300 text-xs mt-1">Click a commenter's name on a review page and choose Follow.</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+async function unfollowUser(orcidId, btn) {
+  try {
+    const resp = await fetch(`/follow/toggle/${orcidId}`, { method: 'POST' });
+    const { following } = await resp.json();
+    if (!following) {
+      btn.closest('div.bg-white').remove();
+    }
+  } catch (_) {}
+}
+</script>
+{% endblock %}

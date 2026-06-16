@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     GMAIL_APP_PASSWORD: str = ""
     FEEDBACK_NOTIFY_EMAIL: str = ""
 
+    AUTHOR_NOTIFY_ENABLED: bool = False
+
     @property
     def orcid_base_url(self) -> str:
         if self.ORCID_ENV == "production":

@@ -19,9 +19,9 @@
           },
           colors: {
             brand: {
-              DEFAULT: '#0f6b47',
-              light:   '#1a8a5e',
-              dark:    '#0a4d33',
+              DEFAULT: '#1e40af',
+              light:   '#3b82f6',
+              dark:    '#1e3a8a',
             },
           },
         },
@@ -62,7 +62,7 @@
 
     /* ── Card hover ──────────────────────────────────────────────── */
     .paper-card { transition: border-color 150ms cubic-bezier(0.16,1,0.3,1), box-shadow 150ms cubic-bezier(0.16,1,0.3,1); }
-    .paper-card:hover { border-color: rgba(15,107,71,0.35); box-shadow: 0 1px 6px rgba(15,107,71,0.08); }
+    .paper-card:hover { border-color: rgba(30,64,175,0.35); box-shadow: 0 1px 6px rgba(30,64,175,0.08); }
 
     /* ── Version switcher active pill ───────────────────────────── */
     .vsw-active { background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04); }
@@ -86,7 +86,6 @@
 
       <!-- Version switchers: centered -->
       <div class="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 select-none">
-        <!-- Scoring mode -->
         <div class="flex items-center gap-0.5 bg-slate-100 rounded-lg p-0.5 text-xs font-medium">
           <a href="{{ switch_urls.standard if switch_urls is defined else '/' }}"
              class="px-3 py-1.5 rounded-md transition-colors
@@ -97,20 +96,6 @@
              class="px-3 py-1.5 rounded-md transition-colors
                     {% if site_version == 'classic' %}vsw-active text-slate-800{% else %}text-slate-500 hover:text-slate-700{% endif %}">
             Classic
-          </a>
-        </div>
-        <!-- Design version -->
-        {% set dver = design_ver(request) %}
-        <div class="flex items-center gap-0.5 bg-slate-100 rounded-lg p-0.5 text-xs font-medium">
-          <a href="/design/v1"
-             class="px-2.5 py-1.5 rounded-md transition-colors
-                    {% if dver == 'v1' %}vsw-active text-slate-800{% else %}text-slate-500 hover:text-slate-700{% endif %}">
-            v1
-          </a>
-          <a href="/design/v2"
-             class="px-2.5 py-1.5 rounded-md transition-colors
-                    {% if dver != 'v1' %}vsw-active text-slate-800{% else %}text-slate-500 hover:text-slate-700{% endif %}">
-            v2
           </a>
         </div>
       </div>
@@ -144,6 +129,13 @@
                 </svg>
                 My reviews
               </a>
+              <a href="/profile/subscriptions"
+                 class="flex items-center gap-2.5 px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
+                <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                </svg>
+                My subscriptions
+              </a>
               <a href="/profile/inbox"
                  class="flex items-center gap-2.5 px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
                 <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -152,6 +144,13 @@
                 </svg>
                 Inbox
                 <span id="inbox-badge" class="hidden ml-auto min-w-[1.1rem] h-[1.1rem] bg-brand text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 leading-none"></span>
+              </a>
+              <a href="/profile/settings"
+                 class="flex items-center gap-2.5 px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
+                <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+                Settings
               </a>
               <div class="border-t border-slate-100 my-1"></div>
               <a href="/auth/logout"
