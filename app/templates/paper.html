@@ -44,7 +44,7 @@
 
   <!-- ═══════════════ LEFT COLUMN (40%) ═══════════════ -->
   <div>
-  <div class="sticky top-4 flex flex-col gap-4">
+  <div class="sticky top-4 self-start max-h-[calc(100vh-2rem)] overflow-y-auto flex flex-col gap-4">
 
     <!-- Score card -->
     <div class="bg-white border border-slate-200 rounded-xl p-5">
@@ -96,11 +96,21 @@
       <h2 class="font-semibold text-slate-700 mb-4">Rate this paper</h2>
 
       {% if not orcid_id %}
-        <p class="text-sm text-slate-500 mb-4">You must be signed in with ORCID to submit a rating.</p>
-        <a href="/auth/login"
-           class="block text-center bg-brand text-white rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-blue-700 transition-colors">
-          Sign in with ORCID
-        </a>
+        <p class="text-sm text-slate-500 mb-3">Sign in to submit a rating.</p>
+        <div class="flex flex-col gap-2">
+          <a href="/auth/guest-setup?next=/paper/{{ paper.doi }}"
+             class="block text-center border border-slate-300 text-slate-700 rounded-lg px-4 py-2 text-sm hover:border-brand transition-colors">
+            Continue as guest
+          </a>
+          <a href="/auth/login"
+             class="block text-center bg-brand text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-colors">
+            Sign in with ORCID
+          </a>
+          <button disabled
+             class="block w-full text-center border border-slate-200 text-slate-400 rounded-lg px-4 py-2 text-sm cursor-not-allowed bg-slate-50">
+            Sign in with LinkedIn <span class="text-xs">(coming soon)</span>
+          </button>
+        </div>
 
       {% elif user_already_rated %}
         <div class="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-3">

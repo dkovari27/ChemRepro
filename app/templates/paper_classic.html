@@ -44,7 +44,7 @@
 
   {# ══════════ LEFT COLUMN: Score card + Form ══════════ #}
   <div>
-  <div class="sticky top-4 flex flex-col gap-4">
+  <div class="sticky top-4 self-start max-h-[calc(100vh-2rem)] overflow-y-auto flex flex-col gap-4">
 
     {# ── Classic score card ───────────────────────────────── #}
     {% set repro_labels = {5: 'Reproduced exactly', 4: none, 3: 'Partially reproduced', 2: none, 1: 'Failed completely'} %}
@@ -130,7 +130,7 @@
       <h2 class="font-semibold text-slate-700 mb-4">Rate this paper <span class="text-xs font-normal text-slate-400">(Classic)</span></h2>
 
       {% if not orcid_id %}
-      <p class="text-sm text-slate-500 mb-3">Sign in to submit a Classic rating.</p>
+      <p class="text-sm text-slate-500 mb-3">Sign in to submit a rating.</p>
       <div class="flex flex-col gap-2">
         <a href="/auth/guest-setup?next=/classic/paper/{{ paper.doi }}"
            class="block text-center border border-slate-300 text-slate-700 rounded-lg px-4 py-2 text-sm hover:border-brand transition-colors">
@@ -140,6 +140,10 @@
            class="block text-center bg-brand text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-colors">
           Sign in with ORCID
         </a>
+        <button disabled
+           class="block w-full text-center border border-slate-200 text-slate-400 rounded-lg px-4 py-2 text-sm cursor-not-allowed bg-slate-50">
+          Sign in with LinkedIn <span class="text-xs">(coming soon)</span>
+        </button>
       </div>
 
       {% elif user_already_rated %}
