@@ -11,8 +11,8 @@ _Last updated: 1 July 2026_
 - [ ] **B11** — Activate author email notification (`AUTHOR_NOTIFY_ENABLED=true` in Railway `.env`) — disabled pending test that CrossRef/PMC/PubMed lookup works on real chemistry DOIs
 - [ ] **B12** — Wire `notification_email` to SMTP sender — field is saved in Settings but never read; when a followed paper gets a new review/comment, send an email to `notification_email` if set (F6 in audit)
 - [x] **B13** — Report mechanism: `reports` table, `/report` endpoint, modal with optional reason field, toast confirmation; admin can resolve/delete from dashboard
-- [ ] **B14** — LinkedIn login (OAuth 2.0 alongside ORCID) — planned P3
-- [ ] **B15** — Image upload/paste in comment boxes — planned P3
+- [ ] **B14** — LinkedIn OAuth credentials: UI + routes are built and deployed. Before release, register app at developer.linkedin.com, set LINKEDIN_CLIENT_ID + LINKEDIN_CLIENT_SECRET + LINKEDIN_REDIRECT_URI in Railway .env. Without credentials the button redirects to the sign-in page with a friendly notice.
+- [x] **B15** — Image upload/paste in comment boxes — backend + JS handler complete; markdown rendered inline via bleach whitelist (only /images/ src allowed)
 
 ### BLOCK C — UX Polish
 

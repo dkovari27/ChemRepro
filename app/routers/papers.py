@@ -35,16 +35,26 @@ register_globals(templates)
 
 _MD_ALLOWED_TAGS = [
     "p", "br", "strong", "em", "b", "i", "code", "pre",
-    "ul", "ol", "li", "blockquote", "h3", "h4", "a",
+    "ul", "ol", "li", "blockquote", "h3", "h4", "a", "img",
 ]
-_MD_ALLOWED_ATTRS: dict = {"a": ["href", "title"]}
+
+
+def _md_attrs(tag: str, name: str, value: str) -> bool:
+    if tag == "a":
+        return name in ("href", "title")
+    if tag == "img":
+        # Only allow images served from our own endpoint to prevent remote URL injection
+        if name == "src":
+            return value.startswith("/images/")
+        return name in ("alt", "title")
+    return False
 
 
 def _render_md(text: str | None) -> str:
     if not text:
         return ""
     raw_html = _md_lib.markdown(text, extensions=["nl2br"])
-    return bleach.clean(raw_html, tags=_MD_ALLOWED_TAGS, attributes=_MD_ALLOWED_ATTRS, strip=True)
+    return bleach.clean(raw_html, tags=_MD_ALLOWED_TAGS, attributes=_md_attrs, strip=True)
 
 
 templates.env.filters["render_md"] = _render_md
