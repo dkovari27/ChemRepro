@@ -8,7 +8,7 @@
   <div class="flex items-center justify-between mb-8">
     <div>
       <h1 class="text-2xl font-bold text-slate-800">Admin Dashboard</h1>
-      <p class="text-sm text-slate-500 mt-0.5">ChemRepro god-mode — handle with care.</p>
+      <p class="text-sm text-slate-500 mt-0.5">ChemRepro god-mode. Handle with care.</p>
     </div>
     <a href="/auth/logout" class="text-xs text-slate-400 hover:text-red-500 transition-colors">Log out</a>
   </div>
@@ -65,7 +65,7 @@
               {% set ru = users_map.get(rep.reporter_orcid_id) %}
               {{ (ru.nickname or ru.name) if ru else rep.reporter_orcid_id[:12] }}
             </td>
-            <td class="px-4 py-2 text-xs text-slate-600 max-w-xs truncate">{{ rep.reason or '—' }}</td>
+            <td class="px-4 py-2 text-xs text-slate-600 max-w-xs truncate">{{ rep.reason or '-' }}</td>
             <td class="px-4 py-2 text-xs text-slate-400">{{ rep.created_at.strftime('%d %b %Y') }}</td>
             <td class="px-4 py-2">
               <div class="flex gap-2">
@@ -127,7 +127,7 @@
               {{ (ru.nickname or ru.name) if ru else r.orcid_id[:14] }}
             </td>
             <td class="px-4 py-2 text-xs text-slate-400">{{ r.scoring_mode }}</td>
-            <td class="px-4 py-2 text-xs text-slate-500">{{ r.outcome or '—' }}</td>
+            <td class="px-4 py-2 text-xs text-slate-500">{{ r.outcome or '-' }}</td>
             <td class="px-4 py-2 text-xs text-slate-400">{{ r.created_at.strftime('%d %b %Y') }}</td>
             <td class="px-4 py-2">
               <button onclick="adminAction('/admin/reviews/{{ r.id }}/delete','review-row-{{ r.id }}')"
@@ -198,11 +198,11 @@
           {% for u in all_users %}
           <tr id="user-row-{{ loop.index }}" class="hover:bg-slate-50">
             <td class="px-4 py-2 font-mono text-xs text-slate-400">{{ u.orcid_id[:20] }}</td>
-            <td class="px-4 py-2 text-xs text-slate-700">{{ u.name or '—' }}</td>
-            <td class="px-4 py-2 text-xs text-slate-500">{{ u.nickname or '—' }}</td>
-            <td class="px-4 py-2 text-xs text-slate-400">{{ u.career_stage or '—' }}</td>
+            <td class="px-4 py-2 text-xs text-slate-700">{{ u.name or '-' }}</td>
+            <td class="px-4 py-2 text-xs text-slate-500">{{ u.nickname or '-' }}</td>
+            <td class="px-4 py-2 text-xs text-slate-400">{{ u.career_stage or '-' }}</td>
             <td class="px-4 py-2 text-xs text-slate-400">
-              {{ u.verified_at.strftime('%d %b %Y') if u.verified_at else '—' }}
+              {{ u.verified_at.strftime('%d %b %Y') if u.verified_at else '-' }}
             </td>
             <td class="px-4 py-2">
               <div class="flex gap-1">

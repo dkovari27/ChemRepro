@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     AUTHOR_NOTIFY_ENABLED: bool = False
     ADMIN_SECRET_TOKEN: str = "change-this-before-production"
 
+    LINKEDIN_CLIENT_ID: str = ""
+    LINKEDIN_CLIENT_SECRET: str = ""
+    LINKEDIN_REDIRECT_URI: str = "http://localhost:8000/auth/linkedin/callback"
+
     @property
     def orcid_base_url(self) -> str:
         if self.ORCID_ENV == "production":

@@ -1,7 +1,9 @@
 ﻿import secrets
 import uuid
 from datetime import datetime, timezone
+from urllib.parse import urlencode
 
+import httpx
 from app.utils.design import register_globals
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
@@ -12,6 +14,10 @@ from app.config import settings
 from app.database import get_db
 from app.models.user import CAREER_STAGES, User
 from app.services.orcid import exchange_code_for_token, fetch_orcid_name, get_auth_url
+
+_LINKEDIN_AUTH_URL = "https://www.linkedin.com/oauth/v2/authorization"
+_LINKEDIN_TOKEN_URL = "https://www.linkedin.com/oauth/v2/accessToken"
+_LINKEDIN_USERINFO_URL = "https://api.linkedin.com/v2/userinfo"
 
 templates = Jinja2Templates(directory="app/templates")
 register_globals(templates)
@@ -195,6 +201,91 @@ async def logout(request: Request):
 @router.get("/signed-out")
 async def signed_out(request: Request):
     return templates.TemplateResponse("signed_out.html", {"request": request})
+
+
+@router.get("/linkedin")
+async def linkedin_login(request: Request):
+    if not settings.LINKEDIN_CLIENT_ID:
+        raise HTTPException(status_code=503, detail="LinkedIn login is not configured yet.")
+    state = secrets.token_urlsafe(16)
+    request.session["linkedin_state"] = state
+    params = urlencode({
+        "response_type": "code",
+        "client_id": settings.LINKEDIN_CLIENT_ID,
+        "redirect_uri": settings.LINKEDIN_REDIRECT_URI,
+        "state": state,
+        "scope": "openid profile email",
+    })
+    return RedirectResponse(f"{_LINKEDIN_AUTH_URL}?{params}")
+
+
+@router.get("/linkedin/callback")
+async def linkedin_callback(
+    request: Request,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+    db: Session = Depends(get_db),
+):
+    if error:
+        raise HTTPException(status_code=400, detail=f"LinkedIn auth error: {error}")
+    if not code:
+        raise HTTPException(status_code=400, detail="Missing code from LinkedIn")
+
+    saved_state = request.session.pop("linkedin_state", None)
+    if not saved_state or saved_state != state:
+        raise HTTPException(status_code=400, detail="Invalid OAuth state")
+
+    async with httpx.AsyncClient(timeout=10) as client:
+        token_resp = await client.post(_LINKEDIN_TOKEN_URL, data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": settings.LINKEDIN_REDIRECT_URI,
+            "client_id": settings.LINKEDIN_CLIENT_ID,
+            "client_secret": settings.LINKEDIN_CLIENT_SECRET,
+        })
+        if token_resp.status_code != 200:
+            raise HTTPException(status_code=502, detail="Failed to exchange code with LinkedIn")
+        access_token = token_resp.json().get("access_token", "")
+
+        info_resp = await client.get(
+            _LINKEDIN_USERINFO_URL,
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        if info_resp.status_code != 200:
+            raise HTTPException(status_code=502, detail="Failed to fetch LinkedIn user info")
+        info = info_resp.json()
+
+    sub = info.get("sub", "")
+    if not sub:
+        raise HTTPException(status_code=502, detail="LinkedIn did not return a user ID")
+
+    linkedin_id = f"linkedin:{sub}"
+    display_name = info.get("name") or info.get("given_name") or "LinkedIn User"
+    notification_email = info.get("email") or ""
+
+    user = db.get(User, linkedin_id)
+    if not user:
+        user = User(
+            orcid_id=linkedin_id,
+            name=display_name,
+            notification_email=notification_email or None,
+            verified_at=datetime.now(timezone.utc),
+        )
+        db.add(user)
+        db.commit()
+    else:
+        if notification_email and not user.notification_email:
+            user.notification_email = notification_email
+            db.commit()
+
+    request.session["orcid_id"] = linkedin_id
+    request.session["user_name"] = user.nickname or user.name or linkedin_id
+
+    if not user.career_stage_set:
+        request.session["after_profile_setup"] = "/"
+        return RedirectResponse("/auth/profile-setup", status_code=303)
+    return RedirectResponse("/", status_code=303)
 
 
 @router.get("/dev-login/{user_index}")
