@@ -31,6 +31,16 @@ DEV_FAKE_USERS = [
 ]
 
 
+@router.get("/choose")
+async def choose_login(request: Request, error: str | None = None):
+    return templates.TemplateResponse("login_choose.html", {
+        "request": request,
+        "error": error,
+        "user_name": request.session.get("user_name"),
+        "orcid_id": request.session.get("orcid_id"),
+    })
+
+
 @router.get("/login")
 async def login(request: Request):
     """Redirect the user to ORCID for authentication."""
@@ -206,7 +216,7 @@ async def signed_out(request: Request):
 @router.get("/linkedin")
 async def linkedin_login(request: Request):
     if not settings.LINKEDIN_CLIENT_ID:
-        raise HTTPException(status_code=503, detail="LinkedIn login is not configured yet.")
+        return RedirectResponse("/auth/choose?error=linkedin_not_configured", status_code=303)
     state = secrets.token_urlsafe(16)
     request.session["linkedin_state"] = state
     params = urlencode({
