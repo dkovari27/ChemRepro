@@ -1,5 +1,4 @@
 ﻿import json
-import re
 from datetime import datetime, timezone
 
 import bleach
@@ -14,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app import prompts
 from app.config import settings
+from app.utils.moderation import is_clean as _is_clean
 from app.database import get_db
 from app.models.author_notification import AuthorNotification
 from app.models.comment import Comment, CommentLike
@@ -32,14 +32,6 @@ templates = Jinja2Templates(directory="app/templates")
 register_globals(templates)
 
 
-@router.get("/design/{ver}")
-async def set_design_version(ver: str, request: Request):
-    from fastapi.responses import RedirectResponse as _Redir
-    if ver in ("v1", "v2"):
-        request.session["design_ver"] = ver
-    back = request.headers.get("referer", "/")
-    return _Redir(back, status_code=303)
-
 
 _MD_ALLOWED_TAGS = [
     "p", "br", "strong", "em", "b", "i", "code", "pre",
@@ -57,18 +49,6 @@ def _render_md(text: str | None) -> str:
 
 templates.env.filters["render_md"] = _render_md
 
-_BLOCKED_RE = re.compile(
-    r'\b(fuck(?:er|ing|s|ed)?|shit(?:ting)?|bullshit|cunts?|bitches?|ass(?:hole|holes)'
-    r'|arsehole|bastards?|cocks?|dicks?|puss(?:y|ies)|whores?|sluts?|pricks?'
-    r'|wankers?|tossers?|twats?|bollocks|nigg(?:er|ers|a|as)|fagg?ots?|retards?'
-    r'|spics?|kikes?|chinks?|gooks?|wetbacks?|trann(?:y|ies)|dykes?|cracker)\b',
-    re.IGNORECASE,
-)
-
-
-def _is_clean(*texts: str | None) -> bool:
-    """Server-side content check. Returns False if any text hits the blocklist."""
-    return all(not (t and _BLOCKED_RE.search(t)) for t in texts)
 
 OUTCOME_SCORES = {
     "no_repro": 1,

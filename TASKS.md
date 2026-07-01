@@ -1,21 +1,24 @@
 # ChemRepro — Task Tracker
-_Last updated: 15 June 2026_
+_Last updated: 1 July 2026_
 
 ---
 
 ## ACTIVE
 
-### BLOCK A — Must Fix Before Launch (Legal / Broken)
-All done. ✓
-
 ### BLOCK B — New Features
 
 - [ ] **B4/C9/D7** — Chemistry keyword/condition tags on rating form (Yield discrepancy, Purity issue, Safety concern…) — deferred, design not settled
-- [ ] **B11** — Activate author email notification (`AUTHOR_NOTIFY_ENABLED=true` in `.env`) — disabled pending test confirmation that CrossRef/PMC/PubMed lookup works correctly on real chemistry DOIs
+- [ ] **B11** — Activate author email notification (`AUTHOR_NOTIFY_ENABLED=true` in Railway `.env`) — disabled pending test that CrossRef/PMC/PubMed lookup works on real chemistry DOIs
+- [ ] **B12** — Wire `notification_email` to SMTP sender — field is saved in Settings but never read; when a followed paper gets a new review/comment, send an email to `notification_email` if set (F6 in audit)
+- [x] **B13** — Report mechanism: `reports` table, `/report` endpoint, modal with optional reason field, toast confirmation; admin can resolve/delete from dashboard
+- [ ] **B14** — LinkedIn login (OAuth 2.0 alongside ORCID) — planned P3
+- [ ] **B15** — Image upload/paste in comment boxes — planned P3
 
 ### BLOCK C — UX Polish
 
 - [ ] **C10** — Logo polish (current logo is placeholder)
+- [x] **C16** — Nickname shown in nav after ORCID login; also applied at guest reconnect and profile setup submit
+- [x] **C17** — Nickname field added to first-login profile-setup page
 
 ### BLOCK D — Post-Launch
 
@@ -26,21 +29,29 @@ All done. ✓
   - orgsyn.org — priority: propose database cross-reference partnership
   - organicchemistrydata.org
 - [ ] **D4** — Swiss non-profit legal setup
-- [ ] **D5** — ORCID on production domain
+- [ ] **D5** — ORCID on production domain (register HTTPS redirect URI on orcid.org)
 - [ ] **D6** — Personal reaction collection / "My Library" page
 - [ ] **D8** — Zotero, Mendeley plugin
 - [ ] **D9** — Create official website email address once platform name is finalised (e.g. hello@[name].com); use for user-facing sender, about page, and contact links
+- [ ] **D10** — Terms of Service page (required before public launch; see privacy.html as style reference)
+- [x] **D11** — Admin dashboard at `/admin/` (secret-token login URL, no public login surface); god powers: delete any review/comment/user/paper/message, ban users, resolve reports; `ADMIN_SECRET_TOKEN` in `.env`
 
-### BLOCK E — Feedback & Naming (Beta)
-All done. ✓
+### BLOCK F — Code Cleanup (found in 2026-06-16 audit)
+
+- [x] **F1** — Remove dead `/design/{ver}` route from `papers.py`
+- [x] **F2** — Delete unused `app/templates/search_results.html`
+- [x] **F3** — Gate `/demo/colors` with production check
+- [x] **F4** — Extract `_BLOCKED_RE` to `app/utils/moderation.py`; removed duplicate from `papers.py` and `messages.py`
+- [ ] **F5** — Fix API v1 scoring schema — `api.py` returns `avg_reproducibility` / `avg_generalisability` which are always `None` for Standard-mode papers; update to return outcome-based aggregate
+- [x] **F8** — Fix `Rating` model default `"v2"` → `"standard"`
 
 ---
 
 ## Notes
 
-- **B3 author emails**: CrossRef → Europe PMC → PubMed tried in order. PubMed covers most indexed chemistry journals (JACS, Org Lett, Angew Chem, etc.) via the "Electronic address:" field in affiliation XML. Notifications will still silently skip for preprints or non-indexed papers — expected behaviour.
-- **MOCK_SCORING=true** in `.env` — disable before real use (costs ~$1/run with Sonnet).
-- **v1 templates** (`base_v1.html`, `index_v1.html`, `paper_v1.html`, `paper_classic_v1.html`) are snapshots of the `main` branch at the time the v2 redesign was merged. Do not edit them — they are the reference baseline.
+- **B3 author emails**: CrossRef → Europe PMC → PubMed tried in order. PubMed covers most indexed chemistry journals (JACS, Org Lett, Angew Chem, etc.) via the "Electronic address:" field in affiliation XML. Notifications will still silently skip for preprints or non-indexed papers — expected.
+- **v1 templates** (`base_v1.html`, `index_v1.html`, `paper_v1.html`, `paper_classic_v1.html`) are read-only snapshots of the `main` branch at the time v2 was merged. Do not edit.
+- **Audit file**: `audit/snapshot_2026-06-16_v2.md` — full route list, schema, and known issues.
 
 ---
 
@@ -56,14 +67,14 @@ All done. ✓
 ### BLOCK B — New Features (completed items)
 
 - [x] **B1** — Markdown comments with live preview
-- [x] **B2** — Article alert subscriptions (Follow a paper)
-- [x] **B3** — Author email notification on new review (CrossRef → Europe PMC → PubMed fallback chain)
+- [x] **B2** — Article alert subscriptions (Follow a paper; in-app notifications on new review/comment)
+- [x] **B3** — Author email notification on new review (CrossRef → Europe PMC → PubMed fallback chain; HMAC opt-out)
 - [x] **B5** — Comment threading (likes on comments + 1-level replies)
 - [x] **B6** — Private in-mail messaging between users (moderation blocklist applied)
 - [x] **B7** — About page
 - [x] **B8** — Social sharing popup (WhatsApp, Email, LinkedIn, Copy)
 - [x] **B9** — User follow system; commenter names clickable (Follow / Message / Report dropdown)
-- [x] **B10** — v1/v2 design toggle in nav (session-based; helpers in `app/utils/design.py`)
+- [x] **B10** — v2 design: blue brand (#1e40af), review card 3-col header (name | career stage | date), reviewer name dropdowns with Follow/Message/Report; v1 archived
 
 ### BLOCK C — UX Polish (completed items)
 

@@ -1,6 +1,5 @@
-﻿import re
-
-from app.utils.design import register_globals
+﻿from app.utils.design import register_globals
+from app.utils.moderation import is_clean as _is_clean
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -11,18 +10,6 @@ from app.database import get_db
 from app.models.message import Message
 from app.models.user import User
 
-_BLOCKED_RE = re.compile(
-    r'\b(fuck(?:er|ing|s|ed)?|shit(?:ting)?|bullshit|cunts?|bitches?'
-    r'|ass(?:hole|holes)|arsehole|bastards?|cocks?|dicks?|puss(?:y|ies)'
-    r'|whores?|sluts?|pricks?|wankers?|tossers?|twats?|bollocks'
-    r'|nigg(?:er|ers|a|as)|fagg?ots?|retards?|spics?|kikes?|chinks?'
-    r'|gooks?|wetbacks?|trann(?:y|ies)|dykes?|cracker)\b',
-    re.IGNORECASE,
-)
-
-
-def _is_clean(text: str | None) -> bool:
-    return not (text and _BLOCKED_RE.search(text))
 
 router = APIRouter(prefix="/profile", tags=["messages"])
 templates = Jinja2Templates(directory="app/templates")

@@ -72,7 +72,7 @@ async def callback(
         db.commit()
 
     request.session["orcid_id"] = orcid_id
-    request.session["user_name"] = user.name or orcid_id
+    request.session["user_name"] = user.nickname or user.name or orcid_id
 
     if not user.career_stage_set:
         request.session["after_profile_setup"] = "/"
@@ -125,7 +125,7 @@ async def guest_setup(
         db.commit()
 
     request.session["orcid_id"] = user.orcid_id
-    request.session["user_name"] = user.name
+    request.session["user_name"] = user.nickname or user.name or user.orcid_id
     request.session["after_profile_setup"] = next_url or "/"
 
     # Skip profile setup if the user already configured their career stage
@@ -153,6 +153,7 @@ async def submit_profile_setup(
     request: Request,
     db: Session = Depends(get_db),
     career_stage: str = Form(default=""),
+    nickname: str = Form(default=""),
 ):
     orcid_id = request.session.get("orcid_id")
     if not orcid_id:
@@ -163,7 +164,10 @@ async def submit_profile_setup(
         if career_stage in CAREER_STAGES:
             user.career_stage = career_stage
         user.career_stage_set = True
+        if nickname.strip():
+            user.nickname = nickname.strip()[:60]
         db.commit()
+        request.session["user_name"] = user.nickname or user.name or orcid_id
 
     next_url = request.session.pop("after_profile_setup", "/")
     return RedirectResponse(next_url, status_code=303)

@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     FEEDBACK_NOTIFY_EMAIL: str = ""
 
     AUTHOR_NOTIFY_ENABLED: bool = False
+    ADMIN_SECRET_TOKEN: str = "change-this-before-production"
 
     @property
     def orcid_base_url(self) -> str:

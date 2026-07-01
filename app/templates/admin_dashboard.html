@@ -1,0 +1,247 @@
+{% extends design_base(request) %}
+{% block title %}Admin Dashboard – ChemRepro{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-8">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-800">Admin Dashboard</h1>
+      <p class="text-sm text-slate-500 mt-0.5">ChemRepro god-mode — handle with care.</p>
+    </div>
+    <a href="/auth/logout" class="text-xs text-slate-400 hover:text-red-500 transition-colors">Log out</a>
+  </div>
+
+  <!-- Stats row -->
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-10">
+    {% for label, val, color in [
+        ('Users',    stats.users,    'blue'),
+        ('Papers',   stats.papers,   'indigo'),
+        ('Reviews',  stats.reviews,  'teal'),
+        ('Comments', stats.comments, 'violet'),
+        ('Open reports', stats.reports, 'red'),
+        ('Messages', stats.messages, 'amber'),
+    ] %}
+    <div class="bg-white border border-slate-200 rounded-xl p-4 text-center">
+      <div class="text-2xl font-bold text-slate-800">{{ val }}</div>
+      <div class="text-xs text-slate-500 mt-0.5">{{ label }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- ── OPEN REPORTS ──────────────────────────────────────────────── -->
+  <section class="mb-10">
+    <h2 class="text-base font-semibold text-slate-700 mb-3 flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span>
+      Open Reports ({{ open_reports | length }})
+    </h2>
+    {% if open_reports %}
+    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50 text-xs text-slate-500 uppercase">
+          <tr>
+            <th class="px-4 py-2 text-left">Type</th>
+            <th class="px-4 py-2 text-left">Target ID</th>
+            <th class="px-4 py-2 text-left">Reporter</th>
+            <th class="px-4 py-2 text-left">Reason</th>
+            <th class="px-4 py-2 text-left">Date</th>
+            <th class="px-4 py-2 text-left">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for rep in open_reports %}
+          <tr id="report-row-{{ rep.id }}" class="hover:bg-slate-50">
+            <td class="px-4 py-2">
+              <span class="px-2 py-0.5 rounded-full text-xs font-medium
+                {% if rep.target_type == 'review' %}bg-blue-100 text-blue-700
+                {% elif rep.target_type == 'comment' %}bg-violet-100 text-violet-700
+                {% else %}bg-amber-100 text-amber-700{% endif %}">
+                {{ rep.target_type }}
+              </span>
+            </td>
+            <td class="px-4 py-2 font-mono text-xs text-slate-500">{{ rep.target_id }}</td>
+            <td class="px-4 py-2 text-xs text-slate-500">
+              {% set ru = users_map.get(rep.reporter_orcid_id) %}
+              {{ (ru.nickname or ru.name) if ru else rep.reporter_orcid_id[:12] }}
+            </td>
+            <td class="px-4 py-2 text-xs text-slate-600 max-w-xs truncate">{{ rep.reason or '—' }}</td>
+            <td class="px-4 py-2 text-xs text-slate-400">{{ rep.created_at.strftime('%d %b %Y') }}</td>
+            <td class="px-4 py-2">
+              <div class="flex gap-2">
+                <button onclick="adminAction('/admin/reports/{{ rep.id }}/resolve','report-row-{{ rep.id }}')"
+                  class="text-xs px-2 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-colors">
+                  Resolve
+                </button>
+                {% if rep.target_type == 'review' %}
+                <button onclick="adminAction('/admin/reviews/{{ rep.target_id }}/delete','review-row-{{ rep.target_id }}')"
+                  class="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
+                  Del review
+                </button>
+                {% elif rep.target_type == 'comment' %}
+                <button onclick="adminAction('/admin/comments/{{ rep.target_id }}/delete','comment-row-{{ rep.target_id }}')"
+                  class="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
+                  Del comment
+                </button>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-sm text-slate-400 italic">No open reports.</p>
+    {% endif %}
+  </section>
+
+  <!-- ── RECENT REVIEWS ────────────────────────────────────────────── -->
+  <section class="mb-10">
+    <h2 class="text-base font-semibold text-slate-700 mb-3">Recent Reviews (last 30)</h2>
+    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50 text-xs text-slate-500 uppercase">
+          <tr>
+            <th class="px-4 py-2 text-left">ID</th>
+            <th class="px-4 py-2 text-left">Paper</th>
+            <th class="px-4 py-2 text-left">Author</th>
+            <th class="px-4 py-2 text-left">Mode</th>
+            <th class="px-4 py-2 text-left">Outcome</th>
+            <th class="px-4 py-2 text-left">Date</th>
+            <th class="px-4 py-2 text-left">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for r in recent_reviews %}
+          <tr id="review-row-{{ r.id }}" class="hover:bg-slate-50">
+            <td class="px-4 py-2 text-xs text-slate-400">#{{ r.id }}</td>
+            <td class="px-4 py-2 text-xs text-slate-600 max-w-[180px] truncate">
+              {% set pap = papers_map.get(r.doi) %}
+              <a href="/paper/{{ r.doi }}" target="_blank" class="hover:text-brand transition-colors">
+                {{ (pap.title[:50] + '…') if pap and pap.title and pap.title|length > 50 else (pap.title if pap else r.doi[:20]) }}
+              </a>
+            </td>
+            <td class="px-4 py-2 text-xs text-slate-500">
+              {% set ru = users_map.get(r.orcid_id) %}
+              {{ (ru.nickname or ru.name) if ru else r.orcid_id[:14] }}
+            </td>
+            <td class="px-4 py-2 text-xs text-slate-400">{{ r.scoring_mode }}</td>
+            <td class="px-4 py-2 text-xs text-slate-500">{{ r.outcome or '—' }}</td>
+            <td class="px-4 py-2 text-xs text-slate-400">{{ r.created_at.strftime('%d %b %Y') }}</td>
+            <td class="px-4 py-2">
+              <button onclick="adminAction('/admin/reviews/{{ r.id }}/delete','review-row-{{ r.id }}')"
+                class="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
+                Delete
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── RECENT COMMENTS ───────────────────────────────────────────── -->
+  <section class="mb-10">
+    <h2 class="text-base font-semibold text-slate-700 mb-3">Recent Comments (last 30)</h2>
+    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50 text-xs text-slate-500 uppercase">
+          <tr>
+            <th class="px-4 py-2 text-left">ID</th>
+            <th class="px-4 py-2 text-left">Content</th>
+            <th class="px-4 py-2 text-left">Author</th>
+            <th class="px-4 py-2 text-left">Date</th>
+            <th class="px-4 py-2 text-left">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for c in recent_comments %}
+          <tr id="comment-row-{{ c.id }}" class="hover:bg-slate-50">
+            <td class="px-4 py-2 text-xs text-slate-400">#{{ c.id }}</td>
+            <td class="px-4 py-2 text-xs text-slate-600 max-w-xs truncate">{{ c.content[:100] }}</td>
+            <td class="px-4 py-2 text-xs text-slate-500">
+              {% set cu = users_map.get(c.orcid_id) %}
+              {{ (cu.nickname or cu.name) if cu else c.orcid_id[:14] }}
+            </td>
+            <td class="px-4 py-2 text-xs text-slate-400">{{ c.created_at.strftime('%d %b %Y') }}</td>
+            <td class="px-4 py-2">
+              <button onclick="adminAction('/admin/comments/{{ c.id }}/delete','comment-row-{{ c.id }}')"
+                class="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
+                Delete
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── ALL USERS ─────────────────────────────────────────────────── -->
+  <section class="mb-10">
+    <h2 class="text-base font-semibold text-slate-700 mb-3">All Users ({{ all_users | length }})</h2>
+    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50 text-xs text-slate-500 uppercase">
+          <tr>
+            <th class="px-4 py-2 text-left">ORCID / ID</th>
+            <th class="px-4 py-2 text-left">Name</th>
+            <th class="px-4 py-2 text-left">Nickname</th>
+            <th class="px-4 py-2 text-left">Career stage</th>
+            <th class="px-4 py-2 text-left">Joined</th>
+            <th class="px-4 py-2 text-left">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for u in all_users %}
+          <tr id="user-row-{{ loop.index }}" class="hover:bg-slate-50">
+            <td class="px-4 py-2 font-mono text-xs text-slate-400">{{ u.orcid_id[:20] }}</td>
+            <td class="px-4 py-2 text-xs text-slate-700">{{ u.name or '—' }}</td>
+            <td class="px-4 py-2 text-xs text-slate-500">{{ u.nickname or '—' }}</td>
+            <td class="px-4 py-2 text-xs text-slate-400">{{ u.career_stage or '—' }}</td>
+            <td class="px-4 py-2 text-xs text-slate-400">
+              {{ u.verified_at.strftime('%d %b %Y') if u.verified_at else '—' }}
+            </td>
+            <td class="px-4 py-2">
+              <div class="flex gap-1">
+                <button
+                  onclick="adminAction('/admin/users/{{ u.orcid_id | urlencode }}/ban','',false)"
+                  class="text-xs px-2 py-1 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors">
+                  Ban
+                </button>
+                <button
+                  onclick="adminConfirmDelete('/admin/users/{{ u.orcid_id | urlencode }}/delete','user-row-{{ loop.index }}','user {{ u.name or u.orcid_id[:14] }}')"
+                  class="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
+                  Delete
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+
+<script>
+async function adminAction(url, rowId, removeRow = true) {
+  try {
+    const resp = await fetch(url, { method: 'POST' });
+    if (!resp.ok) { alert('Action failed: ' + (await resp.json()).error); return; }
+    if (removeRow && rowId) {
+      const el = document.getElementById(rowId);
+      if (el) el.style.opacity = '0.3';
+    }
+  } catch (e) { alert('Network error'); }
+}
+
+function adminConfirmDelete(url, rowId, label) {
+  if (!confirm(`Permanently delete ${label} and all their content? This cannot be undone.`)) return;
+  adminAction(url, rowId);
+}
+</script>
+{% endblock %}
