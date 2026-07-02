@@ -152,6 +152,10 @@ async def fetch_paper_metadata(doi: str) -> dict | None:
 
     abstract_raw = data.get("abstract", "")
     abstract = re.sub(r"<[^>]+>", "", abstract_raw).strip() or None
+    # JATS XML embeds <jats:title>Abstract</jats:title> which concatenates onto
+    # the first word after tag-stripping (e.g. "AbstractGarsubellin A")
+    if abstract:
+        abstract = re.sub(r"^Abstract\s*", "", abstract, flags=re.IGNORECASE).strip() or None
 
     if not abstract:
         abstract = await _fetch_europepmc_abstract(doi)

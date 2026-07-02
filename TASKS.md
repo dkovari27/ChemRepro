@@ -16,6 +16,7 @@ _Last updated: 2 July 2026_
 
 - [ ] **B4/C9/D7** — Chemistry keyword/condition tags on rating form (Yield discrepancy, Purity issue, Safety concern…) — deferred, design not settled
 - [ ] **C10** — Logo polish (current logo is placeholder)
+- [ ] **C20** — Before deployment: audit existing `paper.abstract` rows in the database and strip any leading "Abstract" prefix (artefact of CrossRef JATS XML parsing, now fixed in `crossref.py` for new fetches)
 
 ### 🔵 POST-LAUNCH
 
@@ -26,6 +27,7 @@ _Last updated: 2 July 2026_
   - orgsyn.org — priority: propose database cross-reference partnership
   - organicchemistrydata.org
 - [ ] **D4** — Swiss non-profit legal setup
+- [ ] **D4b** — Once non-profit entity is established and has a company bank account, add donation capability to the site (e.g. Stripe donate button or IBAN on About/Support page)
 - [ ] **D5** — ORCID on production domain (register HTTPS redirect URI on orcid.org)
 - [ ] **D6** — Personal reaction collection / "My Library" page
 - [ ] **D8** — Zotero, Mendeley plugin
