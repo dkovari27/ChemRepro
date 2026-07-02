@@ -1,9 +1,6 @@
 ﻿import json
 from datetime import datetime, timezone
 
-import bleach
-import markdown as _md_lib
-
 from app.utils.design import index_tpl, paper_classic_tpl, paper_tpl, register_globals
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -30,34 +27,6 @@ from app.services.crossref import fetch_paper_metadata, is_valid_doi, normalise_
 router = APIRouter(tags=["papers"])
 templates = Jinja2Templates(directory="app/templates")
 register_globals(templates)
-
-
-
-_MD_ALLOWED_TAGS = [
-    "p", "br", "strong", "em", "b", "i", "code", "pre",
-    "ul", "ol", "li", "blockquote", "h3", "h4", "a", "img",
-]
-
-
-def _md_attrs(tag: str, name: str, value: str) -> bool:
-    if tag == "a":
-        return name in ("href", "title")
-    if tag == "img":
-        # Only allow images served from our own endpoint to prevent remote URL injection
-        if name == "src":
-            return value.startswith("/images/")
-        return name in ("alt", "title")
-    return False
-
-
-def _render_md(text: str | None) -> str:
-    if not text:
-        return ""
-    raw_html = _md_lib.markdown(text, extensions=["nl2br"])
-    return bleach.clean(raw_html, tags=_MD_ALLOWED_TAGS, attributes=_md_attrs, strip=True)
-
-
-templates.env.filters["render_md"] = _render_md
 
 
 OUTCOME_SCORES = {
@@ -745,6 +714,101 @@ async def submit_reply(
     db.commit()
     anchor = f"#review-{parent.rating_id}" if parent.rating_id else ""
     return RedirectResponse(f"/paper/{doi}{anchor}", status_code=303)
+
+
+# ── Classic-view variants (redirect back to /classic/paper/{doi}) ─────────────
+
+@router.post("/classic/paper/{doi:path}/comment")
+async def classic_submit_comment(
+    doi: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    rating_id: int = Form(...),
+    content: str = Form(""),
+):
+    orcid_id = request.session.get("orcid_id")
+    if not orcid_id:
+        return RedirectResponse(f"/auth/guest-setup?next=/classic/paper/{doi}", status_code=303)
+    if not content.strip():
+        return RedirectResponse(f"/classic/paper/{doi}", status_code=303)
+    if not _is_clean(content):
+        raise HTTPException(status_code=422, detail="Content contains prohibited language.")
+
+    paper = db.get(Paper, doi)
+    if not paper:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    rating = db.get(Rating, rating_id)
+    comment = Comment(
+        doi=doi,
+        rating_id=rating_id,
+        orcid_id=orcid_id,
+        content=content.strip()[:2000],
+    )
+    db.add(comment)
+    if rating:
+        _maybe_notify(
+            db,
+            notif_type="comment",
+            actor_orcid_id=orcid_id,
+            actor_name=request.session.get("user_name", "Someone"),
+            rating=rating,
+            paper=paper,
+        )
+    _notify_paper_subscribers(
+        db, doi=doi, paper=paper, notif_type="new_comment",
+        actor_name=request.session.get("user_name", "Someone"),
+        rating_id=rating_id,
+        exclude_orcid=orcid_id,
+    )
+    db.commit()
+    return RedirectResponse(f"/classic/paper/{doi}#review-{rating_id}", status_code=303)
+
+
+@router.post("/classic/paper/{doi:path}/comment/{parent_id}/reply")
+async def classic_submit_reply(
+    doi: str,
+    parent_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    content: str = Form(""),
+):
+    orcid_id = request.session.get("orcid_id")
+    if not orcid_id:
+        return RedirectResponse(f"/auth/guest-setup?next=/classic/paper/{doi}", status_code=303)
+    content = content.strip()[:2000]
+    if not content:
+        return RedirectResponse(f"/classic/paper/{doi}", status_code=303)
+    if not _is_clean(content):
+        raise HTTPException(status_code=422, detail="Content contains prohibited language.")
+
+    parent = db.get(Comment, parent_id)
+    if not parent:
+        raise HTTPException(status_code=404, detail="Comment not found")
+
+    reply = Comment(
+        doi=doi,
+        rating_id=parent.rating_id,
+        parent_id=parent_id,
+        orcid_id=orcid_id,
+        content=content,
+    )
+    db.add(reply)
+
+    if parent.orcid_id != orcid_id:
+        paper = db.get(Paper, doi)
+        if paper:
+            db.add(Notification(
+                recipient_orcid_id=parent.orcid_id,
+                type="comment_reply",
+                actor_name=request.session.get("user_name", "Someone"),
+                rating_id=parent.rating_id or 0,
+                doi=doi,
+                paper_title=(paper.title or "")[:200],
+            ))
+    db.commit()
+    anchor = f"#review-{parent.rating_id}" if parent.rating_id else ""
+    return RedirectResponse(f"/classic/paper/{doi}{anchor}", status_code=303)
 
 
 def _notify_paper_subscribers(

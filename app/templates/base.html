@@ -58,6 +58,16 @@
     .md-content strong     { font-weight: 600; }
     .md-content img        { max-width: 100%; height: auto; border-radius: 0.375rem; margin: 0.4em 0; cursor: zoom-in; }
     .md-content img:hover  { opacity: 0.92; }
+    /* Sent message bubble: keep text white, images rounded */
+    .msg-mine a            { color: #bfdbfe; }
+    .msg-mine code         { background: rgba(255,255,255,0.15); }
+
+    /* ── Contenteditable placeholder ─────────────────────────────── */
+    [contenteditable][data-placeholder][data-empty]::before {
+      content: attr(data-placeholder);
+      color: #94a3b8;
+      pointer-events: none;
+    }
 
     /* ── Nav wordmark ─────────────────────────────────────────────  */
     .site-wordmark { letter-spacing: -0.02em; }
@@ -262,6 +272,184 @@
     });
   </script>
   {% endif %}
+
+  <script>
+(function () {
+  function toMarkdown(el) {
+    function walk(node) {
+      if (node.nodeType === 3) return node.textContent;
+      var tag = (node.tagName || '').toUpperCase();
+      if (tag === 'IMG') {
+        var src = node.getAttribute('src') || '';
+        return src.startsWith('/images/') ? '![](' + src + ')' : '';
+      }
+      if (tag === 'BR') return '\n';
+      var kids = Array.from(node.childNodes).map(walk).join('');
+      return (tag === 'DIV' || tag === 'P') ? '\n' + kids : kids;
+    }
+    return Array.from(el.childNodes).map(walk).join('').replace(/^\n+/, '').trimEnd();
+  }
+
+  function initDivFromMarkdown(div, md) {
+    if (!md) return;
+    var IMG_RE = /!\[\]\((\/images\/[^)]+)\)/g;
+    var lastIdx = 0, match;
+    IMG_RE.lastIndex = 0;
+    while ((match = IMG_RE.exec(md)) !== null) {
+      if (match.index > lastIdx) {
+        div.appendChild(document.createTextNode(md.slice(lastIdx, match.index)));
+      }
+      var img = document.createElement('img');
+      img.src = match[1];
+      img.alt = '';
+      img.draggable = false;
+      img.style.cssText = 'max-width:100%;max-height:300px;border-radius:6px;margin:2px 0;display:inline-block;vertical-align:middle;cursor:default';
+      div.appendChild(img);
+      lastIdx = match.index + match[0].length;
+    }
+    if (lastIdx < md.length) {
+      div.appendChild(document.createTextNode(md.slice(lastIdx)));
+    }
+    if (div.textContent.trim() || div.querySelector('img')) {
+      delete div.dataset.empty;
+    }
+  }
+
+  async function uploadAndInsert(div, ta, file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    var sel = window.getSelection();
+    var ph = null;
+    if (sel && sel.rangeCount) {
+      var range = sel.getRangeAt(0);
+      range.deleteContents();
+      ph = document.createElement('span');
+      ph.textContent = '[uploading…]';
+      ph.style.color = '#94a3b8';
+      range.insertNode(ph);
+      range.setStartAfter(ph);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+    var fd = new FormData();
+    fd.append('file', file);
+    try {
+      var resp = await fetch('/upload/image', {method: 'POST', body: fd});
+      if (resp.status === 401) { if (ph) ph.remove(); alert('Sign in to attach images.'); return; }
+      if (!resp.ok) {
+        var j = await resp.json().catch(function () { return {}; });
+        if (ph) ph.remove();
+        alert(j.error || 'Image upload failed.');
+        return;
+      }
+      var data = await resp.json();
+      var img = document.createElement('img');
+      img.src = data.url;
+      img.alt = '';
+      img.draggable = false;
+      img.style.cssText = 'max-width:100%;max-height:300px;border-radius:6px;margin:2px 0;display:inline-block;vertical-align:middle;cursor:default';
+      if (ph) { ph.replaceWith(img); } else { div.appendChild(img); }
+      var r = document.createRange();
+      r.setStartAfter(img);
+      r.collapse(true);
+      var s = window.getSelection();
+      if (s) { s.removeAllRanges(); s.addRange(r); }
+    } catch (_) {
+      if (ph) ph.remove();
+    }
+    div.dispatchEvent(new Event('input', {bubbles: true}));
+  }
+
+  function wireTextarea(ta) {
+    if (ta._imgPasteWired) return;
+    ta._imgPasteWired = true;
+
+    var div = document.createElement('div');
+    div.contentEditable = 'true';
+    div.spellcheck = ta.spellcheck !== false;
+    div.className = ta.className.replace(/\bresize-\S+/g, '').replace(/\bh-\S+/g, '').trim();
+    var minRows = parseInt(ta.getAttribute('rows') || '3', 10);
+    div.style.minHeight = (minRows * 1.625) + 'rem';
+    div.style.maxHeight = '400px';
+    div.style.overflowY = 'auto';
+    div.style.whiteSpace = 'pre-wrap';
+    div.style.wordBreak = 'break-word';
+    if (ta.placeholder) div.dataset.placeholder = ta.placeholder;
+    div.dataset.empty = '';
+
+    ta.hidden = true;
+    ta.insertAdjacentElement('beforebegin', div);
+
+    // Load pre-existing content (e.g. when editing a review)
+    initDivFromMarkdown(div, ta.value);
+
+    div.addEventListener('input', function () {
+      ta.value = toMarkdown(div);
+      var hasContent = div.textContent.trim() || div.querySelector('img');
+      if (hasContent) { delete div.dataset.empty; } else { div.dataset.empty = ''; }
+    });
+
+    var form = ta.closest('form');
+    if (form) { form.addEventListener('submit', function () { ta.value = toMarkdown(div); }, true); }
+
+    div.addEventListener('paste', function (e) {
+      var items = e.clipboardData && e.clipboardData.items;
+      if (items) {
+        for (var i = 0; i < items.length; i++) {
+          if (items[i].kind === 'file' && items[i].type.startsWith('image/')) {
+            e.preventDefault();
+            uploadAndInsert(div, ta, items[i].getAsFile());
+            return;
+          }
+        }
+        if (e.clipboardData.types.includes('text/plain')) {
+          e.preventDefault();
+          document.execCommand('insertText', false, e.clipboardData.getData('text/plain'));
+        }
+      }
+    });
+
+    div.addEventListener('dragover', function (e) {
+      if (Array.from(e.dataTransfer.types).includes('Files')) e.preventDefault();
+    });
+    div.addEventListener('drop', function (e) {
+      var files = e.dataTransfer && e.dataTransfer.files;
+      if (files && files[0] && files[0].type.startsWith('image/')) {
+        e.preventDefault();
+        uploadAndInsert(div, ta, files[0]);
+      }
+    });
+
+    var toolbar = document.createElement('div');
+    toolbar.className = 'flex items-center gap-2 mt-0.5';
+    var lbl = document.createElement('label');
+    lbl.className = 'inline-flex items-center gap-1 cursor-pointer text-xs text-slate-400 hover:text-brand transition-colors select-none';
+    lbl.title = 'Attach image (or paste / drag-and-drop)';
+    var inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'image/*'; inp.className = 'sr-only';
+    inp.addEventListener('change', function () {
+      if (this.files && this.files[0]) {
+        var range = document.createRange();
+        range.selectNodeContents(div);
+        range.collapse(false);
+        var sel = window.getSelection();
+        if (sel) { sel.removeAllRanges(); sel.addRange(range); }
+        div.focus();
+        uploadAndInsert(div, ta, this.files[0]);
+        this.value = '';
+      }
+    });
+    lbl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span>attach image</span>';
+    lbl.appendChild(inp);
+    toolbar.appendChild(lbl);
+    div.insertAdjacentElement('afterend', toolbar);
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('textarea[data-img-paste]').forEach(wireTextarea);
+  });
+})();
+  </script>
 
   {% block scripts %}{% endblock %}
 </body>

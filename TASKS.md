@@ -1,26 +1,23 @@
 # ChemRepro — Task Tracker
-_Last updated: 1 July 2026_
+_Last updated: 2 July 2026_
 
 ---
 
-## ACTIVE
+## ACTIVE — by priority
 
-### BLOCK B — New Features
+### 🟠 HIGH
+
+- [ ] **B11** — Activate author email notification (`AUTHOR_NOTIFY_ENABLED=true` in Railway `.env`) — disabled pending test that CrossRef/PMC/PubMed lookup works on real chemistry DOIs
+- [ ] **B12** — Wire `notification_email` to SMTP sender — field is saved in Settings but never read; when a followed paper gets a new review/comment, send an email to `notification_email` if set
+- [ ] **B14** — LinkedIn OAuth: routes + UI fully built, button shows "Coming soon". Before release: register app at developer.linkedin.com, set `LINKEDIN_CLIENT_ID` + `LINKEDIN_CLIENT_SECRET` + `LINKEDIN_REDIRECT_URI` in Railway `.env`, then restore button to active link.
+- [ ] **C18** — ORCID button resting text is `text-slate-700` on all pages; LinkedIn "Coming soon" version is grey. Revisit once LinkedIn is activated: decide whether ORCID should use brand green `text-[#A6CE39]` or both stay neutral.
+
+### 🟡 MEDIUM
 
 - [ ] **B4/C9/D7** — Chemistry keyword/condition tags on rating form (Yield discrepancy, Purity issue, Safety concern…) — deferred, design not settled
-- [ ] **B11** — Activate author email notification (`AUTHOR_NOTIFY_ENABLED=true` in Railway `.env`) — disabled pending test that CrossRef/PMC/PubMed lookup works on real chemistry DOIs
-- [ ] **B12** — Wire `notification_email` to SMTP sender — field is saved in Settings but never read; when a followed paper gets a new review/comment, send an email to `notification_email` if set (F6 in audit)
-- [x] **B13** — Report mechanism: `reports` table, `/report` endpoint, modal with optional reason field, toast confirmation; admin can resolve/delete from dashboard
-- [ ] **B14** — LinkedIn OAuth credentials: UI + routes are built and deployed. Before release, register app at developer.linkedin.com, set LINKEDIN_CLIENT_ID + LINKEDIN_CLIENT_SECRET + LINKEDIN_REDIRECT_URI in Railway .env. Without credentials the button redirects to the sign-in page with a friendly notice.
-- [x] **B15** — Image upload/paste in comment boxes — backend + JS handler complete; markdown rendered inline via bleach whitelist (only /images/ src allowed)
-
-### BLOCK C — UX Polish
-
 - [ ] **C10** — Logo polish (current logo is placeholder)
-- [x] **C16** — Nickname shown in nav after ORCID login; also applied at guest reconnect and profile setup submit
-- [x] **C17** — Nickname field added to first-login profile-setup page
 
-### BLOCK D — Post-Launch
+### 🔵 POST-LAUNCH
 
 - [ ] **D1** — Browser extension (Chrome + Firefox — parked)
 - [ ] **D2** — Sketchit design review (do when feature set is stable)
@@ -32,67 +29,83 @@ _Last updated: 1 July 2026_
 - [ ] **D5** — ORCID on production domain (register HTTPS redirect URI on orcid.org)
 - [ ] **D6** — Personal reaction collection / "My Library" page
 - [ ] **D8** — Zotero, Mendeley plugin
-- [ ] **D9** — Create official website email address once platform name is finalised (e.g. hello@[name].com); use for user-facing sender, about page, and contact links
+- [ ] **D9** — Create official website email address once platform name is finalised
 - [ ] **D10** — Terms of Service page (required before public launch; see privacy.html as style reference)
-- [x] **D11** — Admin dashboard at `/admin/` (secret-token login URL, no public login surface); god powers: delete any review/comment/user/paper/message, ban users, resolve reports; `ADMIN_SECRET_TOKEN` in `.env`
-
-### BLOCK F — Code Cleanup (found in 2026-06-16 audit)
-
-- [x] **F1** — Remove dead `/design/{ver}` route from `papers.py`
-- [x] **F2** — Delete unused `app/templates/search_results.html`
-- [x] **F3** — Gate `/demo/colors` with production check
-- [x] **F4** — Extract `_BLOCKED_RE` to `app/utils/moderation.py`; removed duplicate from `papers.py` and `messages.py`
-- [ ] **F5** — Fix API v1 scoring schema — `api.py` returns `avg_reproducibility` / `avg_generalisability` which are always `None` for Standard-mode papers; update to return outcome-based aggregate
-- [x] **F8** — Fix `Rating` model default `"v2"` → `"standard"`
 
 ---
 
-## Notes
+## CURRENT STANDING (2 July 2026)
 
-- **B3 author emails**: CrossRef → Europe PMC → PubMed tried in order. PubMed covers most indexed chemistry journals (JACS, Org Lett, Angew Chem, etc.) via the "Electronic address:" field in affiliation XML. Notifications will still silently skip for preprints or non-indexed papers — expected.
-- **v1 templates** (`base_v1.html`, `index_v1.html`, `paper_v1.html`, `paper_classic_v1.html`) are read-only snapshots of the `main` branch at the time v2 was merged. Do not edit.
-- **Audit file**: `audit/snapshot_2026-06-16_v2.md` — full route list, schema, and known issues.
+- Image paste / inline contenteditable on all text inputs sitewide (reviews, comments, replies, edit pages, message modal, inbox thread)
+- Message thread renders markdown; images supported in DMs
+- Classic view comments/replies stay in classic view after posting (A5 fixed)
+- API v1 `avg_reproducibility` returns real outcome-based score 1–5 (F5 fixed)
+- `render_md` filter registered globally via `register_globals()` — available in all routers
+- No em dashes in any user-visible text (templates + author notification email)
+- LinkedIn button shows "Coming soon" on all pages until credentials configured
+- Admin access: `GET /admin/login/{ADMIN_SECRET_TOKEN}` — set real token in Railway `.env` before launch
 
 ---
 
 ## ARCHIVE
 
-### BLOCK A — Legal / Broken (all done)
+### Block A — Legal / Infrastructure
+- [x] **A1** — Fix feedback email delivery (switched SMTP 465 → 587 STARTTLS)
+- [x] **A2** — Add full postal address to `privacy.html`
+- [x] **A3** — Railway DPA signed (DocuSign envelope 56122F5D)
+- [x] **A4** — Server-side content moderation (`_is_clean()` regex blocklist; covers comments, ratings, messages)
+- [x] **A5** — Classic view comment/reply routing: added `/classic/paper/{doi}/comment` and `/classic/paper/{doi}/comment/{parent_id}/reply` routes; updated form actions in `paper_classic.html`
 
-- [x] **A1** — Fix feedback email delivery (switched SMTP 465 → 587 STARTTLS; added `send_generic_email()` helper)
-- [x] **A2** — Add full postal address to `privacy.html` — `Breisacherstrasse 68 / 4057 Basel, Switzerland`
-- [x] **A3** — Railway DPA signed (DocuSign envelope 56122F5D; Exhibit B + Effective Date + Title completed)
-- [x] **A4** — Server-side content moderation (`_is_clean()` regex blocklist in `papers.py`; checks comment + rating submissions; extended to inbox messages)
-
-### BLOCK B — New Features (completed items)
-
+### Block B — New Features
 - [x] **B1** — Markdown comments with live preview
 - [x] **B2** — Article alert subscriptions (Follow a paper; in-app notifications on new review/comment)
-- [x] **B3** — Author email notification on new review (CrossRef → Europe PMC → PubMed fallback chain; HMAC opt-out)
-- [x] **B5** — Comment threading (likes on comments + 1-level replies)
-- [x] **B6** — Private in-mail messaging between users (moderation blocklist applied)
+- [x] **B3** — Author email notification on new review (CrossRef → Europe PMC → PubMed; HMAC opt-out)
+- [x] **B5** — Comment threading (likes + 1-level replies)
+- [x] **B6** — Private in-mail messaging between users
 - [x] **B7** — About page
 - [x] **B8** — Social sharing popup (WhatsApp, Email, LinkedIn, Copy)
-- [x] **B9** — User follow system; commenter names clickable (Follow / Message / Report dropdown)
-- [x] **B10** — v2 design: blue brand (#1e40af), review card 3-col header (name | career stage | date), reviewer name dropdowns with Follow/Message/Report; v1 archived
+- [x] **B9** — User follow system; reviewer name dropdowns (Follow / Message / Report)
+- [x] **B10** — v2 design; v1 archived
+- [x] **B13** — Report mechanism with admin resolution
+- [x] **B15** — Image upload/paste in all text inputs. Contenteditable replaces textarea for inline image rendering; `initDivFromMarkdown` loads pre-filled content on edit pages; JS served from `base.html` globally
 
-### BLOCK C — UX Polish (completed items)
-
+### Block C — UX Polish
 - [x] **C1** — Footer cleanup
-- [x] **C2** — Privacy page em dash fix
+- [x] **C2** — Em dash sweep (privacy page, author notification email, all templates)
 - [x] **C3** — Textarea sizing
 - [x] **C4** — Spellcheck on all textareas
 - [x] **C5** — Homepage sort order (by latest rating)
 - [x] **C6** — Remove API link from nav
 - [x] **C7** — Scoring explainer via hover tooltip
-- [x] **C8** — Mobile: Classic tooltip overflow (`max-w-[95vw]` on mobile, `sm:min-w-[440px]` on desktop)
+- [x] **C8** — Mobile: Classic tooltip overflow fix
 - [x] **C11** — Like notification icon: 3/4-filled flask SVG (amber)
-- [x] **C12** — Like button: 3/4-filled flask; comment like buttons changed from heart to flask
-- [x] **C13** — Feedback nav link restored to top nav
-- [x] **C14** — Classic view card: "2×" → "2 ratings" with correct pluralisation
-- [x] **C15** — Standard view card: ★ star restored before avg_score
+- [x] **C12** — Like button changed from heart to flask; comment likes same
+- [x] **C13** — Feedback nav link restored
+- [x] **C14** — Classic view card: "2 ratings" with correct pluralisation
+- [x] **C15** — Standard view card: star before avg_score
+- [x] **C16** — Nickname shown in nav after login
+- [x] **C17** — Nickname field on first-login profile-setup page
+- [x] **C19** — Image paste in message modal (paper.html, paper_classic.html) and inbox thread reply; message content renders via `render_md`
 
-### BLOCK E — Feedback & Naming (all done)
+### Block D — Post-Launch (completed)
+- [x] **D11** — Admin dashboard at `/admin/` (secret-token login, no public surface)
 
-- [x] **E1** — Tester feedback form (scoring preference + free-text comment)
-- [x] **E2** — Name-the-platform widget on feedback page (alphabetical pills, AJAX vote toggle, suggest-stays-on-page)
+### Block E — Feedback & Naming
+- [x] **E1** — Tester feedback form
+- [x] **E2** — Name-the-platform widget on feedback page
+
+### Block F — Code Cleanup
+- [x] **F1** — Remove dead `/design/{ver}` route
+- [x] **F2** — Delete unused `search_results.html`
+- [x] **F3** — Gate `/demo/colors` in production
+- [x] **F4** — Extract `_BLOCKED_RE` to `app/utils/moderation.py`
+- [x] **F5** — API v1 scoring: `avg_reproducibility` now uses outcome-based CASE expression (1–5); was always null for standard-mode papers. `render_md` moved to `app/utils/design.py` and registered via `register_globals()`.
+- [x] **F8** — Fix `Rating` model default `"v2"` → `"standard"`
+
+---
+
+## Notes
+- **B3 author emails**: CrossRef → Europe PMC → PubMed in order. Silently skips preprints and non-indexed papers — expected.
+- **v1 templates** are read-only snapshots. Do not edit.
+- **ADMIN_SECRET_TOKEN**: Set a real secret in Railway `.env` before public launch.
+- **LinkedIn**: Connection count not available via LinkedIn API. For fake-account mitigation, gate review submission behind ORCID; LinkedIn for comments/follows only.

@@ -156,7 +156,7 @@ async def notify_author_if_possible(
         f"ChemRepro collects first-hand reproducibility experiences from practising chemists. "
         f"You are welcome to read or respond to the review on the platform.\n\n"
         f"To stop receiving notifications for this paper:\n{opt_out_url}\n\n"
-        f"— The ChemRepro team\n{base_url}"
+        f"The ChemRepro team\n{base_url}"
     )
 
     body_html = f"""
