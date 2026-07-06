@@ -20,7 +20,7 @@
     {% set is_mine = msg.sender_orcid_id == orcid_id %}
     <div class="flex {% if is_mine %}justify-end{% endif %}">
       <div class="max-w-[75%] {% if is_mine %}bg-brand text-white{% else %}bg-white border border-slate-200 text-slate-700{% endif %} rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm">
-        <div class="md-content {% if is_mine %}msg-mine{% endif %}">{{ msg.content | render_md | safe }}</div>
+        <div class="md-content {% if is_mine %}msg-mine{% endif %}">{{ msg.content | render_md_refs(papers_by_doi) | safe }}</div>
         <p class="text-[10px] mt-1 {% if is_mine %}text-blue-200{% else %}text-slate-400{% endif %}">
           {{ msg.created_at.strftime('%d %b, %H:%M') }}
         </p>

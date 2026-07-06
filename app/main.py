@@ -18,6 +18,8 @@ from app.models import user_follow as _user_follow_model     # noqa: F401
 from app.models import name_suggestion as _name_model        # noqa: F401
 from app.models import report as _report_model               # noqa: F401
 from app.models import image as _image_model                 # noqa: F401
+from app.models import collection as _collection_model       # noqa: F401
+from app.models import saved_paper as _saved_paper_model     # noqa: F401
 from app.models.comment import CommentLike                   # noqa: F401
 from app.routers import auth, papers, api
 from app.routers import feedback as feedback_router
@@ -27,6 +29,8 @@ from app.routers import follows as follows_router
 from app.routers import reports as reports_router
 from app.routers import admin as admin_router
 from app.routers import images as images_router
+from app.routers import library as library_router
+from app.routers import pledge as pledge_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -40,6 +44,8 @@ def _migrate():
                 conn.execute(text("ALTER TABLE users ADD COLUMN career_stage VARCHAR(60)"))
             if "career_stage_set" not in cols:
                 conn.execute(text("ALTER TABLE users ADD COLUMN career_stage_set BOOLEAN NOT NULL DEFAULT 0"))
+            if "pledge_accepted" not in cols:
+                conn.execute(text("ALTER TABLE users ADD COLUMN pledge_accepted BOOLEAN NOT NULL DEFAULT 0"))
             if "nickname" not in cols:
                 conn.execute(text("ALTER TABLE users ADD COLUMN nickname VARCHAR(60)"))
             if "notification_email" not in cols:
@@ -50,6 +56,7 @@ def _migrate():
             comment_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(comments)"))]
             if "parent_id" not in comment_cols:
                 conn.execute(text("ALTER TABLE comments ADD COLUMN parent_id INTEGER REFERENCES comments(id)"))
+            # collections and saved_papers are created by create_all above; no ALTER needed
         else:
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS career_stage VARCHAR(60)"))
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS career_stage_set BOOLEAN NOT NULL DEFAULT FALSE"))
@@ -88,6 +95,8 @@ app.include_router(follows_router.router)
 app.include_router(reports_router.router)
 app.include_router(admin_router.router)
 app.include_router(images_router.router)
+app.include_router(library_router.router)
+app.include_router(pledge_router.router)
 
 _templates = Jinja2Templates(directory="app/templates")
 register_globals(_templates)

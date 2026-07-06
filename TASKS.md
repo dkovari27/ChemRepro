@@ -1,5 +1,5 @@
 # ChemRepro — Task Tracker
-_Last updated: 2 July 2026_
+_Last updated: 6 July 2026_
 
 ---
 
@@ -31,8 +31,9 @@ _Last updated: 2 July 2026_
 - [ ] **D5** — ORCID on production domain (register HTTPS redirect URI on orcid.org)
 - [ ] **D6** — Personal reaction collection / "My Library" page
 - [ ] **D8** — Zotero, Mendeley plugin
-- [ ] **D9** — Create official website email address once platform name is finalised
 - [ ] **D10** — Terms of Service page (required before public launch; see privacy.html as style reference)
+- [ ] **D13** — Switch from Gmail SMTP to a transactional email service (Resend, SendGrid, or Brevo) with a custom domain (e.g. noreply@chemrepro.io) — eliminates spam-folder delivery risk. Gmail SMTP works today but new sender accounts have no reputation. Requires: buy domain, set up DNS (SPF/DKIM/DMARC), register with chosen provider, replace `smtp.gmail.com` calls in `app/utils/email.py` with provider SDK or relay config.
+- [ ] **D12** — Registration pledge page: one-time ethics click-through shown after first login, before a user can submit a review. Inspired by Sage Bionetworks Synapse pledge (reference saved at `chemrepro/Sage Bionetworks Sign-in.mhtml`). 6 lab-ethics statements, each requiring individual "I agree" click; stored as `pledge_accepted` bool on User model. See memory `project_chemrepro_pledge.md` for proposed pledge wording.
 
 ---
 
@@ -90,6 +91,7 @@ _Last updated: 2 July 2026_
 - [x] **C19** — Image paste in message modal (paper.html, paper_classic.html) and inbox thread reply; message content renders via `render_md`
 
 ### Block D — Post-Launch (completed)
+- [x] **D9** — Official website email address: `chemrepro@gmail.com` (sender + inbox); App Password configured in `.env` and Railway
 - [x] **D11** — Admin dashboard at `/admin/` (secret-token login, no public surface)
 
 ### Block E — Feedback & Naming

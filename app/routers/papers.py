@@ -1,7 +1,7 @@
 ﻿import json
 from datetime import datetime, timezone
 
-from app.utils.design import index_tpl, paper_classic_tpl, paper_tpl, register_globals
+from app.utils.design import collect_doi_refs, index_tpl, paper_classic_tpl, paper_tpl, register_globals, render_md_refs
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -18,6 +18,8 @@ from app.models.like import Like
 from app.models.notification import Notification
 from app.models.paper import Paper
 from app.models.paper_subscription import PaperSubscription
+from app.models.collection import Collection
+from app.models.saved_paper import SavedPaper
 from app.models.rating import Rating
 from app.models.user import User
 from app.routers.auth import DEV_FAKE_USERS
@@ -27,6 +29,23 @@ from app.services.crossref import fetch_paper_metadata, is_valid_doi, normalise_
 router = APIRouter(tags=["papers"])
 templates = Jinja2Templates(directory="app/templates")
 register_globals(templates)
+
+
+def _collections_flat(orcid_id: str, db: Session) -> list[tuple]:
+    all_cols = db.query(Collection).filter(Collection.orcid_id == orcid_id).all()
+    by_parent: dict = {}
+    for c in all_cols:
+        by_parent.setdefault(c.parent_id, []).append(c)
+
+    result: list = []
+
+    def walk(parent_id, depth):
+        for c in sorted(by_parent.get(parent_id, []), key=lambda x: x.name.lower()):
+            result.append((c, depth))
+            walk(c.id, depth + 1)
+
+    walk(None, 0)
+    return result
 
 
 OUTCOME_SCORES = {
@@ -421,12 +440,39 @@ async def paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
             .all()
         }
 
-    is_subscribed = bool(
-        orcid_id and db.query(PaperSubscription).filter(
-            PaperSubscription.orcid_id == orcid_id,
-            PaperSubscription.doi == doi,
-        ).first()
+    # Collect all DOIs referenced in review text and comments, then batch-load
+    _ref_texts = (
+        [r.reproducibility_observation for r in reviews]
+        + [r.scope_observation for r in reviews]
+        + [r.modification_details for r in reviews]
+        + [c.content for c in all_comments]
     )
+    _ref_dois = collect_doi_refs(_ref_texts) - {doi}
+    papers_by_doi: dict = {}
+    if _ref_dois:
+        for _p in db.query(Paper).filter(Paper.doi.in_(_ref_dois)).all():
+            papers_by_doi[_p.doi] = _p
+        # Auto-fetch any referenced paper not yet in the DB (saves for future loads too)
+        for _missing_doi in _ref_dois - papers_by_doi.keys():
+            try:
+                _meta = await fetch_paper_metadata(_missing_doi)
+                if _meta:
+                    _new_p = Paper(**_meta)
+                    db.add(_new_p)
+                    db.commit()
+                    db.refresh(_new_p)
+                    papers_by_doi[_missing_doi] = _new_p
+            except Exception:
+                db.rollback()
+
+    saved_entry = (
+        db.query(SavedPaper).filter(
+            SavedPaper.orcid_id == orcid_id,
+            SavedPaper.doi == doi,
+        ).first()
+        if orcid_id else None
+    )
+    user_collections_flat = _collections_flat(orcid_id, db) if orcid_id else []
 
     return templates.TemplateResponse(paper_tpl(request), {
         "request": request,
@@ -449,7 +495,9 @@ async def paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
         "user_name": request.session.get("user_name"),
         "orcid_id": orcid_id,
         "user_already_rated": user_already_rated,
-        "is_subscribed": is_subscribed,
+        "saved_entry": saved_entry,
+        "user_collections_flat": user_collections_flat,
+        "papers_by_doi": papers_by_doi,
         "prompts": prompts,
         "site_version": "standard",
         "switch_urls": {"standard": f"/paper/{doi}", "classic": f"/classic/paper/{doi}"},
@@ -665,6 +713,58 @@ async def toggle_comment_like(doi: str, comment_id: int, request: Request, db: S
     if wants_json:
         return JSONResponse({"liked": liked, "count": count})
     return RedirectResponse(f"/paper/{doi}", status_code=303)
+
+
+# ── Edit a comment ───────────────────────────────────────────────────────────
+
+@router.post("/paper/{doi:path}/comment/{comment_id}/edit")
+async def edit_comment(
+    doi: str,
+    comment_id: int,
+    request: Request,
+    content: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    orcid_id = request.session.get("orcid_id")
+    if not orcid_id:
+        return JSONResponse({"error": "not authenticated"}, status_code=401)
+
+    comment = db.query(Comment).filter(
+        Comment.id == comment_id,
+        Comment.doi == doi,
+        Comment.orcid_id == orcid_id,
+    ).first()
+    if not comment:
+        return JSONResponse({"error": "not found"}, status_code=404)
+
+    content = content.strip()[:2000]
+    if not content:
+        return JSONResponse({"error": "content required"}, status_code=422)
+    if not _is_clean(content):
+        return JSONResponse({"error": "prohibited language"}, status_code=422)
+
+    comment.content = content
+    db.commit()
+
+    # Build papers_by_doi for any referenced DOIs in the edited text
+    _ref_dois = collect_doi_refs([content]) - {doi}
+    _papers: dict = {}
+    if _ref_dois:
+        for _p in db.query(Paper).filter(Paper.doi.in_(_ref_dois)).all():
+            _papers[_p.doi] = _p
+        for _d in _ref_dois - _papers.keys():
+            try:
+                _meta = await fetch_paper_metadata(_d)
+                if _meta:
+                    _np = Paper(**_meta)
+                    db.add(_np)
+                    db.commit()
+                    db.refresh(_np)
+                    _papers[_d] = _np
+            except Exception:
+                db.rollback()
+
+    return JSONResponse({"ok": True, "rendered_html": render_md_refs(content, _papers)})
 
 
 # ── Reply to a comment (1 level deep) ────────────────────────────────────────
@@ -1111,12 +1211,37 @@ async def classic_paper_page(doi: str, request: Request, db: Session = Depends(g
             .filter(Like.orcid_id == orcid_id, Like.rating_id.in_(rating_ids)).all()
         }
 
-    is_subscribed = bool(
-        orcid_id and db.query(PaperSubscription).filter(
-            PaperSubscription.orcid_id == orcid_id,
-            PaperSubscription.doi == doi,
-        ).first()
+    _ref_texts_c = (
+        [r.reproducibility_observation for r in reviews]
+        + [r.scope_observation for r in reviews]
+        + [r.modification_details for r in reviews]
+        + [c.content for c in all_comments]
     )
+    _ref_dois_c = collect_doi_refs(_ref_texts_c) - {doi}
+    papers_by_doi: dict = {}
+    if _ref_dois_c:
+        for _p in db.query(Paper).filter(Paper.doi.in_(_ref_dois_c)).all():
+            papers_by_doi[_p.doi] = _p
+        for _missing_doi in _ref_dois_c - papers_by_doi.keys():
+            try:
+                _meta = await fetch_paper_metadata(_missing_doi)
+                if _meta:
+                    _new_p = Paper(**_meta)
+                    db.add(_new_p)
+                    db.commit()
+                    db.refresh(_new_p)
+                    papers_by_doi[_missing_doi] = _new_p
+            except Exception:
+                db.rollback()
+
+    saved_entry = (
+        db.query(SavedPaper).filter(
+            SavedPaper.orcid_id == orcid_id,
+            SavedPaper.doi == doi,
+        ).first()
+        if orcid_id else None
+    )
+    user_collections_flat = _collections_flat(orcid_id, db) if orcid_id else []
 
     return templates.TemplateResponse(paper_classic_tpl(request), {
         "request": request,
@@ -1137,7 +1262,9 @@ async def classic_paper_page(doi: str, request: Request, db: Session = Depends(g
         "user_name": request.session.get("user_name"),
         "orcid_id": orcid_id,
         "user_already_rated": user_already_rated,
-        "is_subscribed": is_subscribed,
+        "saved_entry": saved_entry,
+        "user_collections_flat": user_collections_flat,
+        "papers_by_doi": papers_by_doi,
         "prompts": prompts,
         "site_version": "classic",
         "switch_urls": {"standard": f"/paper/{doi}", "classic": f"/classic/paper/{doi}"},

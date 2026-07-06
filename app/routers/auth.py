@@ -24,6 +24,13 @@ register_globals(templates)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+
+def _post_login_redirect(user: User, next_url: str) -> RedirectResponse:
+    """Central post-login redirect: intercepts for pledge if not yet accepted."""
+    if not getattr(user, "pledge_accepted", False):
+        return RedirectResponse(f"/pledge?next={next_url}", status_code=303)
+    return RedirectResponse(next_url, status_code=303)
+
 DEV_FAKE_USERS = [
     ("0000-0000-0000-0001", "Alice Testuser"),
     ("0000-0000-0000-0002", "Bob Labrat"),
@@ -93,7 +100,7 @@ async def callback(
     if not user.career_stage_set:
         request.session["after_profile_setup"] = "/"
         return RedirectResponse("/auth/profile-setup", status_code=303)
-    return RedirectResponse("/", status_code=303)
+    return _post_login_redirect(user, "/")
 
 
 @router.get("/guest-setup")
@@ -146,7 +153,7 @@ async def guest_setup(
 
     # Skip profile setup if the user already configured their career stage
     if user.career_stage_set:
-        return RedirectResponse(next_url or "/", status_code=303)
+        return _post_login_redirect(user, next_url or "/")
     return RedirectResponse("/auth/profile-setup", status_code=303)
 
 
@@ -186,18 +193,19 @@ async def submit_profile_setup(
         request.session["user_name"] = user.nickname or user.name or orcid_id
 
     next_url = request.session.pop("after_profile_setup", "/")
-    return RedirectResponse(next_url, status_code=303)
+    return _post_login_redirect(user, next_url) if user else RedirectResponse(next_url, status_code=303)
 
 
 @router.get("/profile-setup-skip")
 async def skip_profile_setup(request: Request, db: Session = Depends(get_db)):
     orcid_id = request.session.get("orcid_id")
+    next_url = request.session.pop("after_profile_setup", "/")
     if orcid_id:
         user = db.get(User, orcid_id)
         if user:
             user.career_stage_set = True
             db.commit()
-    next_url = request.session.pop("after_profile_setup", "/")
+            return _post_login_redirect(user, next_url)
     return RedirectResponse(next_url, status_code=303)
 
 
@@ -295,7 +303,7 @@ async def linkedin_callback(
     if not user.career_stage_set:
         request.session["after_profile_setup"] = "/"
         return RedirectResponse("/auth/profile-setup", status_code=303)
-    return RedirectResponse("/", status_code=303)
+    return _post_login_redirect(user, "/")
 
 
 @router.get("/dev-login/{user_index}")

@@ -1,4 +1,5 @@
-﻿from app.utils.design import register_globals
+﻿from app.services.crossref import fetch_paper_metadata
+from app.utils.design import collect_doi_refs, register_globals
 from app.utils.moderation import is_clean as _is_clean
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -8,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.message import Message
+from app.models.paper import Paper
 from app.models.user import User
 
 
@@ -107,11 +109,29 @@ async def view_thread(thread_id: str, request: Request, db: Session = Depends(ge
     )
     other_user = db.get(User, other_id)
 
+    _ref_dois = collect_doi_refs([m.content for m in messages])
+    papers_by_doi: dict = {}
+    if _ref_dois:
+        for _p in db.query(Paper).filter(Paper.doi.in_(_ref_dois)).all():
+            papers_by_doi[_p.doi] = _p
+        for _missing_doi in _ref_dois - papers_by_doi.keys():
+            try:
+                _meta = await fetch_paper_metadata(_missing_doi)
+                if _meta:
+                    _new_p = Paper(**_meta)
+                    db.add(_new_p)
+                    db.commit()
+                    db.refresh(_new_p)
+                    papers_by_doi[_missing_doi] = _new_p
+            except Exception:
+                db.rollback()
+
     return templates.TemplateResponse("thread.html", {
         **_base_ctx(request),
         "messages": messages,
         "thread_id": thread_id,
         "other_user": other_user,
+        "papers_by_doi": papers_by_doi,
     })
 
 

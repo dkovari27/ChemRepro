@@ -19,12 +19,74 @@
     </div>
     <div class="flex items-center gap-2 shrink-0">
       {% if orcid_id %}
-      <button id="subscribe-btn" type="button"
-        onclick="toggleSubscribe('{{ paper.doi }}')"
-        class="text-xs border rounded-md px-3 py-1.5 transition-colors
-               {% if is_subscribed %}border-brand text-brand bg-blue-50{% else %}border-slate-200 text-slate-500 hover:border-brand hover:text-brand{% endif %}">
-        {% if is_subscribed %}🔔 Following{% else %}🔔 Follow{% endif %}
-      </button>
+      <!-- Save to Collection button -->
+      <div class="relative" id="save-wrap">
+        <button id="save-btn" type="button" onclick="toggleSavePanel()"
+          class="text-xs border rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5
+                 {% if saved_entry %}border-brand text-brand bg-blue-50{% else %}border-slate-200 text-slate-500 hover:border-brand hover:text-brand{% endif %}">
+          <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="{% if saved_entry %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+          </svg>
+          {% if saved_entry %}
+            Saved{% if saved_entry.collection %} &middot; {{ saved_entry.collection.name | truncate(14, true, '…') }}{% endif %}
+          {% else %}
+            Save
+          {% endif %}
+        </button>
+
+        <!-- Popover panel -->
+        <div id="save-panel" class="hidden absolute right-0 top-10 w-72 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-4">
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Save to Library</p>
+
+          <label class="block text-xs text-slate-600 mb-1">Collection (optional)</label>
+          <select id="save-col-select"
+                  class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-brand">
+            <option value="">Unsorted</option>
+            {% for col, depth in user_collections_flat %}
+            <option value="{{ col.id }}" {% if saved_entry and saved_entry.collection_id == col.id %}selected{% endif %}>
+              {{ '    ' * depth }}{{ col.name }}
+            </option>
+            {% endfor %}
+          </select>
+          <div id="new-col-inline" class="hidden mb-1 mt-1 flex gap-1.5">
+            <input type="text" id="new-col-name-inline" maxlength="200" placeholder="Collection name"
+                   class="flex-1 border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-brand">
+            <button type="button" onclick="createColInline()"
+                    class="text-xs bg-brand text-white rounded-lg px-2 py-1 hover:bg-blue-700 transition-colors">Add</button>
+            <button type="button" onclick="cancelColInline()"
+                    class="text-xs text-slate-400 hover:text-slate-600 transition-colors px-1">x</button>
+          </div>
+          <button type="button" onclick="toggleNewColInline()" id="new-col-toggle"
+                  class="text-[11px] text-brand hover:text-blue-700 transition-colors mb-2 flex items-center gap-1">
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            New collection
+          </button>
+
+          <label class="block text-xs text-slate-600 mb-1">Private note (optional)</label>
+          <textarea id="save-notes" rows="2" data-img-paste
+                    class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs resize-none mb-3 focus:outline-none focus:ring-2 focus:ring-brand"
+                    placeholder="Notes for yourself…">{{ saved_entry.notes if saved_entry and saved_entry.notes else '' }}</textarea>
+
+          <div class="flex gap-2">
+            <button onclick="doSave('{{ paper.doi }}')"
+                    class="flex-1 bg-brand text-white rounded-lg py-1.5 text-xs font-medium hover:bg-blue-700 transition-colors">
+              {% if saved_entry %}Update{% else %}Save{% endif %}
+            </button>
+            {% if saved_entry %}
+            <button onclick="doUnsave('{{ paper.doi }}')"
+                    class="text-xs border border-red-200 text-red-500 rounded-lg px-3 py-1.5 hover:bg-red-50 transition-colors">
+              Remove
+            </button>
+            {% endif %}
+            <button onclick="closeSavePanel()"
+                    class="text-xs text-slate-400 hover:text-slate-600 px-2 transition-colors">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
       {% endif %}
       <a href="https://doi.org/{{ paper.doi }}" target="_blank"
          class="text-xs border border-slate-200 rounded-md px-3 py-1.5 text-slate-500 hover:border-brand hover:text-brand transition-colors">
@@ -339,19 +401,19 @@
         {% if r.reproducibility_observation %}
         <div class="text-sm text-slate-700 mb-2">
           <span class="text-xs font-medium text-slate-400 uppercase tracking-wide">Repro observation</span>
-          <div class="mt-1 md-content">{{ r.reproducibility_observation | render_md | safe }}</div>
+          <div class="mt-1 md-content">{{ r.reproducibility_observation | render_md_refs(papers_by_doi) | safe }}</div>
         </div>
         {% endif %}
         {% if r.scope_observation %}
         <div class="text-sm text-slate-700 mb-2">
           <span class="text-xs font-medium text-slate-400 uppercase tracking-wide">Scope observation</span>
-          <div class="mt-1 md-content">{{ r.scope_observation | render_md | safe }}</div>
+          <div class="mt-1 md-content">{{ r.scope_observation | render_md_refs(papers_by_doi) | safe }}</div>
         </div>
         {% endif %}
         {% if r.modification_details %}
         <div class="text-sm text-slate-700 mb-2">
           <span class="text-xs font-medium text-slate-400 uppercase tracking-wide">Modification details</span>
-          <div class="mt-1 md-content">{{ r.modification_details | render_md | safe }}</div>
+          <div class="mt-1 md-content">{{ r.modification_details | render_md_refs(papers_by_doi) | safe }}</div>
         </div>
         {% endif %}
 
@@ -367,51 +429,64 @@
             <div class="flex gap-3">
               <div class="w-0.5 bg-slate-200 rounded-full shrink-0 mt-1"></div>
               <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 mb-0.5">
-                  {% if c.user %}
-                  <span class="relative inline-block">
-                    <button type="button" onclick="toggleCommenterMenu(event,'cm-{{ c.id }}')"
-                      class="text-xs font-medium text-slate-600 hover:text-brand transition-colors cursor-pointer">
-                      {{ c.user.name or "Verified chemist" }}
-                    </button>
-                    <div id="cm-{{ c.id }}" class="commenter-menu hidden absolute left-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-xl shadow-lg z-30 py-1 overflow-hidden">
-                      {% if orcid_id and c.user.orcid_id != orcid_id %}
-                      <button type="button" data-orcid="{{ c.user.orcid_id }}"
-                        onclick="toggleFollowUser(this.dataset.orcid,this);document.getElementById('cm-{{ c.id }}').classList.add('hidden')"
-                        class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
-                        Follow
+                <!-- Author row with date top-right -->
+                <div class="flex items-center justify-between gap-2 mb-0.5">
+                  <div class="flex items-center gap-2">
+                    {% if c.user %}
+                    <span class="relative inline-block">
+                      <button type="button" onclick="toggleCommenterMenu(event,'cm-{{ c.id }}')"
+                        class="text-xs font-medium text-slate-600 hover:text-brand transition-colors cursor-pointer">
+                        {{ c.user.name or "Verified chemist" }}
                       </button>
-                      <button type="button" data-orcid="{{ c.user.orcid_id }}" data-name="{{ c.user.name or 'Verified chemist' }}"
-                        onclick="openMessageModal(this.dataset.orcid,this.dataset.name);document.getElementById('cm-{{ c.id }}').classList.add('hidden')"
-                        class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
-                        Message
-                      </button>
-                      {% endif %}
-                      <button type="button"
-                        onclick="openReportModal('comment','{{ c.id }}','cm-{{ c.id }}')"
-                        class="w-full text-left px-3 py-2 text-xs text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors">
-                        Report
-                      </button>
-                    </div>
-                  </span>
-                  {% else %}
-                  <span class="text-xs font-medium text-slate-600">Verified chemist</span>
-                  {% endif %}
-                  <span class="text-xs text-slate-400">{{ c.created_at.strftime('%d %b %Y') }}</span>
+                      <div id="cm-{{ c.id }}" class="commenter-menu hidden absolute left-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-xl shadow-lg z-30 py-1 overflow-hidden">
+                        {% if orcid_id and c.user.orcid_id != orcid_id %}
+                        <button type="button" data-orcid="{{ c.user.orcid_id }}"
+                          onclick="toggleFollowUser(this.dataset.orcid,this);document.getElementById('cm-{{ c.id }}').classList.add('hidden')"
+                          class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
+                          Follow
+                        </button>
+                        <button type="button" data-orcid="{{ c.user.orcid_id }}" data-name="{{ c.user.name or 'Verified chemist' }}"
+                          onclick="openMessageModal(this.dataset.orcid,this.dataset.name);document.getElementById('cm-{{ c.id }}').classList.add('hidden')"
+                          class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
+                          Message
+                        </button>
+                        {% endif %}
+                        <button type="button"
+                          onclick="openReportModal('comment','{{ c.id }}','cm-{{ c.id }}')"
+                          class="w-full text-left px-3 py-2 text-xs text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors">
+                          Report
+                        </button>
+                      </div>
+                    </span>
+                    {% else %}
+                    <span class="text-xs font-medium text-slate-600">Verified chemist</span>
+                    {% endif %}
+                  </div>
+                  <span class="text-xs text-slate-400 shrink-0">{{ c.created_at.strftime('%d %b %Y') }}</span>
                 </div>
-                <div class="text-sm text-slate-700 leading-relaxed md-content">{{ c.content | render_md | safe }}</div>
-                <!-- Comment actions: like + reply -->
+                <!-- Comment body -->
+                <div id="ctext-{{ c.id }}" class="text-sm text-slate-700 leading-relaxed md-content">{{ c.content | render_md_refs(papers_by_doi) | safe }}</div>
+                <!-- Inline edit area (hidden by default) -->
+                <div id="cedit-{{ c.id }}" class="hidden mt-1">
+                  <textarea id="cedit-ta-{{ c.id }}" rows="3" maxlength="2000" data-img-paste
+                    class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y">{{ c.content }}</textarea>
+                  <div class="flex items-center gap-2 mt-1.5">
+                    <button type="button" onclick="saveEditComment('{{ paper.doi }}', {{ c.id }})"
+                      class="text-xs bg-brand text-white rounded-lg px-3 py-1.5 hover:bg-blue-700 transition-colors font-medium">Save</button>
+                    <button type="button" onclick="cancelEditComment({{ c.id }})"
+                      class="text-xs text-slate-500 hover:text-slate-700 transition-colors">Cancel</button>
+                  </div>
+                </div>
+                <!-- Actions: like + reply + edit -->
                 {% if orcid_id %}
                 <div class="flex items-center gap-3 mt-1.5">
                   <button type="button" onclick="toggleCommentLike({{ c.id }}, '{{ paper.doi }}')"
                     id="clike-btn-{{ c.id }}"
                     class="flex items-center gap-1 text-xs transition-colors {% if c_liked %}text-amber-500{% else %}text-slate-300 hover:text-amber-400{% endif %}">
-                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24"
-                      fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                       <line x1="9" y1="3" x2="15" y2="3"/>
                       <path d="M9 3V10L3 22H21L15 10V3Z"/>
-                      <path class="flask-liquid" d="M7.5 13L16.5 13L21 22H3Z"
-                            fill="{% if c_liked %}currentColor{% else %}none{% endif %}" stroke="none"/>
+                      <path class="flask-liquid" d="M7.5 13L16.5 13L21 22H3Z" fill="{% if c_liked %}currentColor{% else %}none{% endif %}" stroke="none"/>
                     </svg>
                     <span id="clike-count-{{ c.id }}" class="{% if c_likes == 0 %}hidden{% endif %}">{{ c_likes }}</span>
                   </button>
@@ -419,6 +494,10 @@
                     class="text-xs text-slate-300 hover:text-brand transition-colors">
                     Reply{% if c_replies %} ({{ c_replies | length }}){% endif %}
                   </button>
+                  {% if c.user and c.user.orcid_id == orcid_id %}
+                  <button type="button" onclick="editComment({{ c.id }})"
+                    class="text-xs text-slate-300 hover:text-brand transition-colors">Edit</button>
+                  {% endif %}
                 </div>
                 {% endif %}
 
@@ -428,53 +507,70 @@
                   {% for rep in c_replies %}
                   {% set rep_liked = rep.id in user_comment_likes %}
                   {% set rep_likes = comment_like_counts.get(rep.id, 0) %}
-                  <div>
-                    <div class="flex items-center gap-2 mb-0.5">
-                      {% if rep.user %}
-                      <span class="relative inline-block">
-                        <button type="button" onclick="toggleCommenterMenu(event,'cmr-{{ rep.id }}')"
-                          class="text-xs font-medium text-slate-600 hover:text-brand transition-colors cursor-pointer">
-                          {{ rep.user.name or "Verified chemist" }}
-                        </button>
-                        <div id="cmr-{{ rep.id }}" class="commenter-menu hidden absolute left-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-xl shadow-lg z-30 py-1 overflow-hidden">
-                          {% if orcid_id and rep.user.orcid_id != orcid_id %}
-                          <button type="button" data-orcid="{{ rep.user.orcid_id }}"
-                            onclick="toggleFollowUser(this.dataset.orcid,this);document.getElementById('cmr-{{ rep.id }}').classList.add('hidden')"
-                            class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
-                            Follow
+                  <div id="comment-{{ rep.id }}">
+                    <div class="flex items-center justify-between gap-2 mb-0.5">
+                      <div class="flex items-center gap-2">
+                        {% if rep.user %}
+                        <span class="relative inline-block">
+                          <button type="button" onclick="toggleCommenterMenu(event,'cmr-{{ rep.id }}')"
+                            class="text-xs font-medium text-slate-600 hover:text-brand transition-colors cursor-pointer">
+                            {{ rep.user.name or "Verified chemist" }}
                           </button>
-                          <button type="button" data-orcid="{{ rep.user.orcid_id }}" data-name="{{ rep.user.name or 'Verified chemist' }}"
-                            onclick="openMessageModal(this.dataset.orcid,this.dataset.name);document.getElementById('cmr-{{ rep.id }}').classList.add('hidden')"
-                            class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
-                            Message
-                          </button>
-                          {% endif %}
-                          <button type="button"
-                            onclick="openReportModal('comment','{{ rep.id }}','cmr-{{ rep.id }}')"
-                            class="w-full text-left px-3 py-2 text-xs text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors">
-                            Report
-                          </button>
-                        </div>
-                      </span>
-                      {% else %}
-                      <span class="text-xs font-medium text-slate-600">Verified chemist</span>
-                      {% endif %}
-                      <span class="text-xs text-slate-400">{{ rep.created_at.strftime('%d %b %Y') }}</span>
+                          <div id="cmr-{{ rep.id }}" class="commenter-menu hidden absolute left-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-xl shadow-lg z-30 py-1 overflow-hidden">
+                            {% if orcid_id and rep.user.orcid_id != orcid_id %}
+                            <button type="button" data-orcid="{{ rep.user.orcid_id }}"
+                              onclick="toggleFollowUser(this.dataset.orcid,this);document.getElementById('cmr-{{ rep.id }}').classList.add('hidden')"
+                              class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
+                              Follow
+                            </button>
+                            <button type="button" data-orcid="{{ rep.user.orcid_id }}" data-name="{{ rep.user.name or 'Verified chemist' }}"
+                              onclick="openMessageModal(this.dataset.orcid,this.dataset.name);document.getElementById('cmr-{{ rep.id }}').classList.add('hidden')"
+                              class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
+                              Message
+                            </button>
+                            {% endif %}
+                            <button type="button"
+                              onclick="openReportModal('comment','{{ rep.id }}','cmr-{{ rep.id }}')"
+                              class="w-full text-left px-3 py-2 text-xs text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors">
+                              Report
+                            </button>
+                          </div>
+                        </span>
+                        {% else %}
+                        <span class="text-xs font-medium text-slate-600">Verified chemist</span>
+                        {% endif %}
+                      </div>
+                      <span class="text-xs text-slate-400 shrink-0">{{ rep.created_at.strftime('%d %b %Y') }}</span>
                     </div>
-                    <div class="text-sm text-slate-700 leading-relaxed md-content">{{ rep.content | render_md | safe }}</div>
+                    <div id="ctext-{{ rep.id }}" class="text-sm text-slate-700 leading-relaxed md-content">{{ rep.content | render_md_refs(papers_by_doi) | safe }}</div>
+                    <!-- Inline edit area for reply -->
+                    <div id="cedit-{{ rep.id }}" class="hidden mt-1">
+                      <textarea id="cedit-ta-{{ rep.id }}" rows="2" maxlength="2000" data-img-paste
+                        class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y">{{ rep.content }}</textarea>
+                      <div class="flex items-center gap-2 mt-1.5">
+                        <button type="button" onclick="saveEditComment('{{ paper.doi }}', {{ rep.id }})"
+                          class="text-xs bg-brand text-white rounded-lg px-3 py-1.5 hover:bg-blue-700 transition-colors font-medium">Save</button>
+                        <button type="button" onclick="cancelEditComment({{ rep.id }})"
+                          class="text-xs text-slate-500 hover:text-slate-700 transition-colors">Cancel</button>
+                      </div>
+                    </div>
                     {% if orcid_id %}
-                    <button type="button" onclick="toggleCommentLike({{ rep.id }}, '{{ paper.doi }}')"
-                      id="clike-btn-{{ rep.id }}"
-                      class="flex items-center gap-1 mt-1 text-xs transition-colors {% if rep_liked %}text-amber-500{% else %}text-slate-300 hover:text-amber-400{% endif %}">
-                      <svg class="w-3 h-3" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="9" y1="3" x2="15" y2="3"/>
-                        <path d="M9 3V10L3 22H21L15 10V3Z"/>
-                        <path class="flask-liquid" d="M7.5 13L16.5 13L21 22H3Z"
-                              fill="{% if rep_liked %}currentColor{% else %}none{% endif %}" stroke="none"/>
-                      </svg>
-                      <span id="clike-count-{{ rep.id }}" class="{% if rep_likes == 0 %}hidden{% endif %}">{{ rep_likes }}</span>
-                    </button>
+                    <div class="flex items-center gap-3 mt-1">
+                      <button type="button" onclick="toggleCommentLike({{ rep.id }}, '{{ paper.doi }}')"
+                        id="clike-btn-{{ rep.id }}"
+                        class="flex items-center gap-1 text-xs transition-colors {% if rep_liked %}text-amber-500{% else %}text-slate-300 hover:text-amber-400{% endif %}">
+                        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                          <line x1="9" y1="3" x2="15" y2="3"/>
+                          <path d="M9 3V10L3 22H21L15 10V3Z"/>
+                          <path class="flask-liquid" d="M7.5 13L16.5 13L21 22H3Z" fill="{% if rep_liked %}currentColor{% else %}none{% endif %}" stroke="none"/>
+                        </svg>
+                        <span id="clike-count-{{ rep.id }}" class="{% if rep_likes == 0 %}hidden{% endif %}">{{ rep_likes }}</span>
+                      </button>
+                      {% if rep.user and rep.user.orcid_id == orcid_id %}
+                      <button type="button" onclick="editComment({{ rep.id }})"
+                        class="text-xs text-slate-300 hover:text-brand transition-colors">Edit</button>
+                      {% endif %}
+                    </div>
                     {% endif %}
                   </div>
                   {% endfor %}
@@ -799,25 +895,116 @@
     const el = document.getElementById('comment-reply-' + commentId);
     if (!el) return;
     el.classList.toggle('hidden');
-    if (!el.classList.contains('hidden')) el.querySelector('textarea')?.focus();
+    if (!el.classList.contains('hidden'))
+      (el.querySelector('[contenteditable]') || el.querySelector('textarea'))?.focus();
   }
 
-  // ── Follow / subscribe toggle ─────────────────────────────────────────
-  async function toggleSubscribe(doi) {
-    const btn = document.getElementById('subscribe-btn');
+  function editComment(id) {
+    document.getElementById('ctext-' + id).classList.add('hidden');
+    const editDiv = document.getElementById('cedit-' + id);
+    editDiv.classList.remove('hidden');
+    const ce = editDiv.querySelector('[contenteditable]');
+    if (ce) { ce.focus(); } else { document.getElementById('cedit-ta-' + id)?.focus(); }
+  }
+
+  function cancelEditComment(id) {
+    document.getElementById('ctext-' + id).classList.remove('hidden');
+    document.getElementById('cedit-' + id).classList.add('hidden');
+  }
+
+  async function saveEditComment(doi, id) {
+    const ta = document.getElementById('cedit-ta-' + id);
+    if (!ta) return;
+    const content = ta.value.trim();
+    if (!content) return;
+    const fd = new FormData();
+    fd.append('content', content);
     try {
-      const resp = await fetch(`/paper/${doi}/subscribe`, { method: 'POST' });
-      if (!resp.ok) return;
-      const { subscribed } = await resp.json();
-      if (subscribed) {
-        btn.textContent = '🔔 Following';
-        btn.classList.add('border-brand', 'text-brand', 'bg-blue-50');
-        btn.classList.remove('border-slate-200', 'text-slate-500', 'hover:border-brand', 'hover:text-brand');
+      const resp = await fetch('/paper/' + doi + '/comment/' + id + '/edit', { method: 'POST', body: fd });
+      const data = await resp.json();
+      if (data.ok) {
+        document.getElementById('ctext-' + id).innerHTML = data.rendered_html;
+        cancelEditComment(id);
       } else {
-        btn.textContent = '🔔 Follow';
-        btn.classList.remove('border-brand', 'text-brand', 'bg-blue-50');
-        btn.classList.add('border-slate-200', 'text-slate-500', 'hover:border-brand', 'hover:text-brand');
+        alert(data.error || 'Could not save comment.');
       }
+    } catch (_) {
+      alert('Network error. Please try again.');
+    }
+  }
+
+  // ── Save to Library ───────────────────────────────────────────────────
+  function toggleSavePanel() {
+    document.getElementById('save-panel').classList.toggle('hidden');
+  }
+  function closeSavePanel() {
+    document.getElementById('save-panel').classList.add('hidden');
+  }
+  document.addEventListener('click', function(e) {
+    const wrap = document.getElementById('save-wrap');
+    if (wrap && !wrap.contains(e.target)) closeSavePanel();
+  });
+
+  function toggleNewColInline() {
+    const box = document.getElementById('new-col-inline');
+    const btn = document.getElementById('new-col-toggle');
+    const visible = !box.classList.contains('hidden');
+    box.classList.toggle('hidden', visible);
+    btn.querySelector('span') ? null : null;
+    if (!visible) setTimeout(() => document.getElementById('new-col-name-inline').focus(), 30);
+  }
+  function cancelColInline() {
+    document.getElementById('new-col-inline').classList.add('hidden');
+    document.getElementById('new-col-name-inline').value = '';
+  }
+  async function createColInline() {
+    const name = document.getElementById('new-col-name-inline').value.trim();
+    if (!name) return;
+    const fd = new FormData();
+    fd.append('name', name);
+    try {
+      const resp = await fetch('/library/collections/new-json', { method: 'POST', body: fd });
+      if (!resp.ok) return;
+      const { id, name: colName } = await resp.json();
+      const sel = document.getElementById('save-col-select');
+      const opt = document.createElement('option');
+      opt.value = id; opt.textContent = colName; opt.selected = true;
+      sel.appendChild(opt);
+      cancelColInline();
+    } catch (_) {}
+  }
+
+  async function doSave(doi) {
+    const col = document.getElementById('save-col-select').value;
+    const notes = document.getElementById('save-notes').value;
+    const fd = new FormData();
+    fd.append('doi', doi);
+    fd.append('collection_id', col);
+    fd.append('notes', notes);
+    try {
+      const resp = await fetch('/library/save', { method: 'POST', body: fd });
+      if (!resp.ok) return;
+      const data = await resp.json();
+      const btn = document.getElementById('save-btn');
+      let label = 'Saved';
+      if (data.collection_name) label += ' · ' + data.collection_name.substring(0, 14);
+      btn.innerHTML = `<svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg> ${label}`;
+      btn.classList.add('border-brand', 'text-brand', 'bg-blue-50');
+      btn.classList.remove('border-slate-200', 'text-slate-500');
+      closeSavePanel();
+    } catch (_) {}
+  }
+
+  async function doUnsave(doi) {
+    const fd = new FormData();
+    fd.append('doi', doi);
+    try {
+      await fetch('/library/unsave', { method: 'POST', body: fd });
+      const btn = document.getElementById('save-btn');
+      btn.innerHTML = `<svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg> Save`;
+      btn.classList.remove('border-brand', 'text-brand', 'bg-blue-50');
+      btn.classList.add('border-slate-200', 'text-slate-500');
+      closeSavePanel();
     } catch (_) {}
   }
 
@@ -871,7 +1058,8 @@
   function toggleReply(id) {
     const el = document.getElementById('reply-' + id);
     el.classList.toggle('hidden');
-    if (!el.classList.contains('hidden')) el.querySelector('textarea').focus();
+    if (!el.classList.contains('hidden'))
+      (el.querySelector('[contenteditable]') || el.querySelector('textarea'))?.focus();
   }
 
   // ── Share popup ────────────────────────────────────────────────────────
