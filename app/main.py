@@ -60,6 +60,7 @@ def _migrate():
         else:
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS career_stage VARCHAR(60)"))
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS career_stage_set BOOLEAN NOT NULL DEFAULT FALSE"))
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS pledge_accepted BOOLEAN NOT NULL DEFAULT FALSE"))
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS nickname VARCHAR(60)"))
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_email VARCHAR(255)"))
             conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE"))
