@@ -228,6 +228,11 @@
   </footer>
 
   <script src="/static/js/moderation.js"></script>
+  <script src="/static/js/tour.js"></script>
+  {% if request.session.get('tour_pending') and request.url.path in ['/', '/classic'] %}
+  <script>localStorage.setItem('crTourStep', '0');</script>
+  {% set _ = request.session.pop('tour_pending', None) %}
+  {% endif %}
   <script src="https://unpkg.com/easymde/dist/easymde.min.js"></script>
 
   {% if orcid_id and orcid_id.startswith('local:') %}

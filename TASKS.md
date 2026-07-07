@@ -7,6 +7,7 @@ _Last updated: 6 July 2026_
 
 ### 🟠 HIGH
 
+- [ ] **C21** — Onboarding product tour: 4-step spotlight walkthrough shown once after first login (DOI search → rate a paper → save to Library → connect with reviewers). Fires via `tour_pending` session flag set in profile-setup. Built with vanilla JS + box-shadow spotlight. No external library.
 - [ ] **B11** — Activate author email notification (`AUTHOR_NOTIFY_ENABLED=true` in Railway `.env`) — disabled pending test that CrossRef/PMC/PubMed lookup works on real chemistry DOIs
 - [ ] **B12** — Wire `notification_email` to SMTP sender — field is saved in Settings but never read; when a followed paper gets a new review/comment, send an email to `notification_email` if set
 - [ ] **B14** — LinkedIn OAuth: routes + UI fully built, button shows "Coming soon". Before release: register app at developer.linkedin.com, set `LINKEDIN_CLIENT_ID` + `LINKEDIN_CLIENT_SECRET` + `LINKEDIN_REDIRECT_URI` in Railway `.env`, then restore button to active link.
@@ -32,6 +33,8 @@ _Last updated: 6 July 2026_
 - [ ] **D6** — Personal reaction collection / "My Library" page
 - [ ] **D8** — Zotero, Mendeley plugin
 - [ ] **D10** — Terms of Service page (required before public launch; see privacy.html as style reference)
+- [ ] **D14** — Review and edit the author notification email (body text, subject, sender name) before activating `AUTHOR_NOTIFY_ENABLED=true` in Railway. Currently placeholder wording. Check tone, legality (GDPR consent wording), and that opt-out links work end-to-end.
+- [ ] **D15** — Review extraction agent: after a paper accumulates several reviews, an AI agent (Claude) reads all reviews, extracts: attempted conditions, substrate photos (if attached), what worked / what failed, and writes a short structured summary displayed on the paper page. Fire as a background task when review count hits a threshold (e.g. 3+).
 - [ ] **D13** — Switch from Gmail SMTP to a transactional email service (Resend, SendGrid, or Brevo) with a custom domain (e.g. noreply@chemrepro.io) — eliminates spam-folder delivery risk. Gmail SMTP works today but new sender accounts have no reputation. Requires: buy domain, set up DNS (SPF/DKIM/DMARC), register with chosen provider, replace `smtp.gmail.com` calls in `app/utils/email.py` with provider SDK or relay config.
 - [ ] **D12** — Registration pledge page: one-time ethics click-through shown after first login, before a user can submit a review. Inspired by Sage Bionetworks Synapse pledge (reference saved at `chemrepro/Sage Bionetworks Sign-in.mhtml`). 6 lab-ethics statements, each requiring individual "I agree" click; stored as `pledge_accepted` bool on User model. See memory `project_chemrepro_pledge.md` for proposed pledge wording.
 

@@ -193,6 +193,7 @@ async def submit_profile_setup(
         request.session["user_name"] = user.nickname or user.name or orcid_id
 
     next_url = request.session.pop("after_profile_setup", "/")
+    request.session["tour_pending"] = 1
     return _post_login_redirect(user, next_url) if user else RedirectResponse(next_url, status_code=303)
 
 
@@ -205,6 +206,7 @@ async def skip_profile_setup(request: Request, db: Session = Depends(get_db)):
         if user:
             user.career_stage_set = True
             db.commit()
+            request.session["tour_pending"] = 1
             return _post_login_redirect(user, next_url)
     return RedirectResponse(next_url, status_code=303)
 

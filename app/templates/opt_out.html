@@ -1,17 +1,83 @@
-﻿{% extends design_base(request) %}
-{% block title %}Unsubscribed – ChemRepro{% endblock %}
+{% extends design_base(request) %}
+{% block title %}Email preferences – ChemRepro{% endblock %}
 
 {% block content %}
-<div class="max-w-md mx-auto text-center mt-16">
-  {% if success %}
-  <p class="text-4xl mb-4">✅</p>
-  <h1 class="text-xl font-bold text-slate-800 mb-2">You've been unsubscribed</h1>
-  <p class="text-sm text-slate-500">You will no longer receive email notifications for this paper from ChemRepro.</p>
+<div class="max-w-md mx-auto mt-16 px-4">
+
+  {% if not record %}
+  <!-- Invalid token -->
+  <div class="text-center">
+    <p class="text-4xl mb-4">❓</p>
+    <h1 class="text-xl font-bold text-slate-800 mb-2">Link not found</h1>
+    <p class="text-sm text-slate-500">This link is invalid or has already been used.</p>
+    <a href="/" class="inline-block mt-6 text-sm text-brand hover:underline">Back to ChemRepro →</a>
+  </div>
+
+  {% elif done == 'paper' %}
+  <!-- Unsubscribed from this paper -->
+  <div class="text-center">
+    <p class="text-4xl mb-4">✅</p>
+    <h1 class="text-xl font-bold text-slate-800 mb-2">Unsubscribed from this paper</h1>
+    <p class="text-sm text-slate-500 mb-6">You will no longer receive notifications for this paper from ChemRepro.</p>
+    <form method="post" action="/notify/opt-out/{{ token }}/all">
+      <button type="submit" class="text-xs text-slate-400 hover:text-slate-600 underline transition-colors">
+        Also unsubscribe from all future ChemRepro emails
+      </button>
+    </form>
+    <a href="/" class="inline-block mt-4 text-sm text-brand hover:underline">Back to ChemRepro →</a>
+  </div>
+
+  {% elif done == 'all' %}
+  <!-- Unsubscribed globally -->
+  <div class="text-center">
+    <p class="text-4xl mb-4">✅</p>
+    <h1 class="text-xl font-bold text-slate-800 mb-2">Unsubscribed from all emails</h1>
+    <p class="text-sm text-slate-500">Your email address will not receive any future notifications from ChemRepro.</p>
+    <a href="/" class="inline-block mt-6 text-sm text-brand hover:underline">Back to ChemRepro →</a>
+  </div>
+
   {% else %}
-  <p class="text-4xl mb-4">❓</p>
-  <h1 class="text-xl font-bold text-slate-800 mb-2">Link not found</h1>
-  <p class="text-sm text-slate-500">This opt-out link is invalid or has already been used.</p>
+  <!-- Choice page -->
+  <h1 class="text-xl font-bold text-slate-800 mb-2 text-center">Email preferences</h1>
+  <p class="text-sm text-slate-500 text-center mb-8">Choose how you want to manage notifications from ChemRepro.</p>
+
+  <div class="flex flex-col gap-4">
+
+    <div class="bg-white border border-slate-200 rounded-xl p-5">
+      <h2 class="font-semibold text-slate-700 mb-1">Stop notifications for this paper only</h2>
+      <p class="text-sm text-slate-500 mb-4">
+        You will no longer receive emails when new reviews are posted for this specific paper.
+        You may still receive notifications for other papers in the future.
+      </p>
+      <form method="post" action="/notify/opt-out/{{ token }}/paper">
+        <button type="submit"
+          class="w-full text-sm border border-slate-300 text-slate-700 rounded-lg px-4 py-2.5 hover:border-brand hover:text-brand transition-colors">
+          Unsubscribe from this paper
+        </button>
+      </form>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-xl p-5">
+      <h2 class="font-semibold text-slate-700 mb-1">Stop all ChemRepro emails</h2>
+      <p class="text-sm text-slate-500 mb-4">
+        Your email address will never receive any notification emails from ChemRepro,
+        for this paper or any future paper.
+      </p>
+      <form method="post" action="/notify/opt-out/{{ token }}/all">
+        <button type="submit"
+          class="w-full text-sm bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-2.5 hover:bg-red-100 transition-colors">
+          Unsubscribe from all ChemRepro emails
+        </button>
+      </form>
+    </div>
+
+  </div>
+
+  <p class="text-xs text-slate-400 text-center mt-6">
+    Changed your mind? Contact us at
+    <a href="mailto:chemrepro@gmail.com" class="text-brand hover:underline">chemrepro@gmail.com</a>
+  </p>
   {% endif %}
-  <a href="/" class="inline-block mt-6 text-sm text-brand hover:underline">Back to ChemRepro →</a>
+
 </div>
 {% endblock %}

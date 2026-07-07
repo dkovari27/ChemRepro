@@ -58,6 +58,9 @@ def _migrate():
                 conn.execute(text("ALTER TABLE comments ADD COLUMN parent_id INTEGER REFERENCES comments(id)"))
             if "ai_flagged" not in comment_cols:
                 conn.execute(text("ALTER TABLE comments ADD COLUMN ai_flagged BOOLEAN NOT NULL DEFAULT 0"))
+            an_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(author_notifications)"))]
+            if "global_opted_out" not in an_cols:
+                conn.execute(text("ALTER TABLE author_notifications ADD COLUMN global_opted_out BOOLEAN NOT NULL DEFAULT 0"))
             rating_cols2 = [row[1] for row in conn.execute(text("PRAGMA table_info(ratings)"))]
             if "ai_flagged" not in rating_cols2:
                 conn.execute(text("ALTER TABLE ratings ADD COLUMN ai_flagged BOOLEAN NOT NULL DEFAULT 0"))
@@ -72,6 +75,7 @@ def _migrate():
             conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS ai_flagged BOOLEAN NOT NULL DEFAULT FALSE"))
             conn.execute(text("ALTER TABLE comments ADD COLUMN IF NOT EXISTS parent_id INTEGER REFERENCES comments(id)"))
             conn.execute(text("ALTER TABLE comments ADD COLUMN IF NOT EXISTS ai_flagged BOOLEAN NOT NULL DEFAULT FALSE"))
+            conn.execute(text("ALTER TABLE author_notifications ADD COLUMN IF NOT EXISTS global_opted_out BOOLEAN NOT NULL DEFAULT FALSE"))
         conn.commit()
 
 _migrate()

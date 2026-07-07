@@ -947,22 +947,47 @@ def _notify_paper_subscribers(
 
 # ── Author notification opt-out ───────────────────────────────────────────────
 
+def _opt_out_ctx(request, record, token, done=None):
+    return {
+        "request": request,
+        "record": record,
+        "token": token,
+        "done": done,
+        "user_name": request.session.get("user_name"),
+        "orcid_id": request.session.get("orcid_id"),
+        "site_version": "standard",
+        "switch_urls": {"standard": "/", "classic": "/classic/"},
+    }
+
 @router.get("/notify/opt-out/{token}", response_class=HTMLResponse)
 async def author_opt_out(token: str, request: Request, db: Session = Depends(get_db)):
+    record = db.query(AuthorNotification).filter(
+        AuthorNotification.opt_out_token == token
+    ).first()
+    done = request.query_params.get("done")
+    return templates.TemplateResponse("opt_out.html", _opt_out_ctx(request, record, token, done))
+
+@router.post("/notify/opt-out/{token}/paper")
+async def author_opt_out_paper(token: str, request: Request, db: Session = Depends(get_db)):
     record = db.query(AuthorNotification).filter(
         AuthorNotification.opt_out_token == token
     ).first()
     if record and not record.opted_out:
         record.opted_out = True
         db.commit()
-    return templates.TemplateResponse("opt_out.html", {
-        "request": request,
-        "success": bool(record),
-        "user_name": request.session.get("user_name"),
-        "orcid_id": request.session.get("orcid_id"),
-        "site_version": "standard",
-        "switch_urls": {"standard": "/", "classic": "/classic/"},
-    })
+    return RedirectResponse(f"/notify/opt-out/{token}?done=paper", status_code=303)
+
+@router.post("/notify/opt-out/{token}/all")
+async def author_opt_out_all(token: str, request: Request, db: Session = Depends(get_db)):
+    record = db.query(AuthorNotification).filter(
+        AuthorNotification.opt_out_token == token
+    ).first()
+    if record:
+        db.query(AuthorNotification).filter(
+            AuthorNotification.email_hash == record.email_hash
+        ).update({"opted_out": True, "global_opted_out": True}, synchronize_session=False)
+        db.commit()
+    return RedirectResponse(f"/notify/opt-out/{token}?done=all", status_code=303)
 
 
 @router.get("/design-demo/scoring-ab", response_class=HTMLResponse)

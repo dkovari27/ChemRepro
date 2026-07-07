@@ -131,13 +131,21 @@ async def notify_author_if_possible(
 
     email_hash = _hash_email(email)
 
-    # Check opt-out and deduplication
+    # Check global opt-out (user unsubscribed from all ChemRepro emails)
+    global_block = db.query(AuthorNotification).filter(
+        AuthorNotification.email_hash == email_hash,
+        AuthorNotification.global_opted_out == True,  # noqa: E712
+    ).first()
+    if global_block:
+        return
+
+    # Check per-paper deduplication / opt-out
     existing = db.query(AuthorNotification).filter(
         AuthorNotification.doi == doi,
         AuthorNotification.email_hash == email_hash,
     ).first()
     if existing:
-        return  # already notified or opted out
+        return  # already notified or opted out for this paper
 
     token = _make_token(email)
     record = AuthorNotification(doi=doi, email_hash=email_hash, opt_out_token=token)
@@ -155,7 +163,8 @@ async def notify_author_if_possible(
         f"Review: {review_url}\n\n"
         f"ChemRepro collects first-hand reproducibility experiences from practising chemists. "
         f"You are welcome to read or respond to the review on the platform.\n\n"
-        f"To stop receiving notifications for this paper:\n{opt_out_url}\n\n"
+        f"To manage your email preferences:\n{opt_out_url}\n"
+        f"(You can unsubscribe from this paper, or from all ChemRepro emails.)\n\n"
         f"The ChemRepro team\n{base_url}"
     )
 
@@ -168,8 +177,8 @@ async def notify_author_if_possible(
     You are welcome to read or respond to the review on the platform.</p>
     <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0"/>
     <p style="font-size:12px;color:#94a3b8">
-    To stop receiving notifications for this paper:
-    <a href="{opt_out_url}">unsubscribe</a>
+    <a href="{opt_out_url}">Manage email preferences</a>
+    &mdash; unsubscribe from this paper or from all ChemRepro emails.
     </p>
     """
 
