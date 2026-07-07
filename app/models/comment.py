@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import String, Integer, ForeignKey, DateTime, UniqueConstraint
+from sqlalchemy import Boolean, String, Integer, ForeignKey, DateTime, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -18,6 +18,7 @@ class Comment(Base):
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
     )
+    ai_flagged: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
     user: Mapped["User"] = relationship("User")  # noqa: F821
     replies: Mapped[list["Comment"]] = relationship("Comment", foreign_keys=[parent_id])

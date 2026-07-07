@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app import prompts
 from app.config import settings
 from app.utils.moderation import is_clean as _is_clean
+from app.utils.ai_moderation import moderate_comment_bg, moderate_rating_bg
 from app.database import get_db
 from app.models.author_notification import AuthorNotification
 from app.models.comment import Comment, CommentLike
@@ -346,7 +347,7 @@ async def paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
     except ValueError:
         active_page = 1
 
-    q = db.query(Rating).filter(Rating.doi == doi, Rating.scoring_mode != "classic")
+    q = db.query(Rating).filter(Rating.doi == doi, Rating.scoring_mode != "classic", Rating.ai_flagged == False)  # noqa: E712
     if active_outcome:
         q = q.filter(Rating.outcome == active_outcome)
     if active_scope:
@@ -378,7 +379,7 @@ async def paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
     # ── Comments + comment likes ──────────────────────────────────────────
     all_comments = (
         db.query(Comment)
-        .filter(Comment.doi == doi)
+        .filter(Comment.doi == doi, Comment.ai_flagged == False)  # noqa: E712
         .order_by(Comment.created_at.asc())
         .all()
     )
@@ -509,6 +510,7 @@ async def paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
 async def submit_comment(
     doi: str,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     rating_id: int = Form(...),
     content: str = Form(""),
@@ -549,6 +551,7 @@ async def submit_comment(
         exclude_orcid=orcid_id,
     )
     db.commit()
+    background_tasks.add_task(moderate_comment_bg, comment.id)
     return RedirectResponse(f"/paper/{doi}#review-{rating_id}", status_code=303)
 
 
@@ -648,11 +651,11 @@ async def submit_rating(
         exclude_orcid=orcid_id,
     )
     db.commit()
-    # Notify corresponding author in background (fire-and-forget)
     base_url = str(request.base_url).rstrip("/")
     background_tasks.add_task(
         notify_author_if_possible, doi, paper.title or "", rating.id, db, base_url
     )
+    background_tasks.add_task(moderate_rating_bg, rating.id)
     return RedirectResponse(f"/paper/{doi}", status_code=303)
 
 
@@ -774,6 +777,7 @@ async def submit_reply(
     doi: str,
     parent_id: int,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     content: str = Form(""),
 ):
@@ -812,6 +816,7 @@ async def submit_reply(
                 paper_title=(paper.title or "")[:200],
             ))
     db.commit()
+    background_tasks.add_task(moderate_comment_bg, reply.id)
     anchor = f"#review-{parent.rating_id}" if parent.rating_id else ""
     return RedirectResponse(f"/paper/{doi}{anchor}", status_code=303)
 
@@ -822,6 +827,7 @@ async def submit_reply(
 async def classic_submit_comment(
     doi: str,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     rating_id: int = Form(...),
     content: str = Form(""),
@@ -862,6 +868,7 @@ async def classic_submit_comment(
         exclude_orcid=orcid_id,
     )
     db.commit()
+    background_tasks.add_task(moderate_comment_bg, comment.id)
     return RedirectResponse(f"/classic/paper/{doi}#review-{rating_id}", status_code=303)
 
 
@@ -870,6 +877,7 @@ async def classic_submit_reply(
     doi: str,
     parent_id: int,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     content: str = Form(""),
 ):
@@ -907,6 +915,7 @@ async def classic_submit_reply(
                 paper_title=(paper.title or "")[:200],
             ))
     db.commit()
+    background_tasks.add_task(moderate_comment_bg, reply.id)
     anchor = f"#review-{parent.rating_id}" if parent.rating_id else ""
     return RedirectResponse(f"/classic/paper/{doi}{anchor}", status_code=303)
 
@@ -1136,7 +1145,7 @@ async def classic_paper_page(doi: str, request: Request, db: Session = Depends(g
     except ValueError:
         active_page = 1
 
-    q = db.query(Rating).filter(Rating.doi == doi, Rating.scoring_mode == "classic")
+    q = db.query(Rating).filter(Rating.doi == doi, Rating.scoring_mode == "classic", Rating.ai_flagged == False)  # noqa: E712
     total_count = q.count()
     total_pages = max(1, (total_count + PAGE_SIZE - 1) // PAGE_SIZE)
     active_page = min(active_page, total_pages)
@@ -1156,7 +1165,8 @@ async def classic_paper_page(doi: str, request: Request, db: Session = Depends(g
     reviews = q.offset((active_page - 1) * PAGE_SIZE).limit(PAGE_SIZE).all()
 
     all_comments = (
-        db.query(Comment).filter(Comment.doi == doi)
+        db.query(Comment)
+        .filter(Comment.doi == doi, Comment.ai_flagged == False)  # noqa: E712
         .order_by(Comment.created_at.asc()).all()
     )
     comment_map: dict[int, list] = {}

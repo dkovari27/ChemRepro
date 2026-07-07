@@ -56,6 +56,11 @@ def _migrate():
             comment_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(comments)"))]
             if "parent_id" not in comment_cols:
                 conn.execute(text("ALTER TABLE comments ADD COLUMN parent_id INTEGER REFERENCES comments(id)"))
+            if "ai_flagged" not in comment_cols:
+                conn.execute(text("ALTER TABLE comments ADD COLUMN ai_flagged BOOLEAN NOT NULL DEFAULT 0"))
+            rating_cols2 = [row[1] for row in conn.execute(text("PRAGMA table_info(ratings)"))]
+            if "ai_flagged" not in rating_cols2:
+                conn.execute(text("ALTER TABLE ratings ADD COLUMN ai_flagged BOOLEAN NOT NULL DEFAULT 0"))
             # collections and saved_papers are created by create_all above; no ALTER needed
         else:
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS career_stage VARCHAR(60)"))
@@ -64,7 +69,9 @@ def _migrate():
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS nickname VARCHAR(60)"))
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_email VARCHAR(255)"))
             conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE"))
+            conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS ai_flagged BOOLEAN NOT NULL DEFAULT FALSE"))
             conn.execute(text("ALTER TABLE comments ADD COLUMN IF NOT EXISTS parent_id INTEGER REFERENCES comments(id)"))
+            conn.execute(text("ALTER TABLE comments ADD COLUMN IF NOT EXISTS ai_flagged BOOLEAN NOT NULL DEFAULT FALSE"))
         conn.commit()
 
 _migrate()

@@ -96,6 +96,75 @@
     {% endif %}
   </section>
 
+  <!-- ── AI FLAGGED CONTENT ──────────────────────────────────────── -->
+  <section class="mb-10">
+    <h2 class="text-base font-semibold text-slate-700 mb-3 flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-orange-500 inline-block"></span>
+      AI Flagged – Hidden from public
+      ({{ (ai_flagged_comments | length) + (ai_flagged_ratings | length) }})
+    </h2>
+    {% if ai_flagged_comments or ai_flagged_ratings %}
+    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50 text-xs text-slate-500 uppercase">
+          <tr>
+            <th class="px-4 py-2 text-left">Type</th>
+            <th class="px-4 py-2 text-left">Author</th>
+            <th class="px-4 py-2 text-left">Content</th>
+            <th class="px-4 py-2 text-left">Date</th>
+            <th class="px-4 py-2 text-left">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for c in ai_flagged_comments %}
+          <tr id="aiflag-comment-{{ c.id }}">
+            <td class="px-4 py-2"><span class="px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700">comment</span></td>
+            <td class="px-4 py-2 text-xs text-slate-500">
+              {% set u = users_map.get(c.orcid_id) %}
+              {{ (u.nickname or u.name) if u else c.orcid_id[:12] }}
+            </td>
+            <td class="px-4 py-2 text-xs text-slate-600 max-w-xs truncate" title="{{ c.content }}">{{ c.content[:120] }}</td>
+            <td class="px-4 py-2 text-xs text-slate-400">{{ c.created_at.strftime('%d %b %Y') }}</td>
+            <td class="px-4 py-2">
+              <div class="flex gap-2">
+                <button onclick="adminAction('/admin/comments/{{ c.id }}/restore','aiflag-comment-{{ c.id }}')"
+                  class="text-xs px-2 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-colors">Restore</button>
+                <button onclick="adminAction('/admin/comments/{{ c.id }}/delete','aiflag-comment-{{ c.id }}')"
+                  class="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">Delete</button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+          {% for r in ai_flagged_ratings %}
+          <tr id="aiflag-rating-{{ r.id }}">
+            <td class="px-4 py-2"><span class="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">review</span></td>
+            <td class="px-4 py-2 text-xs text-slate-500">
+              {% set u = users_map.get(r.orcid_id) %}
+              {{ (u.nickname or u.name) if u else r.orcid_id[:12] }}
+            </td>
+            <td class="px-4 py-2 text-xs text-slate-600 max-w-xs truncate"
+              title="{{ [r.reproducibility_observation, r.scope_observation, r.modification_details] | select | join(' / ') }}">
+              {{ (r.reproducibility_observation or r.scope_observation or r.modification_details or '')[:120] }}
+            </td>
+            <td class="px-4 py-2 text-xs text-slate-400">{{ r.created_at.strftime('%d %b %Y') }}</td>
+            <td class="px-4 py-2">
+              <div class="flex gap-2">
+                <button onclick="adminAction('/admin/ratings/{{ r.id }}/restore','aiflag-rating-{{ r.id }}')"
+                  class="text-xs px-2 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-colors">Restore</button>
+                <button onclick="adminAction('/admin/reviews/{{ r.id }}/delete','aiflag-rating-{{ r.id }}')"
+                  class="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">Delete</button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-sm text-slate-400 italic">No AI-flagged content.</p>
+    {% endif %}
+  </section>
+
   <!-- ── RECENT REVIEWS ────────────────────────────────────────────── -->
   <section class="mb-10">
     <h2 class="text-base font-semibold text-slate-700 mb-3">Recent Reviews (last 30)</h2>

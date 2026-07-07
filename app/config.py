@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     GMAIL_APP_PASSWORD: str = ""
     FEEDBACK_NOTIFY_EMAIL: str = ""
 
+    ANTHROPIC_API_KEY: str = ""
     AUTHOR_NOTIFY_ENABLED: bool = False
     ADMIN_SECRET_TOKEN: str = "change-this-before-production"
 

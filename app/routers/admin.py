@@ -111,8 +111,23 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
 
     recent_comments = (
         db.query(Comment)
+        .filter(Comment.ai_flagged == False)  # noqa: E712
         .order_by(Comment.created_at.desc())
         .limit(30)
+        .all()
+    )
+
+    ai_flagged_comments = (
+        db.query(Comment)
+        .filter(Comment.ai_flagged == True)  # noqa: E712
+        .order_by(Comment.created_at.desc())
+        .all()
+    )
+
+    ai_flagged_ratings = (
+        db.query(Rating)
+        .filter(Rating.ai_flagged == True)  # noqa: E712
+        .order_by(Rating.created_at.desc())
         .all()
     )
 
@@ -125,6 +140,8 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
         "open_reports": open_reports,
         "recent_reviews": recent_reviews,
         "recent_comments": recent_comments,
+        "ai_flagged_comments": ai_flagged_comments,
+        "ai_flagged_ratings": ai_flagged_ratings,
         "recent_users": recent_users,
         "all_users": all_users,
         "papers_map": papers_map,
@@ -244,6 +261,28 @@ async def admin_ban_user(orcid_id: str, request: Request, db: Session = Depends(
 
 
 # ── Delete an entire paper and all its data ───────────────────────────────────
+
+@router.post("/comments/{comment_id}/restore")
+async def admin_restore_comment(comment_id: int, request: Request, db: Session = Depends(get_db)):
+    _require_admin(request)
+    c = db.get(Comment, comment_id)
+    if not c:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    c.ai_flagged = False
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
+@router.post("/ratings/{rating_id}/restore")
+async def admin_restore_rating(rating_id: int, request: Request, db: Session = Depends(get_db)):
+    _require_admin(request)
+    r = db.get(Rating, rating_id)
+    if not r:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    r.ai_flagged = False
+    db.commit()
+    return JSONResponse({"ok": True})
+
 
 @router.post("/papers/{doi:path}/delete")
 async def admin_delete_paper(doi: str, request: Request, db: Session = Depends(get_db)):
