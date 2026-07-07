@@ -30,9 +30,9 @@ var STEPS = [
     page: 'paper',
     selector: '#save-wrap',
     stepNum: 'Step 3 of 4',
-    title: 'Save to your Library',
-    body: 'Click this button to bookmark the paper. '
-        + 'You can sort papers into named collections and add private notes that only you can see.',
+    title: 'Save to your Collection',
+    body: 'Click this button to save the paper to one of your named collections. '
+        + 'You can also add private notes that only you can see.',
     nextLabel: 'Next →',
     nextAction: 'advance',
   },
