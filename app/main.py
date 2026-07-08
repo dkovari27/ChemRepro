@@ -20,6 +20,7 @@ from app.models import report as _report_model               # noqa: F401
 from app.models import image as _image_model                 # noqa: F401
 from app.models import collection as _collection_model       # noqa: F401
 from app.models import saved_paper as _saved_paper_model     # noqa: F401
+from app.models import api_key as _api_key_model             # noqa: F401
 from app.models.comment import CommentLike                   # noqa: F401
 from app.routers import auth, papers, api
 from app.routers import feedback as feedback_router

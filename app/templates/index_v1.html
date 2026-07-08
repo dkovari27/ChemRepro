@@ -212,7 +212,6 @@
 {% if community_papers %}
 <div class="mb-4 flex items-center justify-between">
   <h2 class="text-lg font-semibold text-slate-700">{% if my_papers %}Recently rated by the community{% else %}Recently rated papers{% endif %}</h2>
-  <a href="/api/v1/papers" target="_blank" class="text-xs text-slate-400 hover:text-brand">View as JSON →</a>
 </div>
 <div class="space-y-3">
   {% for entry in community_papers %}{{ paper_card(entry) }}{% endfor %}

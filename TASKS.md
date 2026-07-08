@@ -24,6 +24,8 @@ _Last updated: 8 July 2026_
 
 - [ ] **D16** — Resubscription: if a user who globally unsubscribed from ChemRepro emails later registers or logs in, offer a one-click opt back in (clear `global_opted_out` flag on their email hash). UI: show a dismissible banner on first login after opt-out, or a toggle in Profile Settings.
 
+- [ ] **D17** — MCP server for ChemRepro API: wrap `/api/v1/` as an MCP server (separate Railway service or same app at `/mcp`) exposing named tools: `get_paper_score(doi)`, `list_recent_ratings(limit)`, `get_paper_ratings(doi)`. Requires: `fastapi-mcp` or custom MCP JSON-RPC handler, API key forwarding from the MCP client config, OpenAPI spec integration. Makes the dataset natively callable from Claude Desktop, Claude Code, and any MCP-compatible AI agent without the user writing HTTP calls.
+
 - [ ] **D1** — Browser extension (Chrome + Firefox — parked)
 - [ ] **D2** — Sketchit design review (do when feature set is stable)
 - [ ] **D3** — Partnership outreach
