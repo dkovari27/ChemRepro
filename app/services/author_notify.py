@@ -153,7 +153,8 @@ async def notify_author_if_possible(
     db.commit()
 
     review_url = f"{base_url}/paper/{doi}#review-{rating_id}"
-    opt_out_url = f"{base_url}/notify/opt-out/{token}"
+    opt_out_paper_url = f"{base_url}/notify/opt-out/{token}/paper"
+    opt_out_all_url = f"{base_url}/notify/opt-out/{token}/all"
     short_title = paper_title[:100] + ("…" if len(paper_title) > 100 else "")
 
     body_text = (
@@ -163,8 +164,9 @@ async def notify_author_if_possible(
         f"Review: {review_url}\n\n"
         f"ChemRepro collects first-hand reproducibility experiences from practising chemists. "
         f"You are welcome to read or respond to the review on the platform.\n\n"
-        f"To manage your email preferences:\n{opt_out_url}\n"
-        f"(You can unsubscribe from this paper, or from all ChemRepro emails.)\n\n"
+        f"--- Unsubscribe ---\n"
+        f"Stop notifications for this paper only:\n{opt_out_paper_url}\n\n"
+        f"Stop all emails from ChemRepro:\n{opt_out_all_url}\n\n"
         f"The ChemRepro team\n{base_url}"
     )
 
@@ -176,10 +178,24 @@ async def notify_author_if_possible(
     <p>ChemRepro collects first-hand reproducibility experiences from practising chemists.
     You are welcome to read or respond to the review on the platform.</p>
     <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0"/>
-    <p style="font-size:12px;color:#94a3b8">
-    <a href="{opt_out_url}">Manage email preferences</a>:
-    unsubscribe from this paper or from all ChemRepro emails.
-    </p>
+    <table cellpadding="0" cellspacing="0" style="margin:0 0 8px 0">
+      <tr>
+        <td style="padding-right:8px">
+          <a href="{opt_out_paper_url}"
+             style="display:inline-block;padding:8px 14px;background:#f1f5f9;color:#475569;
+                    font-size:12px;text-decoration:none;border-radius:6px;border:1px solid #e2e8f0">
+            Stop notifications for this paper
+          </a>
+        </td>
+        <td>
+          <a href="{opt_out_all_url}"
+             style="display:inline-block;padding:8px 14px;background:#f1f5f9;color:#475569;
+                    font-size:12px;text-decoration:none;border-radius:6px;border:1px solid #e2e8f0">
+            Unsubscribe from all ChemRepro emails
+          </a>
+        </td>
+      </tr>
+    </table>
     """
 
     send_generic_email(

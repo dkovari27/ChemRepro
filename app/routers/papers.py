@@ -983,6 +983,7 @@ async def author_opt_out(token: str, request: Request, db: Session = Depends(get
     done = request.query_params.get("done")
     return templates.TemplateResponse("opt_out.html", _opt_out_ctx(request, record, token, done))
 
+@router.get("/notify/opt-out/{token}/paper")
 @router.post("/notify/opt-out/{token}/paper")
 async def author_opt_out_paper(token: str, request: Request, db: Session = Depends(get_db)):
     record = db.query(AuthorNotification).filter(
@@ -993,6 +994,7 @@ async def author_opt_out_paper(token: str, request: Request, db: Session = Depen
         db.commit()
     return RedirectResponse(f"/notify/opt-out/{token}?done=paper", status_code=303)
 
+@router.get("/notify/opt-out/{token}/all")
 @router.post("/notify/opt-out/{token}/all")
 async def author_opt_out_all(token: str, request: Request, db: Session = Depends(get_db)):
     record = db.query(AuthorNotification).filter(

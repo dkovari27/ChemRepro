@@ -20,6 +20,8 @@ _Last updated: 8 July 2026_
 
 ### 🔵 POST-LAUNCH
 
+- [ ] **D16** — Resubscription: if a user who globally unsubscribed from ChemRepro emails later registers or logs in, offer a one-click opt back in (clear `global_opted_out` flag on their email hash). UI: show a dismissible banner on first login after opt-out, or a toggle in Profile Settings.
+
 - [ ] **D1** — Browser extension (Chrome + Firefox — parked)
 - [ ] **D2** — Sketchit design review (do when feature set is stable)
 - [ ] **D3** — Partnership outreach
