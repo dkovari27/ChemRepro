@@ -194,8 +194,10 @@ def render_md_refs(text: str, papers_by_doi: dict) -> str:
 
 
 def register_globals(templates_instance) -> None:
+    from app.config import settings
     templates_instance.env.globals["design_base"] = design_base
     templates_instance.env.globals["design_ver"] = design_ver
+    templates_instance.env.globals["is_local"] = settings.ORCID_ENV == "sandbox"
     templates_instance.env.filters["render_md"] = render_md
     templates_instance.env.filters["render_md_refs"] = render_md_refs
     templates_instance.env.filters["from_json"] = _from_json

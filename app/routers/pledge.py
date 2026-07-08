@@ -71,4 +71,8 @@ async def accept_pledge(
         user.pledge_accepted = True
         db.commit()
 
+    # New users arrive here via profile-setup which queued the tour; send them to the demo page
+    if request.session.get("tour_pending"):
+        return RedirectResponse("/demo", status_code=303)
+
     return RedirectResponse(next_url or "/", status_code=303)

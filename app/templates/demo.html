@@ -58,14 +58,14 @@
   <div class="sticky top-4 self-start max-h-[calc(100vh-2rem)] overflow-y-auto flex flex-col gap-4">
 
     <!-- Score card — order matches OUTCOME_ORDER (best → worst) -->
-    <div class="bg-white border border-slate-200 rounded-xl p-5">
+    <div id="tour-score-card" class="bg-white border border-slate-200 rounded-xl p-5">
       <div class="flex items-baseline gap-3 mb-4">
         <span class="text-4xl font-bold text-slate-800">&#9733; 3.5</span>
         <span class="text-sm text-slate-400">2 ratings</span>
       </div>
       <div class="space-y-1.5">
         <!-- 5 – Extended -->
-        <div class="rounded-md px-1 py-0.5 -mx-1">
+        <div class="cursor-pointer rounded-md px-1 py-0.5 -mx-1 hover:bg-slate-50 transition-colors" title="Show only: Extended">
           <div class="flex justify-between text-xs mb-0.5">
             <span class="text-blue-700 font-medium opacity-40"><span class="font-bold">5</span> <span class="mx-0.5 opacity-60">&ndash;</span>Extended</span>
             <span class="text-slate-300">&ndash;</span>
@@ -73,7 +73,7 @@
           <div class="h-1.5 w-full bg-slate-100 rounded-full"></div>
         </div>
         <!-- 4 – Reproduced, extension failed -->
-        <div class="rounded-md px-1 py-0.5 -mx-1">
+        <div class="cursor-pointer rounded-md px-1 py-0.5 -mx-1 hover:bg-slate-50 transition-colors" title="Show only: Reproduced, extension failed">
           <div class="flex justify-between text-xs mb-0.5">
             <span class="text-teal-700 font-medium"><span class="font-bold">4</span> <span class="mx-0.5 opacity-60">&ndash;</span>Reproduced, extension failed</span>
             <span class="font-semibold text-slate-600">&times;1</span>
@@ -81,7 +81,7 @@
           <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden"><div class="bg-teal-500 h-full rounded-full" style="width:50%"></div></div>
         </div>
         <!-- 3 – Reproduced original -->
-        <div class="rounded-md px-1 py-0.5 -mx-1">
+        <div class="cursor-pointer rounded-md px-1 py-0.5 -mx-1 hover:bg-slate-50 transition-colors" title="Show only: Reproduced original">
           <div class="flex justify-between text-xs mb-0.5">
             <span class="text-green-700 font-medium"><span class="font-bold">3</span> <span class="mx-0.5 opacity-60">&ndash;</span>Reproduced original</span>
             <span class="font-semibold text-slate-600">&times;1</span>
@@ -89,7 +89,7 @@
           <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden"><div class="bg-green-500 h-full rounded-full" style="width:50%"></div></div>
         </div>
         <!-- 2 – Did not work on extension -->
-        <div class="rounded-md px-1 py-0.5 -mx-1">
+        <div class="cursor-pointer rounded-md px-1 py-0.5 -mx-1 hover:bg-slate-50 transition-colors" title="Show only: Did not work on extension">
           <div class="flex justify-between text-xs mb-0.5">
             <span class="text-orange-700 font-medium opacity-40"><span class="font-bold">2</span> <span class="mx-0.5 opacity-60">&ndash;</span>Did not work on extension</span>
             <span class="text-slate-300">&ndash;</span>
@@ -97,7 +97,7 @@
           <div class="h-1.5 w-full bg-slate-100 rounded-full"></div>
         </div>
         <!-- 1 – Did not work on original -->
-        <div class="rounded-md px-1 py-0.5 -mx-1">
+        <div class="cursor-pointer rounded-md px-1 py-0.5 -mx-1 hover:bg-slate-50 transition-colors" title="Show only: Did not work on original">
           <div class="flex justify-between text-xs mb-0.5">
             <span class="text-red-700 font-medium opacity-40"><span class="font-bold">1</span> <span class="mx-0.5 opacity-60">&ndash;</span>Did not work on original</span>
             <span class="text-slate-300">&ndash;</span>

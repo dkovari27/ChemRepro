@@ -6,23 +6,47 @@
 
   var STEPS = [
     {
-      page: 'home',
+      page: 'demo-home',
       selector: 'input[name="doi"]',
-      stepNum: 'Step 1 of 5',
+      stepNum: 'Step 1 of 7',
       title: 'Find any chemistry paper',
-      body: 'Paste a DOI into this box, then click <strong>Look up paper</strong>.',
+      body: 'Paste a DOI into the search bar and click <strong>Look up paper</strong> '
+        + 'to see the community reproducibility record for that paper.',
+      nextLabel: 'Next →',
+      nextAction: 'advance',
+    },
+    {
+      page: 'demo-home',
+      selector: '#tour-community-feed',
+      stepNum: 'Step 2 of 7',
+      title: 'Review cards',
+      body: 'Papers you have personally reviewed appear under <strong>My reviewed papers</strong>. '
+        + 'Below that, the community feed shows what other chemists have recently rated. '
+        + 'Each card displays a <strong>★ score</strong> and the number of reports. '
+        + 'Hover over the score to see the full breakdown, or click on the card to open the paper.',
       nextLabel: 'Next →',
       nextAction: 'navigate',
       navigateTo: '/paper/demo',
     },
     {
       page: 'paper',
+      selector: '#tour-score-card',
+      stepNum: 'Step 3 of 7',
+      title: 'Paper score breakdown',
+      body: 'Here you see the aggregated score for this specific paper. '
+        + 'Each coloured row shows how many reviewers reported that outcome and its share of the total. '
+        + 'On a real paper you can click any row to filter the reviews by that outcome.',
+      nextLabel: 'Next →',
+      nextAction: 'advance',
+    },
+    {
+      page: 'paper',
       selector: '#tour-rate-box',
-      stepNum: 'Step 2 of 5',
+      stepNum: 'Step 4 of 7',
       title: 'Rate this paper',
-      body: 'If you have tried this reaction in the lab, record what happened here. '
-        + 'Choose an outcome (did it work? did it fail?), add your observations, '
-        + 'add a picture if you will and submit. '
+      body: 'If you have tried a procedure of a paper in the lab, record what happened here. '
+        + 'Choose an outcome (did it work? did it fail?, etc.), add your observations, '
+        + 'add a picture or screenshot of a scheme if you want and submit. '
         + 'Your reviews will appear under your chosen display name.',
       nextLabel: 'Next →',
       nextAction: 'advance',
@@ -30,7 +54,7 @@
     {
       page: 'paper',
       selector: '#save-wrap',
-      stepNum: 'Step 3 of 5',
+      stepNum: 'Step 5 of 7',
       title: 'Save to your collection',
       body: 'Click this button to save the paper to one of your private collection folders. '
         + 'You can also add notes to them.',
@@ -41,7 +65,7 @@
       page: 'paper',
       selector: '#tour-reviewer-name',
       fallback: '#reviews-section',
-      stepNum: 'Step 4 of 5',
+      stepNum: 'Step 6 of 7',
       title: 'Connect with other chemists',
       body: 'Click a reviewer\'s name to follow that person, '
         + 'send a private message, or report misconduct.',
@@ -52,7 +76,7 @@
     {
       page: 'paper',
       selector: '#tour-review-actions',
-      stepNum: 'Step 5 of 5',
+      stepNum: 'Step 7 of 7',
       title: 'Interact with reviews',
       body: 'Use the action bar at the bottom of each review to '
         + '<strong>like</strong> it with the flask icon, post a <strong>comment</strong>, '
@@ -70,7 +94,8 @@
 
   function currentPage() {
     var p = window.location.pathname;
-    if (p === '/') return 'home';
+    if (p === '/demo') return 'demo-home';
+    if (p === '/' || p === '/classic' || p === '/classic/') return 'home';
     if (p.startsWith('/paper/') || p.startsWith('/classic/paper/')) return 'paper';
     return 'other';
   }
@@ -260,10 +285,13 @@
   }
 
   window.startTour = function () {
-    markDone(); // reset
     localStorage.removeItem(DONE_KEY);
     setStep(0);
-    setTimeout(function () { showStep(0); }, 300);
+    if (currentPage() === 'demo-home') {
+      setTimeout(function () { showStep(0); }, 300);
+    } else {
+      window.location.href = '/demo';
+    }
   };
 
   function init() {

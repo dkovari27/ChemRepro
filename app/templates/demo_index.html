@@ -1,0 +1,152 @@
+{% extends design_base(request) %}
+{% block title %}ChemRepro – Demo Homepage{% endblock %}
+
+{% block content %}
+
+<!-- Demo banner -->
+<div class="max-w-2xl mx-auto mb-8 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 text-center">
+  <span>This is a <strong>demonstration page</strong> with fictional content.
+  <a href="/" class="underline hover:text-amber-900">Go to the real homepage</a>.</span>
+</div>
+
+<!-- Hero -->
+<div class="text-center mb-10 pt-4">
+  <h1 class="text-[2.5rem] font-bold tracking-[-0.025em] text-[#111c17] mb-4 leading-[1.2]">
+    Did that synthesis actually work?<br />Tell us more!
+  </h1>
+  <p class="text-slate-500 text-base max-w-xl mx-auto leading-relaxed">
+    Peer ratings from verified synthetic chemists.<br />Look up a DOI to see what others experienced in the lab.
+  </p>
+</div>
+
+<!-- Search -->
+<form action="/search" method="get" class="flex gap-2 max-w-2xl mx-auto mb-10">
+  <input type="text" name="doi" placeholder="Paste a DOI – e.g. 10.1021/jacs.2c00001"
+    class="flex-1 bg-[#f2f7f5] border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/25 focus:border-brand/50 transition-colors placeholder:text-slate-400" />
+  <button type="submit"
+    class="bg-brand text-white rounded-xl px-5 py-3 text-sm font-medium hover:bg-brand-dark transition-colors whitespace-nowrap shadow-sm">
+    Look up paper
+  </button>
+</form>
+
+<!-- Both feed sections wrapped for tour step 2 spotlight -->
+<div id="tour-community-feed">
+
+  <!-- My reviewed papers -->
+  <div class="mb-3 flex items-center justify-between">
+    <h2 class="text-sm font-semibold uppercase tracking-widest text-slate-400">My reviewed papers</h2>
+  </div>
+  <div class="space-y-2 mb-10">
+
+    <!-- ── Card 1: FUNCTIONAL → /paper/demo ────────────────────────── -->
+    <a href="/paper/demo" class="paper-card block bg-white border border-slate-200 rounded-xl p-5 group">
+      <div class="flex items-center gap-5">
+        <div class="flex-1 min-w-0">
+          <p class="font-semibold text-[#111c17] text-sm leading-snug line-clamp-2 mb-1 group-hover:text-brand transition-colors">
+            Palladium-Catalyzed Enantioselective 1,2-Carboboration of Vinyl Arenes via Dual Chiral Ligand Control</p>
+          <p class="text-xs text-slate-500 truncate mb-0.5">M. Scherer, A. Fischer, … E. Kowalski</p>
+          <p class="text-[11px] text-slate-400 truncate">
+            J. Am. Chem. Soc. · 2023 <span class="font-mono ml-1">10.1021/jacs.2c00001</span>
+          </p>
+        </div>
+        <div class="shrink-0 text-center w-20 group/score relative cursor-default" onclick="return false;">
+          <p class="text-xl font-bold text-[#111c17] leading-none">★ 3.5</p>
+          <p class="text-[10px] text-slate-400 mt-0.5 font-medium uppercase tracking-widest">2 ratings</p>
+          <div class="absolute right-0 bottom-full mb-2 hidden group-hover/score:block
+                      bg-white border border-slate-200 rounded-xl shadow-lg p-4 w-64 z-20 text-left pointer-events-none">
+            <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3 text-center">Rating breakdown</p>
+            <div class="space-y-2">
+              <div>
+                <div class="flex justify-between text-xs mb-0.5">
+                  <span class="text-blue-700 font-medium"><span class="font-bold">5</span> <span class="opacity-60">–</span> Extended</span>
+                  <span class="text-slate-300">–</span>
+                </div>
+                <div class="h-1 w-full bg-slate-100 rounded-full"></div>
+              </div>
+              <div>
+                <div class="flex justify-between text-xs mb-0.5">
+                  <span class="text-teal-700 font-medium"><span class="font-bold">4</span> <span class="opacity-60">–</span> Reproduced, ext. failed</span>
+                  <span class="font-semibold text-slate-600">×1</span>
+                </div>
+                <div class="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
+                  <div class="h-full bg-teal-500 rounded-full" style="width:50%"></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-xs mb-0.5">
+                  <span class="text-green-700 font-medium"><span class="font-bold">3</span> <span class="opacity-60">–</span> Reproduced original</span>
+                  <span class="font-semibold text-slate-600">×1</span>
+                </div>
+                <div class="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
+                  <div class="h-full bg-green-500 rounded-full" style="width:50%"></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-xs mb-0.5">
+                  <span class="text-orange-700 font-medium"><span class="font-bold">2</span> <span class="opacity-60">–</span> Did not work on ext.</span>
+                  <span class="text-slate-300">–</span>
+                </div>
+                <div class="h-1 w-full bg-slate-100 rounded-full"></div>
+              </div>
+              <div>
+                <div class="flex justify-between text-xs mb-0.5">
+                  <span class="text-red-700 font-medium"><span class="font-bold">1</span> <span class="opacity-60">–</span> Did not work on original</span>
+                  <span class="text-slate-300">–</span>
+                </div>
+                <div class="h-1 w-full bg-slate-100 rounded-full"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </a>
+
+  </div>
+
+  <!-- Recently rated by the community -->
+  <div class="mb-3 flex items-center justify-between">
+    <h2 class="text-sm font-semibold uppercase tracking-widest text-slate-400">Recently rated by the community</h2>
+  </div>
+  <div class="space-y-2">
+
+    <!-- ── Card 2: NON-FUNCTIONAL ───────────────────────────────────── -->
+    <div class="paper-card block bg-white border border-slate-200 rounded-xl p-5 cursor-default select-none">
+      <div class="flex items-center gap-5">
+        <div class="flex-1 min-w-0">
+          <p class="font-semibold text-[#111c17] text-sm leading-snug line-clamp-2 mb-1">
+            Copper-Catalyzed C–H Borylation of Heteroarenes Using Pinacolborane Under Mild Conditions</p>
+          <p class="text-xs text-slate-500 truncate mb-0.5">K. Wong, T. Nakamura, … B. Svensson</p>
+          <p class="text-[11px] text-slate-400 truncate">
+            Org. Lett. · 2022 <span class="font-mono ml-1">10.1021/acs.orglett.2c03412</span>
+          </p>
+        </div>
+        <div class="shrink-0 text-center w-20">
+          <p class="text-xl font-bold text-[#111c17] leading-none">★ 4.2</p>
+          <p class="text-[10px] text-slate-400 mt-0.5 font-medium uppercase tracking-widest">5 ratings</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Card 3: NON-FUNCTIONAL ───────────────────────────────────── -->
+    <div class="paper-card block bg-white border border-slate-200 rounded-xl p-5 cursor-default select-none">
+      <div class="flex items-center gap-5">
+        <div class="flex-1 min-w-0">
+          <p class="font-semibold text-[#111c17] text-sm leading-snug line-clamp-2 mb-1">
+            Asymmetric Aldol Reaction of Glycine Schiff Bases Catalysed by Chiral Phosphoric Acids</p>
+          <p class="text-xs text-slate-500 truncate mb-0.5">L. Müller, R. Barbas, … S. Takahashi</p>
+          <p class="text-[11px] text-slate-400 truncate">
+            Angew. Chem. Int. Ed. · 2021 <span class="font-mono ml-1">10.1002/anie.202105384</span>
+          </p>
+        </div>
+        <div class="shrink-0 text-center w-20">
+          <p class="text-xl font-bold text-[#111c17] leading-none">★ 2.3</p>
+          <p class="text-[10px] text-slate-400 mt-0.5 font-medium uppercase tracking-widest">6 ratings</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+{% endblock %}
