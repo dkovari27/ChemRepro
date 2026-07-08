@@ -177,63 +177,52 @@
       {% else %}
         <form action="/nd/paper/{{ paper.doi }}/rate" method="post" id="nd-rating-form" data-moderate>
 
-          <!-- ══ STAR RATING ════════════════════════════════════════════ -->
+          <!-- ══ STEP 1: STAR RATING ════════════════════════════════════ -->
           <div class="mb-5">
-            <label class="block text-xs font-medium text-slate-600 mb-3">
-              Your rating <span class="text-red-500">*</span>
+            <label class="block text-xs font-medium text-slate-600 mb-2">
+              What was the outcome? <span class="text-red-500">*</span>
             </label>
-            <div class="flex flex-col gap-2" id="nd-star-options">
+            <div class="flex flex-col gap-2">
               {% for star in nd_star_order %}
-              {% set bar_cls = nd_star_colors[star][0] %}
-              {% set txt_cls = nd_star_colors[star][1] %}
-              <label class="nd-star-label flex items-center gap-3 p-3 border-2 border-slate-200 rounded-xl cursor-pointer hover:border-slate-400 transition-all"
-                     data-star="{{ star }}">
-                <input type="radio" name="nd_star" value="{{ star }}" class="sr-only"
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="nd_star" value="{{ star }}" class="accent-brand w-4 h-4"
                        onchange="ndStarChanged({{ star }})" />
-                <span class="text-base font-bold {{ txt_cls }} w-4 text-center shrink-0">{{ star }}</span>
-                <span class="text-sm text-slate-700">{{ nd_star_labels[star] }}</span>
+                <span class="text-sm text-slate-800">
+                  <span class="font-bold">{{ star }}</span>
+                  <span class="text-slate-400 mx-0.5">–</span>{{ nd_star_labels[star] }}
+                </span>
               </label>
               {% endfor %}
             </div>
           </div>
 
-          <!-- ══ FAILURE CONTEXT (shown only for star=1) ═══════════════ -->
+          <!-- ══ STEP 2: FAILURE CONTEXT (shown only for star=1) ══════ -->
           <div id="nd-failure-context-section" class="hidden border-t border-slate-100 pt-4 mb-4">
-            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
-              What did you test? <span class="text-red-500">*</span>
-            </p>
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">What did you test?</p>
             <div class="flex flex-col gap-2">
-              <label class="flex items-start gap-3 p-3 border-2 border-slate-200 rounded-xl cursor-pointer hover:border-slate-400 transition-all">
+              <label class="flex items-center gap-2 cursor-pointer">
                 <input type="radio" name="nd_failure_context" value="original_tested"
-                       class="mt-0.5 accent-slate-600 shrink-0" onchange="checkNdReady()" />
-                <div>
-                  <p class="text-sm font-semibold text-slate-700">Tested original procedure</p>
-                  <p class="text-xs text-slate-500">You attempted to reproduce the exact reaction as described</p>
-                </div>
+                       class="accent-brand w-4 h-4" onchange="checkNdReady()" />
+                <span class="text-sm text-slate-800">Tested original procedure</span>
               </label>
-              <label class="flex items-start gap-3 p-3 border-2 border-slate-200 rounded-xl cursor-pointer hover:border-slate-400 transition-all">
+              <label class="flex items-center gap-2 cursor-pointer">
                 <input type="radio" name="nd_failure_context" value="extension_only"
-                       class="mt-0.5 accent-amber-600 shrink-0" onchange="checkNdReady()" />
-                <div>
-                  <p class="text-sm font-semibold text-amber-700">Extension only</p>
-                  <p class="text-xs text-slate-500">You did not test the original; your extension did not work</p>
-                </div>
+                       class="accent-brand w-4 h-4" onchange="checkNdReady()" />
+                <span class="text-sm text-slate-800">Extension only – did not test the original</span>
               </label>
             </div>
           </div>
 
-          <!-- ══ OBSERVATION ════════════════════════════════════════════ -->
-          <div class="mb-4">
-            <label class="block text-xs font-medium text-slate-600 mb-1">
-              Observation <span class="text-slate-400">(optional)</span>
-            </label>
+          <!-- ══ STEP 3: OBSERVATION ════════════════════════════════════ -->
+          <div id="nd-obs-section" class="hidden border-t border-slate-100 pt-4 mb-4">
+            <label class="block text-xs font-medium text-slate-600 mb-1">Observation</label>
             <textarea name="reproducibility_observation" rows="6" maxlength="1000" spellcheck="true" data-img-paste
               placeholder="Describe what you observed in the lab: conditions, yield, deviations from the published procedure…"
               class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
           </div>
 
           <!-- Conflict of interest declaration -->
-          <label class="flex items-start gap-2.5 cursor-pointer border border-slate-200 rounded-lg p-3 hover:border-brand transition-colors mb-3">
+          <label class="flex items-start gap-2.5 cursor-pointer border border-slate-200 rounded-lg p-3 hover:border-brand transition-colors">
             <input type="checkbox" id="nd-coi-checkbox" name="coi_confirmed" value="on"
               onchange="checkNdReady()"
               class="accent-brand mt-0.5 w-4 h-4 shrink-0" />
@@ -245,7 +234,7 @@
 
           <button type="submit" id="nd-submit-btn" disabled
             class="w-full bg-brand text-white rounded-lg px-4 py-2.5 text-sm font-medium
-                   hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                   hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed mt-3">
             Submit rating
           </button>
         </form>
@@ -715,25 +704,16 @@
 <script>
   // ── ND rating form logic ──────────────────────────────────────────────
   function ndStarChanged(star) {
-    const section = document.getElementById('nd-failure-context-section');
+    const ctxSection = document.getElementById('nd-failure-context-section');
+    const obsSection = document.getElementById('nd-obs-section');
     if (star === 1) {
-      section.classList.remove('hidden');
+      ctxSection.classList.remove('hidden');
     } else {
-      section.classList.add('hidden');
+      ctxSection.classList.add('hidden');
       document.querySelectorAll('input[name="nd_failure_context"]').forEach(r => r.checked = false);
     }
+    obsSection.classList.remove('hidden');
     checkNdReady();
-
-    // Highlight selected label
-    document.querySelectorAll('.nd-star-label').forEach(lbl => {
-      lbl.classList.remove('border-brand', 'bg-blue-50');
-      lbl.classList.add('border-slate-200');
-    });
-    const active = document.querySelector(`.nd-star-label[data-star="${star}"]`);
-    if (active) {
-      active.classList.remove('border-slate-200');
-      active.classList.add('border-brand', 'bg-blue-50');
-    }
   }
 
   function checkNdReady() {
