@@ -69,7 +69,7 @@ class Rating(Base):
     scope_observation: Mapped[str | None] = mapped_column(String(1000))
     modification_details: Mapped[str | None] = mapped_column(String(1000))
 
-    # New Design mode columns (scoring_mode == "new_design")
+    # ChemRepro rating columns (scoring_mode == "new_design")
     nd_star: Mapped[int | None] = mapped_column(Integer, nullable=True)
     nd_failure_context: Mapped[str | None] = mapped_column(String(20), nullable=True)
 

@@ -9,7 +9,12 @@ _Last updated: 8 July 2026_
 
 - [x] **B16** — Literature scraper for implicit reproducibility data: crawl open-access chemistry papers (PubMed Central, Europe PMC, ChemRxiv, RSC Gold open-access) and detect sentences that follow patterns like "according to the procedure of X et al.", "following the method reported by", "adapted from", "as described in ref. X" — i.e. cases where an author explicitly states they replicated or adapted a published reaction. Scraper is built and running (as of 8 July 2026).
 
-- [ ] **B17** — Wire scraped literature data into ChemRepro review cards: define the data schema the scraper must output (DOI of cited paper, citing paper DOI, extracted sentence, inferred outcome, source database, confidence score), build an import endpoint or script that reads scraper output and writes structured Rating rows with `scoring_mode="literature_mined"`, design the review card UI for auto-mined entries (distinct badge vs. user reviews, link to citing paper, extracted sentence as observation), and add a deduplication check so the same citing sentence is never ingested twice.
+- [ ] **B17** — Wire scraped literature data into ChemRepro review cards. Full spec written to `SCRAPER_DATA_SPEC.md`. Key design decisions:
+  - **Schema conflict**: `ratings` table has UNIQUE on `(doi, orcid_id, scoring_mode)` so a single system user can only produce one mined entry per paper. Recommendation: add a separate `literature_citations` table (no uniqueness constraint) and render as a distinct section on the paper page.
+  - **Required scraper output fields**: `target_doi`, `citing_doi`, `citing_sentence`, `inferred_outcome`, `confidence_score`, `sentence_id` (dedup key), plus recommended metadata (`citing_authors`, journal, year, context sentence).
+  - **Outcome-to-star mapping**: the import script will translate scraper outcomes (`reproduced`, `adapted`, `failed`, `partially_reproduced`) into `nd_star` 1-5 values for display.
+  - **Quality thresholds for import**: confidence >= 0.75, sentence 30-500 chars, `target_doi` must resolve.
+  - **Output format**: JSONL (newline-delimited JSON), with separate `rejected/` file for below-threshold rows and a `scrape_log` file per run.
 
 - [ ] **B11** — Activate author email notification (`AUTHOR_NOTIFY_ENABLED=true` in Railway `.env`) — disabled pending test that CrossRef/PMC/PubMed lookup works on real chemistry DOIs
 - [ ] **B12** — Wire `notification_email` to SMTP sender — field is saved in Settings but never read; when a followed paper gets a new review/comment, send an email to `notification_email` if set
@@ -51,7 +56,7 @@ _Last updated: 8 July 2026_
 
 ## CURRENT STANDING (8 July 2026)
 
-- **New Design scoring mode** fully implemented: `/` homepage, `/paper/{doi}` paper page, `nd_star` (1–5) + `nd_failure_context` (original_tested / extension_only), star filter + context filter, failure_context badge on 1-star reviews, 3-way nav switcher (Standard / Classic / New Design) in base.html
+- **ChemRepro rating mode** fully implemented: `/` homepage, `/paper/{doi}` paper page, `nd_star` (1–5) + `nd_failure_context` (original_tested / extension_only), star filter + context filter, failure_context badge on 1-star reviews
 - Standard mode filter fixed: `scoring_mode != "classic"` changed to `scoring_mode == "standard"` so ND reviews are isolated from standard averages
 - API key management: all `/api/v1/` routes gated behind `X-API-Key` header; admin can generate/revoke keys; raw key shown once after generation; about page documents API access
 

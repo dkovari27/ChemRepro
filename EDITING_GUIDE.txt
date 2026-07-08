@@ -77,6 +77,33 @@ ND_STAR_LABELS, also update the matching text in tour.js manually.
 7. URL STRUCTURE
 ------------------
 Homepage: / (also /nd/ and /nd as legacy aliases)
-Active paper pages: /paper/{doi}  (the main ND rating view)
+Active paper pages: /paper/{doi}  (the main ChemRepro rating view)
 Classic archive: /classic/paper/{doi}
 Standard archive: /design-archive/standard/paper/{doi}
+
+
+8. HOW TO ACCESS THE OLD STANDARD AND CLASSIC VIEWS
+------------------------------------------------------
+Both older views are still fully functional but not linked from the
+main navigation. To reach them, type the URL directly in the browser:
+
+  Standard view (older 5-outcome scoring):
+    http://localhost:8000/design-archive/standard/paper/{doi}
+    Example: http://localhost:8000/design-archive/standard/paper/10.1021/jacs.2c00001
+
+  Classic view (reproducibility stars + outcome):
+    http://localhost:8000/classic/paper/{doi}
+    Example: http://localhost:8000/classic/paper/10.1021/jacs.2c00001
+
+  Classic homepage (shows classic-mode rated papers):
+    http://localhost:8000/classic/
+
+On Railway (production), replace localhost:8000 with chemrepro.com.
+
+The old Standard view code lives in:
+  - Route handlers: app/routers/papers.py  (search "design-archive/standard")
+  - Template:       app/templates/paper.html  (or paper_v1.html for the older layout)
+
+The Classic view code lives in:
+  - Route handlers: app/routers/papers.py  (search "/classic/paper/")
+  - Templates:      app/templates/paper_classic.html  and  paper_classic_v1.html

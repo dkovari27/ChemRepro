@@ -1546,7 +1546,7 @@ async def about(request: Request):
     })
 
 
-# ── New Design (ND) mode ──────────────────────────────────────────────────────
+# ── ChemRepro rating mode ─────────────────────────────────────────────────────
 
 def _nd_scoring_context() -> dict:
     return {
@@ -1748,26 +1748,37 @@ async def nd_paper_page(doi: str, request: Request, db: Session = Depends(get_db
     except Exception:
         authors = [paper.authors]
 
+    # Also fetch standard-mode reviews for this paper (shown in a legacy section)
+    standard_reviews = (
+        db.query(Rating)
+        .filter(Rating.doi == doi, Rating.scoring_mode == "standard", Rating.ai_flagged == False)  # noqa: E712
+        .order_by(Rating.created_at.desc())
+        .all()
+    )
+
+    all_rating_ids = [r.id for r in reviews] + [r.id for r in standard_reviews]
     rating_ids = [r.id for r in reviews]
     like_rows = (
         db.query(Like.rating_id, func.count(Like.id))
-        .filter(Like.rating_id.in_(rating_ids))
+        .filter(Like.rating_id.in_(all_rating_ids))
         .group_by(Like.rating_id)
         .all()
-    ) if rating_ids else []
+    ) if all_rating_ids else []
     like_counts = {rid: cnt for rid, cnt in like_rows}
 
     user_likes: set[int] = set()
-    if orcid_id and rating_ids:
+    if orcid_id and all_rating_ids:
         user_likes = {
             row.rating_id for row in
             db.query(Like.rating_id)
-            .filter(Like.orcid_id == orcid_id, Like.rating_id.in_(rating_ids))
+            .filter(Like.orcid_id == orcid_id, Like.rating_id.in_(all_rating_ids))
             .all()
         }
 
     _ref_texts = (
         [r.reproducibility_observation for r in reviews]
+        + [r.reproducibility_observation for r in standard_reviews]
+        + [r.scope_observation for r in standard_reviews if r.scope_observation]
         + [c.content for c in all_comments]
     )
     _ref_dois = collect_doi_refs(_ref_texts) - {doi}
@@ -1802,6 +1813,9 @@ async def nd_paper_page(doi: str, request: Request, db: Session = Depends(get_db
         "authors": authors,
         "nd_scores": nd_scores,
         "reviews": reviews,
+        "standard_reviews": standard_reviews,
+        "outcome_labels": OUTCOME_LABELS,
+        "outcome_scores": OUTCOME_SCORES,
         "comment_map": comment_map,
         "reply_map": reply_map,
         "comment_like_counts": comment_like_counts,
@@ -2002,7 +2016,7 @@ async def nd_submit_rating(
     ).first()
     if existing:
         raise HTTPException(
-            status_code=409, detail="You have already rated this paper in New Design mode")
+            status_code=409, detail="You have already rated this paper")
 
     rating = Rating(
         doi=doi,
