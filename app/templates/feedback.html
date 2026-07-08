@@ -1,17 +1,25 @@
-{% extends "base.html" %}
+﻿{% extends design_base(request) %}
 {% block title %}Tester Feedback – ChemRepro{% endblock %}
 
 {% block content %}
 <div class="max-w-xl mx-auto">
 
+  <!-- ── Name suggestions always on top ───────────────────────────── -->
+  {% include "_name_suggestions.html" %}
+
+  <div class="mt-6">
+
   {% if submitted %}
-  <div class="bg-green-50 border border-green-200 rounded-xl p-6 text-center mb-6">
+  <!-- ── Thank-you state ─────────────────────────────────────────── -->
+  <div class="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
     <p class="text-2xl mb-2">Thank you!</p>
     <p class="text-slate-600 text-sm">Your feedback has been recorded. It will help us decide which scoring method to keep.</p>
     <a href="/" class="inline-block mt-4 text-sm text-brand hover:underline">← Back to ChemRepro</a>
   </div>
+
   {% else %}
 
+  <!-- ── Main feedback form ────────────────────────────────────────── -->
   <div class="bg-white border border-slate-200 rounded-xl p-6">
     <h1 class="text-xl font-bold text-slate-800 mb-1">Tester feedback</h1>
     <p class="text-sm text-slate-500 mb-6">
@@ -20,6 +28,7 @@
 
     <form action="/feedback" method="post">
 
+      <!-- Scoring preference -->
       <div class="mb-6">
         <label class="block text-sm font-semibold text-slate-700 mb-3">
           Which scoring method felt more useful for evaluating chemistry papers?
@@ -62,18 +71,19 @@
         </div>
       </div>
 
+      <!-- Free-text comment -->
       <div class="mb-6">
         <label class="block text-sm font-semibold text-slate-700 mb-2">
           Any other thoughts? <span class="text-slate-400 font-normal">(optional)</span>
         </label>
-        <textarea name="comment" rows="5" maxlength="2000"
+        <textarea name="comment" rows="4" maxlength="2000"
           placeholder="What worked well? What was confusing? Any missing features?" spellcheck="true"
           class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
         <p class="text-xs text-slate-400 mt-1">Max 2000 characters.</p>
       </div>
 
       <button type="submit"
-        class="w-full bg-brand text-white rounded-lg px-4 py-3 text-sm font-medium hover:bg-blue-700 transition-colors">
+        class="w-full bg-brand text-white rounded-lg px-4 py-3 text-sm font-medium hover:bg-brand-dark transition-colors">
         Submit feedback
       </button>
 
@@ -82,12 +92,14 @@
     <div class="mt-6 pt-5 border-t border-slate-100 text-center">
       <p class="text-xs text-slate-400">
         For longer comments or questions, you can also reach out directly:<br/>
-        <a href="mailto:d.kovari.bham@gmail.com"
-           class="text-brand hover:underline font-medium">d.kovari.bham@gmail.com</a>
+        <a href="mailto:chemrepro@gmail.com"
+           class="text-brand hover:underline font-medium">chemrepro@gmail.com</a>
       </p>
     </div>
   </div>
 
   {% endif %}
+
+  </div><!-- /mt-6 wrapper -->
 </div>
 {% endblock %}

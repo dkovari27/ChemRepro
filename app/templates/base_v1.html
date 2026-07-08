@@ -1,0 +1,194 @@
+﻿<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}ChemRepro{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { DEFAULT: '#1e40af', light: '#3b82f6', dark: '#1e3a8a' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .star-btn { cursor: pointer; transition: color 0.1s; }
+    .star-btn:hover, .star-btn.active { color: #f59e0b; }
+  </style>
+</head>
+<body class="h-full flex flex-col">
+
+  <!-- Nav -->
+  <nav class="bg-white border-b border-slate-200 shadow-sm">
+    <div class="max-w-5xl mx-auto px-4 py-3 relative flex items-center">
+      <a href="/" class="flex items-center gap-2 text-brand font-bold text-xl tracking-tight">
+        <img src="/static/logo.png" alt="ChemRepro logo" class="h-8 w-auto" />
+        ChemRepro
+      </a>
+
+      <!-- Version switchers: absolutely centered -->
+      <div class="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 select-none">
+        <!-- Scoring mode -->
+        <div class="flex items-center gap-0.5 bg-slate-100 rounded-lg p-0.5 text-xs font-medium">
+          <a href="{{ switch_urls.standard if switch_urls is defined else '/' }}"
+             class="px-3 py-1.5 rounded-md transition-colors
+                    {% if site_version == 'classic' %}text-slate-500 hover:text-slate-700{% else %}bg-white shadow text-slate-800{% endif %}">
+            Standard
+          </a>
+          <a href="{{ switch_urls.classic if switch_urls is defined else '/classic/' }}"
+             class="px-3 py-1.5 rounded-md transition-colors
+                    {% if site_version == 'classic' %}bg-white shadow text-slate-800{% else %}text-slate-500 hover:text-slate-700{% endif %}">
+            Classic
+          </a>
+        </div>
+        <!-- Design version -->
+        {% set dver = design_ver(request) %}
+        <div class="flex items-center gap-0.5 bg-slate-100 rounded-lg p-0.5 text-xs font-medium">
+          <a href="/design/v1"
+             class="px-2.5 py-1.5 rounded-md transition-colors
+                    {% if dver == 'v1' %}bg-white shadow text-slate-800{% else %}text-slate-500 hover:text-slate-700{% endif %}">
+            v1
+          </a>
+          <a href="/design/v2"
+             class="px-2.5 py-1.5 rounded-md transition-colors
+                    {% if dver != 'v1' %}bg-white shadow text-slate-800{% else %}text-slate-500 hover:text-slate-700{% endif %}">
+            v2
+          </a>
+        </div>
+      </div>
+
+      <div class="ml-auto flex items-center gap-3 text-sm">
+        {% if orcid_id %}
+        <a href="/feedback"
+           class="text-xs font-medium text-slate-500 hover:text-brand transition-colors border border-slate-200 rounded-md px-3 py-1.5 hover:border-brand">
+          Feedback
+        </a>
+        {% endif %}
+        <a href="/api/v1/papers" target="_blank"
+           class="text-slate-500 hover:text-brand transition-colors">API</a>
+        {% if orcid_id %}
+
+          <!-- User dropdown -->
+          <div class="relative" id="user-menu-wrap">
+            <button type="button" onclick="toggleUserMenu(event)"
+              class="flex items-center gap-1.5 text-slate-600 hover:text-brand transition-colors cursor-pointer">
+              <span class="font-medium">{{ user_name }}</span>
+              {% if orcid_id.startswith('local:') %}
+                <span class="text-xs text-slate-500 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5">guest</span>
+              {% else %}
+                <span class="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-1.5 py-0.5">ORCID ✓</span>
+              {% endif %}
+              <svg class="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </button>
+            <div id="user-menu-dd"
+                 class="hidden absolute right-0 top-9 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1 text-sm">
+              <a href="/profile/my-reviews"
+                 class="flex items-center gap-2.5 px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 11l3 3L22 4"/>
+                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                </svg>
+                My reviews
+              </a>
+              <div class="border-t border-slate-100 my-1"></div>
+              <a href="/auth/logout"
+                 class="flex items-center gap-2.5 px-4 py-2 text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                  <polyline points="16 17 21 12 16 7"/>
+                  <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+                Sign out
+              </a>
+            </div>
+          </div>
+
+          <!-- Bell notifications -->
+          <a href="/profile/notifications" class="relative text-slate-400 hover:text-brand transition-colors p-0.5" title="Notifications">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            <span id="notif-badge"
+                  class="hidden absolute -top-1 -right-1 min-w-[1rem] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5 leading-none pointer-events-none">
+            </span>
+          </a>
+
+        {% else %}
+          <a href="/auth/guest-setup"
+             class="text-slate-500 hover:text-brand transition-colors text-sm">
+            Continue as guest
+          </a>
+          <a href="/auth/login"
+             class="inline-flex items-center gap-1.5 bg-brand text-white rounded-md px-4 py-1.5 font-medium hover:bg-blue-700 transition-colors">
+            Sign in with ORCID
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <main class="flex-1 max-w-5xl mx-auto w-full px-4 py-8">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-white border-t border-slate-200 mt-auto">
+    <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between text-xs text-slate-400">
+      <span>ChemRepro – community reproducibility ratings for synthetic chemistry</span>
+      <div class="flex items-center gap-4">
+        <a href="/about" class="hover:text-brand transition-colors">About</a>
+        <a href="/privacy" class="hover:text-brand transition-colors">Privacy</a>
+        <span>Ratings reflect individual experiences and are not peer-reviewed. Not liable for decisions based on this information.</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/static/js/moderation.js"></script>
+
+  {% if orcid_id and orcid_id.startswith('local:') %}
+  <script>
+    // Persist guest session so the setup page can offer "Welcome back"
+    localStorage.setItem('chemrepro_guest_id',   '{{ orcid_id }}');
+    localStorage.setItem('chemrepro_guest_name', '{{ user_name | replace("'", "\\'") }}');
+  </script>
+  {% endif %}
+
+  {% if orcid_id %}
+  <script>
+    // ── User dropdown ─────────────────────────────────────────────────────
+    function toggleUserMenu(e) {
+      e.stopPropagation();
+      document.getElementById('user-menu-dd').classList.toggle('hidden');
+    }
+    document.addEventListener('click', function() {
+      document.getElementById('user-menu-dd')?.classList.add('hidden');
+    });
+
+    // ── Notification badge (AJAX) ─────────────────────────────────────────
+    async function loadNotifCount() {
+      try {
+        const r = await fetch('/profile/notifications/count');
+        const { unread } = await r.json();
+        if (unread > 0) {
+          const badge = document.getElementById('notif-badge');
+          badge.textContent = unread > 9 ? '9+' : unread;
+          badge.classList.remove('hidden');
+        }
+      } catch (_) {}
+    }
+    document.addEventListener('DOMContentLoaded', loadNotifCount);
+  </script>
+  {% endif %}
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

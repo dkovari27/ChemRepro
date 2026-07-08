@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends design_base(request) %}
 {% block title %}About you – ChemRepro{% endblock %}
 
 {% block content %}
@@ -6,14 +6,27 @@
   <div class="bg-white border border-slate-200 rounded-xl p-8">
 
     <div class="mb-6">
-      <h1 class="text-xl font-bold text-slate-800 mb-1">One quick question</h1>
+      <h1 class="text-xl font-bold text-slate-800 mb-1">A couple of quick questions</h1>
       <p class="text-sm text-slate-500">
-        This helps other chemists understand the context of your reviews.
-        It is optional and can be skipped.
+        These help other chemists understand the context of your reviews.
+        Both are optional and can be changed later in Settings.
       </p>
     </div>
 
     <form action="/auth/profile-setup" method="post">
+
+      <div class="mb-6">
+        <label for="nickname" class="block text-sm font-medium text-slate-700 mb-1">
+          Display name <span class="text-slate-400 font-normal">(shown on your reviews)</span>
+        </label>
+        <input type="text" id="nickname" name="nickname" maxlength="60"
+          value="{{ user_name or '' }}"
+          placeholder="e.g. J. Smith or leave blank"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm
+                 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand" />
+        <p class="text-xs text-slate-400 mt-1">Leave blank to use your ORCID / guest name.</p>
+      </div>
+
       <fieldset class="mb-6">
         <legend class="text-sm font-medium text-slate-700 mb-3">Which best describes your current role?</legend>
         <div class="space-y-2">

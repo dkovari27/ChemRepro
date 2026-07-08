@@ -1,0 +1,63 @@
+<!-- ── Name suggestions panel ─────────────────────────────────────── -->
+<div class="bg-white border border-slate-200 rounded-xl p-6">
+  <h2 class="text-base font-bold text-slate-800 mb-1">Help us name the platform</h2>
+  <p class="text-xs text-slate-500 mb-4">
+    Suggest a name, vote for your favourites, or do both. Multiple votes are allowed.
+  </p>
+
+  <!-- Existing suggestions -->
+  {% if suggestions %}
+  <div class="flex flex-wrap gap-2 mb-5">
+    {% for s in suggestions | sort(attribute='name') %}
+    <button type="button" id="sug-btn-{{ s.id }}"
+      onclick="voteFor({{ s.id }}, this)"
+      class="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-all
+             {% if s.voted %}border-brand bg-brand text-white{% else %}border-slate-200 text-slate-600 hover:border-brand hover:text-brand{% endif %}">
+      <span class="vote-label">{{ s.name }}</span>
+      <span id="vcount-{{ s.id }}"
+        class="text-xs tabular-nums {% if s.voted %}text-white/70{% else %}text-slate-400{% endif %}">
+        {{ s.votes }}
+      </span>
+    </button>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="text-sm text-slate-400 italic mb-4">No suggestions yet. Be the first!</p>
+  {% endif %}
+
+  <!-- Add / suggest form -->
+  <form action="/feedback/suggest" method="post" class="flex gap-2">
+    <input type="text" name="suggested_names" maxlength="500" required
+      placeholder="Your idea (comma-separate multiple names)"
+      class="flex-1 min-w-0 border border-brand/30 bg-brand/10 rounded-lg px-3 py-2 text-sm
+             placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-brand focus:bg-brand/5" />
+    <button type="submit"
+      class="shrink-0 bg-brand text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-brand-dark transition-colors">
+      Suggest
+    </button>
+  </form>
+</div>
+
+<script>
+async function voteFor(id, btn) {
+  try {
+    const resp = await fetch(`/feedback/vote/${id}`, {
+      method: 'POST', headers: { 'Accept': 'application/json' },
+    });
+    if (!resp.ok) return;
+    const { voted, votes } = await resp.json();
+    const label = btn.querySelector('.vote-label');
+    const count = document.getElementById('vcount-' + id);
+    if (voted) {
+      btn.classList.remove('border-slate-200', 'text-slate-600', 'hover:border-brand', 'hover:text-brand');
+      btn.classList.add('border-brand', 'bg-brand', 'text-white');
+      if (count) { count.classList.remove('text-slate-400'); count.classList.add('text-white/70'); }
+    } else {
+      btn.classList.remove('border-brand', 'bg-brand', 'text-white');
+      btn.classList.add('border-slate-200', 'text-slate-600', 'hover:border-brand', 'hover:text-brand');
+      if (count) { count.classList.remove('text-white/70'); count.classList.add('text-slate-400'); }
+    }
+    if (count) count.textContent = votes;
+  } catch (_) {}
+}
+</script>

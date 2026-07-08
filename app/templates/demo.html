@@ -1,0 +1,868 @@
+{% extends design_base(request) %}
+{% block title %}Demo Paper – ChemRepro{% endblock %}
+
+{% block content %}
+
+<!-- hidden element for JS to read user name safely -->
+<span id="_demo-user" hidden>{{ user_name | e }}</span>
+
+<!-- Demo banner -->
+<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-5 flex items-start gap-3 text-xs text-amber-800">
+  <svg class="w-4 h-4 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+  </svg>
+  <span>This is a <strong>demonstration page</strong> with fictional content. All interactions are local to your session and reset on page refresh. To explore a real paper, <a href="/" class="underline hover:text-amber-900">search a DOI on the home page</a>.</span>
+</div>
+
+<!-- Paper header -->
+<div class="bg-white border border-slate-200 rounded-xl p-6 mb-6">
+  <div class="flex items-start justify-between gap-4 flex-wrap">
+    <div class="flex-1 min-w-0">
+      <h1 class="text-xl font-bold text-slate-800 leading-snug mb-2">
+        Room-Temperature Suzuki&ndash;Miyaura Cross-Coupling in Aqueous Methanol Using a Recyclable Pd/C Catalyst
+      </h1>
+      <p class="text-sm text-slate-500 mb-1">Park, S. H.; M&uuml;ller, K. T.; Vasquez, R. E.; Tanaka, H.</p>
+      <p class="text-sm text-slate-400">
+        <em>Org. Lett.</em> &middot; 2020 &middot;
+        <span class="font-mono text-xs">10.0000/cr.example</span>
+        <span class="ml-2 text-xs bg-amber-100 text-amber-700 rounded px-1.5 py-0.5 font-medium">Demo paper</span>
+      </p>
+    </div>
+    <div class="flex items-center gap-2 shrink-0">
+      <!-- save-wrap always present so tour step 3 can highlight it -->
+      <div id="save-wrap">
+        <button type="button" disabled
+          class="text-xs border border-slate-200 rounded-md px-3 py-1.5 text-slate-300 cursor-not-allowed flex items-center gap-1.5" title="Save not available on demo page">
+          <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+          </svg>
+          Save
+        </button>
+      </div>
+      <span class="text-xs border border-slate-200 rounded-md px-3 py-1.5 text-slate-300 cursor-not-allowed">View paper &#8599;</span>
+    </div>
+  </div>
+  <div class="mt-4 pt-4 border-t border-slate-100">
+    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Abstract</p>
+    <p class="text-sm text-slate-600 leading-relaxed">
+      A heterogeneous Pd/C catalyst system enables Suzuki&ndash;Miyaura couplings in aqueous methanol at room temperature without phosphine ligands. The protocol is operationally simple, applicable to a range of aryl halides and arylboronic acids, and the catalyst can be recovered and reused up to five times without significant loss of activity.
+    </p>
+  </div>
+</div>
+
+<!-- Two-column layout -->
+<div class="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-6">
+
+  <!-- ═══ LEFT COLUMN ═══ -->
+  <div>
+  <div class="sticky top-4 self-start max-h-[calc(100vh-2rem)] overflow-y-auto flex flex-col gap-4">
+
+    <!-- Score card — order matches OUTCOME_ORDER (best → worst) -->
+    <div class="bg-white border border-slate-200 rounded-xl p-5">
+      <div class="flex items-baseline gap-3 mb-4">
+        <span class="text-4xl font-bold text-slate-800">&#9733; 3.5</span>
+        <span class="text-sm text-slate-400">2 ratings</span>
+      </div>
+      <div class="space-y-1.5">
+        <!-- 5 – Extended -->
+        <div class="rounded-md px-1 py-0.5 -mx-1">
+          <div class="flex justify-between text-xs mb-0.5">
+            <span class="text-blue-700 font-medium opacity-40"><span class="font-bold">5</span> <span class="mx-0.5 opacity-60">&ndash;</span>Extended</span>
+            <span class="text-slate-300">&ndash;</span>
+          </div>
+          <div class="h-1.5 w-full bg-slate-100 rounded-full"></div>
+        </div>
+        <!-- 4 – Reproduced, extension failed -->
+        <div class="rounded-md px-1 py-0.5 -mx-1">
+          <div class="flex justify-between text-xs mb-0.5">
+            <span class="text-teal-700 font-medium"><span class="font-bold">4</span> <span class="mx-0.5 opacity-60">&ndash;</span>Reproduced, extension failed</span>
+            <span class="font-semibold text-slate-600">&times;1</span>
+          </div>
+          <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden"><div class="bg-teal-500 h-full rounded-full" style="width:50%"></div></div>
+        </div>
+        <!-- 3 – Reproduced original -->
+        <div class="rounded-md px-1 py-0.5 -mx-1">
+          <div class="flex justify-between text-xs mb-0.5">
+            <span class="text-green-700 font-medium"><span class="font-bold">3</span> <span class="mx-0.5 opacity-60">&ndash;</span>Reproduced original</span>
+            <span class="font-semibold text-slate-600">&times;1</span>
+          </div>
+          <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden"><div class="bg-green-500 h-full rounded-full" style="width:50%"></div></div>
+        </div>
+        <!-- 2 – Did not work on extension -->
+        <div class="rounded-md px-1 py-0.5 -mx-1">
+          <div class="flex justify-between text-xs mb-0.5">
+            <span class="text-orange-700 font-medium opacity-40"><span class="font-bold">2</span> <span class="mx-0.5 opacity-60">&ndash;</span>Did not work on extension</span>
+            <span class="text-slate-300">&ndash;</span>
+          </div>
+          <div class="h-1.5 w-full bg-slate-100 rounded-full"></div>
+        </div>
+        <!-- 1 – Did not work on original -->
+        <div class="rounded-md px-1 py-0.5 -mx-1">
+          <div class="flex justify-between text-xs mb-0.5">
+            <span class="text-red-700 font-medium opacity-40"><span class="font-bold">1</span> <span class="mx-0.5 opacity-60">&ndash;</span>Did not work on original</span>
+            <span class="text-slate-300">&ndash;</span>
+          </div>
+          <div class="h-1.5 w-full bg-slate-100 rounded-full"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rating form (tour anchor) -->
+    <div id="tour-rate-box" class="bg-white border border-slate-200 rounded-xl p-5">
+      <h2 class="font-semibold text-slate-700 mb-4">Rate this paper</h2>
+
+      <form id="demo-rating-form" onsubmit="submitDemoRating(event)">
+
+        <!-- Outcome selector — matches OUTCOME_ORDER: extended, repro_extension_failed, reproduced, no_extension, no_repro -->
+        <div class="mb-5">
+          <label class="block text-xs font-medium text-slate-600 mb-2">What did you attempt? <span class="text-red-500">*</span></label>
+          <div class="flex flex-col gap-2">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="outcome" value="extended" class="accent-brand w-4 h-4"/>
+              <span class="text-sm text-slate-800"><span class="font-bold text-blue-700">5</span><span class="text-slate-400 mx-0.5">&ndash;</span>Extended</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="outcome" value="repro_extension_failed" class="accent-brand w-4 h-4"/>
+              <span class="text-sm text-slate-800"><span class="font-bold text-teal-700">4</span><span class="text-slate-400 mx-0.5">&ndash;</span>Reproduced, extension failed</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="outcome" value="reproduced" class="accent-brand w-4 h-4"/>
+              <span class="text-sm text-slate-800"><span class="font-bold text-green-700">3</span><span class="text-slate-400 mx-0.5">&ndash;</span>Reproduced original</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="outcome" value="no_extension" class="accent-brand w-4 h-4"/>
+              <span class="text-sm text-slate-800"><span class="font-bold text-orange-700">2</span><span class="text-slate-400 mx-0.5">&ndash;</span>Did not work on extension</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="outcome" value="no_repro" class="accent-brand w-4 h-4"/>
+              <span class="text-sm text-slate-800"><span class="font-bold text-red-700">1</span><span class="text-slate-400 mx-0.5">&ndash;</span>Did not work on original</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Repro observation (shown for: no_repro, reproduced, repro_extension_failed) -->
+        <div id="repro-section" class="hidden border-t border-slate-100 pt-4 mb-4">
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Reproducibility</p>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Reproducibility observation</label>
+          <textarea id="repro-ta" name="reproducibility_observation" rows="6" maxlength="1000" spellcheck="true"
+            placeholder="• Which compound did you reproduce? (e.g. compound 5g, 50 mg scale)&#10;• Which method did you use, if more than one is described in the paper?&#10;• Any deviation from the original procedure?&#10;• Any observations worth mentioning?"
+            class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
+        </div>
+
+        <!-- Scope extension (shown for: no_extension, repro_extension_failed, extended) -->
+        <div id="scope-section" class="hidden border-t border-slate-100 pt-4 mb-4">
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Scope extension</p>
+          <label class="block text-xs font-medium text-slate-600 mb-2">Extension level <span class="text-red-500">*</span></label>
+          <div class="flex flex-col gap-2 mb-3">
+            <label class="scope-card flex items-start gap-3 p-3 border-2 border-slate-200 rounded-xl cursor-pointer hover:border-blue-400 transition-all">
+              <input type="radio" name="scope_level" value="minor" class="mt-0.5 accent-blue-600 shrink-0" onchange="onScopeChange(this.value)"/>
+              <div><p class="text-sm font-semibold text-blue-700">Minor extension</p><p class="text-xs text-slate-500">Similar scaffold, no new functionality</p></div>
+            </label>
+            <label class="scope-card flex items-start gap-3 p-3 border-2 border-slate-200 rounded-xl cursor-pointer hover:border-yellow-400 transition-all">
+              <input type="radio" name="scope_level" value="medium" class="mt-0.5 accent-yellow-600 shrink-0" onchange="onScopeChange(this.value)"/>
+              <div><p class="text-sm font-semibold text-yellow-700">Medium extension</p><p class="text-xs text-slate-500">Different scaffold, no new functionality</p></div>
+            </label>
+            <label class="scope-card flex items-start gap-3 p-3 border-2 border-slate-200 rounded-xl cursor-pointer hover:border-green-400 transition-all">
+              <input type="radio" name="scope_level" value="major" class="mt-0.5 accent-green-600 shrink-0" onchange="onScopeChange(this.value)"/>
+              <div><p class="text-sm font-semibold text-green-700">Major extension</p><p class="text-xs text-slate-500">Different scaffold and new functionality</p></div>
+            </label>
+          </div>
+          <div id="modification-block" class="hidden">
+            <label class="block text-xs font-medium text-slate-600 mb-1">Modification details</label>
+            <textarea name="modification_details" rows="4" maxlength="1000" spellcheck="true"
+              placeholder="• Describe the specific modifications you made to the procedure.&#10;• e.g. different solvent, temperature, catalyst loading, scale, atmosphere."
+              class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
+          </div>
+          <div class="mt-3">
+            <label class="block text-xs font-medium text-slate-600 mb-1">Scope extension observations</label>
+            <textarea id="scope-ta" name="scope_observation" rows="6" maxlength="1000" spellcheck="true"
+              placeholder="• Which substrate or scaffold did you test for scope extension?&#10;• Which conditions did you use (solvent, temperature, catalyst, atmosphere)?&#10;• What yield / ee / dr did you observe?&#10;• Any notable differences compared to the original scope?"
+              class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
+          </div>
+        </div>
+
+        <!-- COI -->
+        <label class="flex items-start gap-2.5 cursor-pointer border border-slate-200 rounded-lg p-3 hover:border-brand transition-colors mb-3">
+          <input type="checkbox" id="coi-checkbox" name="coi_confirmed" value="on"
+            onchange="checkReady()"
+            class="accent-brand mt-0.5 w-4 h-4 shrink-0" />
+          <span class="text-xs text-slate-600 leading-relaxed">
+            I confirm I am <strong>not an author</strong> on this paper and have no direct affiliation with the research group.
+          </span>
+        </label>
+
+        <button type="submit" id="submit-btn" disabled
+          class="w-full bg-brand text-white rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+          Submit rating
+        </button>
+        <p class="text-[11px] text-slate-400 mt-2 text-center">Demo only — nothing is saved to the database</p>
+      </form>
+    </div>
+
+  </div>
+  </div><!-- end left column -->
+
+  <!-- ═══ RIGHT COLUMN ═══ -->
+  <div id="reviews-section">
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="font-semibold text-slate-700">
+        Community reviews
+        <span class="text-slate-400 font-normal text-sm">(2 &middot; examples)</span>
+      </h2>
+    </div>
+    <p class="text-xs text-slate-400 flex items-center gap-1.5 mb-4">
+      <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      These are fictional example reviews. Try liking, commenting, or following a reviewer.
+    </p>
+
+    <div id="reviews-list" class="space-y-4">
+
+      <!-- ══════ REVIEW 1 — A. Fischer (reproduced, score 3) ══════ -->
+      <div id="review-d1" class="bg-white border border-slate-200 rounded-xl p-4">
+
+        <div class="grid grid-cols-3 items-center gap-1 mb-2 text-xs">
+          <div class="relative min-w-0">
+            <button type="button" id="tour-reviewer-name" onclick="toggleCommenterMenu(event,'rv-d1')"
+              class="font-semibold text-slate-700 hover:text-brand transition-colors cursor-pointer truncate block max-w-full text-left">
+              A. Fischer
+            </button>
+            <div id="rv-d1" class="commenter-menu hidden absolute left-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-xl shadow-lg z-30 py-1 overflow-hidden">
+              <button type="button" id="follow-d1" onclick="toggleFollowDemo('d1','rv-d1')"
+                class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">Follow</button>
+              <button type="button" onclick="openMessageModal('d1','A. Fischer');document.getElementById('rv-d1').classList.add('hidden')"
+                class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">Message</button>
+              <button type="button" onclick="reportDemo('rv-d1')"
+                class="w-full text-left px-3 py-2 text-xs text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors">Report</button>
+            </div>
+          </div>
+          <div class="flex justify-center"><span class="font-medium text-slate-600">Industry / CRO chemist</span></div>
+          <div class="text-right text-slate-400">12 Mar 2024</div>
+        </div>
+
+        <div class="flex gap-2 flex-wrap mb-3">
+          <span class="text-xs font-semibold text-green-700 bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1">3 &ndash; Reproduced original</span>
+        </div>
+        <div class="h-1 w-full bg-green-500 rounded-full mb-3 opacity-60"></div>
+
+        <div class="text-sm text-slate-700">
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Repro observation</p>
+          <p class="mb-1.5 leading-relaxed">Repeated the coupling of 4-bromoacetophenone with phenylboronic acid (Table&nbsp;1, entry&nbsp;4) at 2&nbsp;mmol scale. Isolated <strong>79% yield</strong> after extraction and a short silica column, consistent with the reported 82%. Reaction was clean with no biaryl side products observed.</p>
+          <p class="mb-1.5 leading-relaxed">Both 2 and 3&nbsp;equiv K<sub>2</sub>CO<sub>3</sub> gave good conversion; 2&nbsp;equiv gave marginally cleaner results.</p>
+          <p class="leading-relaxed">&#9888;&#65039; <strong>Catalyst recycling:</strong> achieved 3 cycles, not 5. Yields dropped 79% &rarr; 68% &rarr; 51% with simple filtration &amp; washing between cycles.</p>
+        </div>
+
+        <!-- Attached image -->
+        <div class="mt-3">
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-2">Attached image</p>
+          <figure class="inline-block rounded-lg overflow-hidden border border-slate-200 max-w-full">
+            <svg xmlns="http://www.w3.org/2000/svg" width="260" height="190" viewBox="0 0 260 190" role="img" aria-label="TLC plate showing reaction progress" class="block max-w-full">
+              <!-- silica plate background -->
+              <rect width="260" height="190" fill="#f5f3ec"/>
+              <rect x="22" y="16" width="216" height="158" fill="#eae6d8" rx="3"/>
+              <!-- solvent front -->
+              <line x1="22" y1="28" x2="238" y2="28" stroke="#b0a890" stroke-width="0.8" stroke-dasharray="4,3"/>
+              <text x="240" y="31" font-size="8" fill="#999" font-family="sans-serif">front</text>
+              <!-- baseline -->
+              <line x1="22" y1="158" x2="238" y2="158" stroke="#888" stroke-width="1.2" stroke-dasharray="3,2"/>
+              <!-- UV-active zone glow (very faint green) -->
+              <rect x="22" y="16" width="216" height="142" fill="#c8e6c9" opacity="0.10" rx="3"/>
+              <!-- lane labels (below baseline) -->
+              <text x="80"  y="175" text-anchor="middle" font-size="10" fill="#555" font-family="monospace">SM</text>
+              <text x="130" y="175" text-anchor="middle" font-size="10" fill="#555" font-family="monospace">Rxn</text>
+              <text x="180" y="175" text-anchor="middle" font-size="10" fill="#555" font-family="monospace">Prod</text>
+              <!-- SM lane: single spot at low Rf (~0.18) -->
+              <ellipse cx="80"  cy="131" rx="11" ry="8" fill="#444" opacity="0.78"/>
+              <!-- Rxn lane: faint SM residue + strong product -->
+              <ellipse cx="130" cy="131" rx="7"  ry="5" fill="#555" opacity="0.22"/>
+              <ellipse cx="130" cy="82"  rx="12" ry="8" fill="#333" opacity="0.84"/>
+              <!-- Prod lane: single clean spot at same Rf as product -->
+              <ellipse cx="180" cy="82"  rx="12" ry="8" fill="#333" opacity="0.88"/>
+              <!-- solvent label -->
+              <text x="236" y="26" text-anchor="end" font-size="8" fill="#aaa" font-family="sans-serif">EtOAc/hex 1:4</text>
+              <!-- UV label -->
+              <text x="25" y="14" font-size="8" fill="#aaa" font-family="sans-serif">UV 254 nm</text>
+            </svg>
+            <figcaption class="text-[11px] text-slate-400 px-3 py-1.5 bg-white border-t border-slate-100">
+              TLC after 2 h: SM fully consumed, clean product spot (EtOAc/hexane 1:4, UV 254&nbsp;nm)
+            </figcaption>
+          </figure>
+        </div>
+
+        <!-- Comment thread -->
+        <div id="comments-d1" class="mt-3 border-t border-slate-100 pt-3 space-y-3">
+          <div id="comment-d1" class="border border-slate-200 rounded-xl p-3">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between gap-2 mb-0.5">
+                <div class="flex items-center gap-2">
+                  <span class="relative inline-block">
+                    <button type="button" onclick="toggleCommenterMenu(event,'cm-d1')"
+                      class="text-xs font-medium text-slate-600 hover:text-brand transition-colors cursor-pointer">T. Chen</button>
+                    <div id="cm-d1" class="commenter-menu hidden absolute left-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-xl shadow-lg z-30 py-1 overflow-hidden">
+                      <button type="button" id="follow-cm-d1" onclick="toggleFollowDemo('cm-d1','cm-d1')"
+                        class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">Follow</button>
+                      <button type="button" onclick="openMessageModal('cm-d1','T. Chen');document.getElementById('cm-d1').classList.add('hidden')"
+                        class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">Message</button>
+                      <button type="button" onclick="reportDemo('cm-d1')"
+                        class="w-full text-left px-3 py-2 text-xs text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors">Report</button>
+                    </div>
+                  </span>
+                  <span class="text-xs text-slate-400">&middot; PhD student</span>
+                </div>
+                <span class="text-xs text-slate-400 shrink-0">15 Mar 2024</span>
+              </div>
+              <p class="text-sm text-slate-700 leading-relaxed mt-0.5">Thanks for the recycling note: did you regenerate the catalyst between cycles or just filter and reuse directly?</p>
+              <div class="flex items-center gap-3 mt-1.5">
+                <button type="button" onclick="toggleCommentLike('d1')" id="clike-btn-d1"
+                  class="flex items-center gap-1 text-xs text-slate-300 hover:text-amber-400 transition-colors">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="9" y1="3" x2="15" y2="3"/><path d="M9 3V10L3 22H21L15 10V3Z"/>
+                    <path class="flask-liquid" d="M7.5 13L16.5 13L21 22H3Z" fill="none" stroke="none"/>
+                  </svg>
+                  <span id="clike-count-d1" class="hidden">0</span>
+                </button>
+                <button type="button" onclick="toggleCommentReply('d1')" class="text-xs text-slate-300 hover:text-brand transition-colors">Reply (1)</button>
+              </div>
+              <div id="replies-d1" class="mt-2 pl-3 border-l border-slate-100 space-y-2">
+                <div id="comment-d2" class="border border-slate-200 rounded-lg p-2.5">
+                  <div class="flex items-center justify-between gap-2 mb-0.5">
+                    <span class="relative inline-block">
+                      <button type="button" onclick="toggleCommenterMenu(event,'cm-d2')"
+                        class="text-xs font-medium text-slate-600 hover:text-brand transition-colors cursor-pointer">A. Fischer</button>
+                      <div id="cm-d2" class="commenter-menu hidden absolute left-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-xl shadow-lg z-30 py-1 overflow-hidden">
+                        <button type="button" id="follow-cm-d2" onclick="toggleFollowDemo('cm-d2','cm-d2')"
+                          class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">Follow</button>
+                        <button type="button" onclick="openMessageModal('cm-d2','A. Fischer');document.getElementById('cm-d2').classList.add('hidden')"
+                          class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">Message</button>
+                        <button type="button" onclick="reportDemo('cm-d2')"
+                          class="w-full text-left px-3 py-2 text-xs text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors">Report</button>
+                      </div>
+                    </span>
+                    <span class="text-xs text-slate-400">16 Mar 2024</span>
+                  </div>
+                  <p class="text-sm text-slate-700 leading-relaxed">Filtered, washed briefly with MeOH then water, dried at 60&nbsp;&deg;C overnight. No special regeneration.</p>
+                  <div class="flex items-center gap-3 mt-1">
+                    <button type="button" onclick="toggleCommentLike('d2')" id="clike-btn-d2"
+                      class="flex items-center gap-1 text-xs text-slate-300 hover:text-amber-400 transition-colors">
+                      <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="9" y1="3" x2="15" y2="3"/><path d="M9 3V10L3 22H21L15 10V3Z"/>
+                        <path class="flask-liquid" d="M7.5 13L16.5 13L21 22H3Z" fill="none" stroke="none"/>
+                      </svg>
+                      <span id="clike-count-d2" class="hidden">0</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div id="comment-reply-d1" class="hidden mt-2 pt-2">
+                <textarea id="creply-ta-d1" rows="2" maxlength="2000" placeholder="Reply to T. Chen..."
+                  class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none"></textarea>
+                <div class="flex gap-2 mt-1">
+                  <button type="button" onclick="submitCommentReply('d1')"
+                    class="bg-slate-700 hover:bg-slate-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">Post reply</button>
+                  <button type="button" onclick="toggleCommentReply('d1')"
+                    class="text-xs text-slate-400 hover:text-slate-600 px-3 py-1.5">Cancel</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action row (tour anchor) -->
+        <div id="tour-review-actions" class="mt-3 border-t border-slate-100 pt-2 flex items-center gap-5">
+          <button type="button" id="like-btn-d1" onclick="toggleLike('d1')" title="Like"
+            class="flex items-center gap-1 text-xs text-slate-400 hover:text-amber-400 transition-colors">
+            <svg id="like-svg-d1" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="9" y1="3" x2="15" y2="3"/><path d="M9 3V10L3 22H21L15 10V3Z"/>
+              <path class="flask-liquid" d="M7.5 13L16.5 13L21 22H3Z" fill="none" stroke="none"/>
+            </svg>
+            <span id="like-count-d1" class="font-medium">4</span>
+          </button>
+          <button type="button" onclick="toggleReply('d1')" title="Comment"
+            class="flex items-center gap-1 text-xs text-slate-400 hover:text-brand transition-colors">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            <span id="comment-count-d1" class="font-medium">1</span>
+          </button>
+          <!-- Share button — passes event to stop propagation before document handler fires -->
+          <div class="relative">
+            <button type="button" onclick="toggleSharePopup(event,'d1')" title="Share"
+              class="flex items-center gap-1 text-xs text-slate-400 hover:text-brand transition-colors">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9" fill="none"/>
+              </svg>
+            </button>
+            <div id="share-popup-d1" class="hidden absolute bottom-7 right-0 bg-white border border-slate-200 rounded-xl shadow-lg p-3 z-30 w-44">
+              <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Share</p>
+              <div class="flex flex-col gap-0.5">
+                <button onclick="shareAction(event,'whatsapp','d1')" class="flex items-center gap-2 text-xs text-slate-600 hover:text-green-600 hover:bg-green-50 rounded-lg px-2 py-1.5 transition-colors text-left w-full">&#128172; WhatsApp</button>
+                <button onclick="shareAction(event,'email','d1')" class="flex items-center gap-2 text-xs text-slate-600 hover:text-red-500 hover:bg-red-50 rounded-lg px-2 py-1.5 transition-colors text-left w-full">&#9993;&#65039; Email</button>
+                <button onclick="shareAction(event,'linkedin','d1')" class="flex items-center gap-2 text-xs text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg px-2 py-1.5 transition-colors text-left w-full">&#128279; LinkedIn</button>
+                <div class="border-t border-slate-100 mt-1 pt-1">
+                  <button onclick="shareAction(event,'copy','d1')" id="copy-btn-d1" class="flex items-center gap-2 text-xs text-slate-600 hover:text-brand hover:bg-blue-50 rounded-lg px-2 py-1.5 transition-colors text-left w-full">&#128203; Copy link</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Comment form -->
+        <div id="reply-d1" class="hidden mt-3 pt-3 border-t border-slate-100">
+          <textarea id="reply-ta-d1" rows="4" maxlength="2000" spellcheck="true"
+            placeholder="Share a method tip, ask a question, or flag an issue with this review…"
+            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
+          <p class="text-[11px] text-slate-300 mt-0.5 mb-1.5">Markdown supported: **bold**, _italic_, `code`, - lists</p>
+          <div class="flex gap-2">
+            <button type="button" onclick="submitComment('d1')"
+              class="bg-slate-700 hover:bg-slate-900 text-white text-xs font-medium px-4 py-1.5 rounded-lg transition-colors">Post comment</button>
+            <button type="button" onclick="toggleReply('d1')"
+              class="text-xs text-slate-400 hover:text-slate-600 px-3 py-1.5">Cancel</button>
+          </div>
+        </div>
+
+      </div><!-- end review d1 -->
+
+      <!-- ══════ REVIEW 2 — E. Kowalski (repro_extension_failed, score 4) ══════ -->
+      <div id="review-d2" class="bg-white border border-slate-200 rounded-xl p-4">
+
+        <div class="grid grid-cols-3 items-center gap-1 mb-2 text-xs">
+          <div class="relative min-w-0">
+            <button type="button" onclick="toggleCommenterMenu(event,'rv-d2')"
+              class="font-semibold text-slate-700 hover:text-brand transition-colors cursor-pointer truncate block max-w-full text-left">
+              E. Kowalski
+            </button>
+            <div id="rv-d2" class="commenter-menu hidden absolute left-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-xl shadow-lg z-30 py-1 overflow-hidden">
+              <button type="button" id="follow-d2" onclick="toggleFollowDemo('d2','rv-d2')"
+                class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">Follow</button>
+              <button type="button" onclick="openMessageModal('d2','E. Kowalski');document.getElementById('rv-d2').classList.add('hidden')"
+                class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">Message</button>
+              <button type="button" onclick="reportDemo('rv-d2')"
+                class="w-full text-left px-3 py-2 text-xs text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors">Report</button>
+            </div>
+          </div>
+          <div class="flex justify-center"><span class="font-medium text-slate-600">Postdoc</span></div>
+          <div class="text-right text-slate-400">28 Jan 2024</div>
+        </div>
+
+        <div class="flex gap-2 flex-wrap mb-3">
+          <span class="text-xs font-semibold text-teal-700 bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1">4 &ndash; Reproduced, extension failed</span>
+        </div>
+        <div class="h-1 w-full bg-teal-500 rounded-full mb-3 opacity-60"></div>
+
+        <div class="text-sm text-slate-700">
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Repro observation</p>
+          <p class="mb-3 leading-relaxed">Original protocol reproduced cleanly for aryl bromides (Table&nbsp;1, entries 1&ndash;6). Yields within &plusmn;5% of reported values. Reaction setup and workup are straightforward.</p>
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Scope extension</p>
+          <p class="leading-relaxed">Attempted extension to an aryl chloride substrate. Only <strong>10% conversion</strong> after 24&nbsp;h under standard conditions; aryl chlorides are incompatible with Pd/C at room temperature. Switching to Pd(PPh<sub>3</sub>)<sub>4</sub> at 60&nbsp;&deg;C in dioxane gave 71% yield. The paper&rsquo;s scope claims are accurate for the substrate classes described.</p>
+        </div>
+
+        <div id="comments-d2" class="hidden mt-3 border-t border-slate-100 pt-3 space-y-3"></div>
+
+        <!-- Action row -->
+        <div class="mt-3 border-t border-slate-100 pt-2 flex items-center gap-5">
+          <button type="button" id="like-btn-d2" onclick="toggleLike('d2')" title="Like"
+            class="flex items-center gap-1 text-xs text-slate-400 hover:text-amber-400 transition-colors">
+            <svg id="like-svg-d2" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="9" y1="3" x2="15" y2="3"/><path d="M9 3V10L3 22H21L15 10V3Z"/>
+              <path class="flask-liquid" d="M7.5 13L16.5 13L21 22H3Z" fill="none" stroke="none"/>
+            </svg>
+            <span id="like-count-d2" class="font-medium">2</span>
+          </button>
+          <button type="button" onclick="toggleReply('d2')" title="Comment"
+            class="flex items-center gap-1 text-xs text-slate-400 hover:text-brand transition-colors">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            <span id="comment-count-d2"></span>
+          </button>
+          <div class="relative">
+            <button type="button" onclick="toggleSharePopup(event,'d2')" title="Share"
+              class="flex items-center gap-1 text-xs text-slate-400 hover:text-brand transition-colors">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9" fill="none"/>
+              </svg>
+            </button>
+            <div id="share-popup-d2" class="hidden absolute bottom-7 right-0 bg-white border border-slate-200 rounded-xl shadow-lg p-3 z-30 w-44">
+              <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Share</p>
+              <div class="flex flex-col gap-0.5">
+                <button onclick="shareAction(event,'whatsapp','d2')" class="flex items-center gap-2 text-xs text-slate-600 hover:text-green-600 hover:bg-green-50 rounded-lg px-2 py-1.5 transition-colors text-left w-full">&#128172; WhatsApp</button>
+                <button onclick="shareAction(event,'email','d2')" class="flex items-center gap-2 text-xs text-slate-600 hover:text-red-500 hover:bg-red-50 rounded-lg px-2 py-1.5 transition-colors text-left w-full">&#9993;&#65039; Email</button>
+                <button onclick="shareAction(event,'linkedin','d2')" class="flex items-center gap-2 text-xs text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg px-2 py-1.5 transition-colors text-left w-full">&#128279; LinkedIn</button>
+                <div class="border-t border-slate-100 mt-1 pt-1">
+                  <button onclick="shareAction(event,'copy','d2')" id="copy-btn-d2" class="flex items-center gap-2 text-xs text-slate-600 hover:text-brand hover:bg-blue-50 rounded-lg px-2 py-1.5 transition-colors text-left w-full">&#128203; Copy link</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Comment form -->
+        <div id="reply-d2" class="hidden mt-3 pt-3 border-t border-slate-100">
+          <textarea id="reply-ta-d2" rows="4" maxlength="2000" spellcheck="true"
+            placeholder="Share a method tip, ask a question, or flag an issue with this review…"
+            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
+          <p class="text-[11px] text-slate-300 mt-0.5 mb-1.5">Markdown supported: **bold**, _italic_, `code`, - lists</p>
+          <div class="flex gap-2">
+            <button type="button" onclick="submitComment('d2')"
+              class="bg-slate-700 hover:bg-slate-900 text-white text-xs font-medium px-4 py-1.5 rounded-lg transition-colors">Post comment</button>
+            <button type="button" onclick="toggleReply('d2')"
+              class="text-xs text-slate-400 hover:text-slate-600 px-3 py-1.5">Cancel</button>
+          </div>
+        </div>
+
+      </div><!-- end review d2 -->
+
+    </div>
+  </div><!-- end right column -->
+
+</div><!-- end grid -->
+
+<!-- Message modal -->
+<div id="msg-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+  <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-semibold text-slate-700">Message <span id="msg-recipient" class="text-brand"></span></h3>
+      <button type="button" onclick="closeMessageModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <textarea id="msg-ta" rows="4" maxlength="1000" spellcheck="true"
+      placeholder="Write your message…"
+      class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none mb-3"></textarea>
+    <div class="flex gap-2 justify-end">
+      <button type="button" onclick="closeMessageModal()" class="text-xs text-slate-500 hover:text-slate-700 px-3 py-2 transition-colors">Cancel</button>
+      <button type="button" onclick="sendDemoMessage()"
+        class="bg-brand hover:bg-blue-700 text-white text-xs font-medium px-4 py-2 rounded-lg transition-colors">Send</button>
+    </div>
+    <p class="text-[11px] text-slate-400 text-center mt-2">Demo only — message is not actually delivered</p>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] bg-slate-800 text-white text-sm font-medium px-5 py-3 rounded-xl shadow-lg max-w-xs text-center pointer-events-none"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+
+  /* ── read user name from DOM (avoids tojson dependency) ─────────────── */
+  var DEMO_USER = (document.getElementById('_demo-user') || {}).textContent || 'You';
+
+  /* ── helpers ─────────────────────────────────────────────────────────── */
+  function esc(s) {
+    return String(s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#x27;');
+  }
+
+  var toastTimer;
+  window.showToast = function(msg, ms) {
+    var el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.remove('hidden');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function() { el.classList.add('hidden'); }, ms || 2800);
+  };
+
+  function todayStr() {
+    return new Date().toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+  }
+
+  /* ── close menus/popups on document click ────────────────────────────── */
+  document.addEventListener('click', function() {
+    document.querySelectorAll('.commenter-menu').forEach(function(el) { el.classList.add('hidden'); });
+    document.querySelectorAll('[id^="share-popup-"]').forEach(function(el) { el.classList.add('hidden'); });
+  });
+
+  /* ── commenter menus ─────────────────────────────────────────────────── */
+  window.toggleCommenterMenu = function(e, id) {
+    e.stopPropagation();
+    document.querySelectorAll('.commenter-menu').forEach(function(el) {
+      if (el.id !== id) el.classList.add('hidden');
+    });
+    document.getElementById(id).classList.toggle('hidden');
+  };
+
+  /* ── follow ──────────────────────────────────────────────────────────── */
+  var followed = {};
+  window.toggleFollowDemo = function(uid, menuId) {
+    followed[uid] = !followed[uid];
+    var btn = document.getElementById('follow-' + uid);
+    if (btn) btn.textContent = followed[uid] ? 'Following ✓' : 'Follow';
+    document.getElementById(menuId).classList.add('hidden');
+    showToast(followed[uid] ? 'Following! (Demo — not saved)' : 'Unfollowed.');
+  };
+
+  /* ── report ──────────────────────────────────────────────────────────── */
+  window.reportDemo = function(menuId) {
+    document.getElementById(menuId).classList.add('hidden');
+    showToast('Thanks for the report! (Demo — not submitted)');
+  };
+
+  /* ── message modal ───────────────────────────────────────────────────── */
+  window.openMessageModal = function(uid, name) {
+    document.getElementById('msg-recipient').textContent = name;
+    document.getElementById('msg-ta').value = '';
+    document.getElementById('msg-modal').classList.remove('hidden');
+    setTimeout(function() { document.getElementById('msg-ta').focus(); }, 50);
+  };
+  window.closeMessageModal = function() {
+    document.getElementById('msg-modal').classList.add('hidden');
+  };
+  window.sendDemoMessage = function() {
+    if (!document.getElementById('msg-ta').value.trim()) return;
+    closeMessageModal();
+    showToast('Message sent! (Demo — not actually delivered)');
+  };
+  document.getElementById('msg-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeMessageModal();
+  });
+
+  /* ── rating form ─────────────────────────────────────────────────────── */
+
+  /* Matches server-side constants exactly */
+  var OUTCOME_META = {
+    'extended':               { score:5, label:'Extended',                     txtCls:'text-blue-700',   barCls:'bg-blue-500'   },
+    'repro_extension_failed': { score:4, label:'Reproduced, extension failed', txtCls:'text-teal-700',   barCls:'bg-teal-500'   },
+    'reproduced':             { score:3, label:'Reproduced original',          txtCls:'text-green-700',  barCls:'bg-green-500'  },
+    'no_extension':           { score:2, label:'Did not work on extension',    txtCls:'text-orange-700', barCls:'bg-orange-400' },
+    'no_repro':               { score:1, label:'Did not work on original',     txtCls:'text-red-700',    barCls:'bg-red-500'    },
+  };
+
+  /* Matches paper.html: SHOWS_REPRO / SHOWS_SCOPE */
+  var SHOWS_REPRO = new Set(['no_repro', 'reproduced', 'repro_extension_failed']);
+  var SHOWS_SCOPE = new Set(['no_extension', 'repro_extension_failed', 'extended']);
+
+  document.querySelectorAll('input[name="outcome"]').forEach(function(radio) {
+    radio.addEventListener('change', function() { onOutcomeChange(radio.value); });
+  });
+
+  window.onOutcomeChange = function(val) {
+    document.getElementById('repro-section').classList.toggle('hidden', !SHOWS_REPRO.has(val));
+    document.getElementById('scope-section').classList.toggle('hidden', !SHOWS_SCOPE.has(val));
+    checkReady();
+  };
+
+  window.onScopeChange = function(val) {
+    document.getElementById('modification-block').classList.toggle('hidden', val === 'minor');
+    checkReady();
+  };
+
+  window.checkReady = function() {
+    var outcome = document.querySelector('input[name="outcome"]:checked');
+    if (!outcome) { document.getElementById('submit-btn').disabled = true; return; }
+    var scopeVisible = !document.getElementById('scope-section').classList.contains('hidden');
+    var scopeOk = !scopeVisible || !!document.querySelector('input[name="scope_level"]:checked');
+    var coiOk = document.getElementById('coi-checkbox').checked;
+    document.getElementById('submit-btn').disabled = !(scopeOk && coiOk);
+  };
+
+  var demoSubmitted = false;
+  window.submitDemoRating = function(e) {
+    e.preventDefault();
+    if (demoSubmitted) return;
+    var outcomeEl = document.querySelector('input[name="outcome"]:checked');
+    if (!outcomeEl) return;
+    var outcome = outcomeEl.value;
+    var meta = OUTCOME_META[outcome];
+    var reproText = (document.getElementById('repro-ta') || {}).value || '';
+    var scopeText = (document.getElementById('scope-ta') || {}).value || '';
+    demoSubmitted = true;
+
+    document.getElementById('tour-rate-box').innerHTML =
+      '<h2 class="font-semibold text-slate-700 mb-3">Rate this paper</h2>' +
+      '<div class="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-3 mb-3">&#10003; Rating submitted! (Demo &mdash; not saved)</div>' +
+      '<a href="/" class="block text-center text-xs border border-brand text-brand rounded-lg px-4 py-2 hover:bg-brand hover:text-white transition-colors font-medium">Search a real paper &rarr;</a>';
+
+    var card = document.createElement('div');
+    card.className = 'bg-white border border-brand rounded-xl p-4 ring-1 ring-brand';
+    card.innerHTML =
+      '<div class="grid grid-cols-3 items-center gap-1 mb-2 text-xs">' +
+        '<div class="min-w-0"><span class="font-semibold text-slate-700 truncate block">' + esc(DEMO_USER) + '</span></div>' +
+        '<div></div><div class="text-right text-slate-400">' + todayStr() + '</div>' +
+      '</div>' +
+      '<div class="flex gap-2 flex-wrap mb-3">' +
+        '<span class="text-xs font-semibold ' + meta.txtCls + ' bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1">' + meta.score + ' &ndash; ' + meta.label + '</span>' +
+        '<span class="text-xs bg-amber-100 text-amber-700 rounded-full px-2.5 py-1">Demo &mdash; not saved</span>' +
+      '</div>' +
+      '<div class="h-1 w-full ' + meta.barCls + ' rounded-full mb-3 opacity-60"></div>' +
+      (reproText ? '<div class="text-sm text-slate-700 mb-2"><p class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Repro observation</p><p class="leading-relaxed">' + esc(reproText) + '</p></div>' : '') +
+      (scopeText ? '<div class="text-sm text-slate-700 mb-2"><p class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Scope observation</p><p class="leading-relaxed">' + esc(scopeText) + '</p></div>' : '') +
+      '<div class="mt-3 border-t border-slate-100 pt-2 text-xs text-slate-300 select-none flex items-center gap-2">' +
+        '<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="9" y1="3" x2="15" y2="3"/><path d="M9 3V10L3 22H21L15 10V3Z"/></svg>' +
+      '</div>';
+
+    var list = document.getElementById('reviews-list');
+    list.insertBefore(card, list.firstChild);
+    card.scrollIntoView({ behavior:'smooth', block:'center' });
+    showToast('Review submitted! (Demo — not saved)');
+  };
+
+  /* ── review likes ────────────────────────────────────────────────────── */
+  var likedReviews = {};
+  window.toggleLike = function(rid) {
+    likedReviews[rid] = !likedReviews[rid];
+    var btn = document.getElementById('like-btn-' + rid);
+    var svg = document.getElementById('like-svg-' + rid);
+    var countEl = document.getElementById('like-count-' + rid);
+    var liked = likedReviews[rid];
+    btn.classList.toggle('text-amber-500', liked);
+    btn.classList.toggle('text-slate-400', !liked);
+    if (svg) { var liq = svg.querySelector('.flask-liquid'); if (liq) liq.setAttribute('fill', liked ? 'currentColor' : 'none'); }
+    var n = parseInt(countEl.textContent || '0', 10) + (liked ? 1 : -1);
+    countEl.textContent = n;
+    if (n <= 0) countEl.classList.add('hidden'); else countEl.classList.remove('hidden');
+  };
+
+  /* ── comment likes ───────────────────────────────────────────────────── */
+  var likedComments = {};
+  window.toggleCommentLike = function(cid) {
+    likedComments[cid] = !likedComments[cid];
+    var btn = document.getElementById('clike-btn-' + cid);
+    var countEl = document.getElementById('clike-count-' + cid);
+    var liked = likedComments[cid];
+    btn.classList.toggle('text-amber-500', liked);
+    btn.classList.toggle('text-slate-300', !liked);
+    var liq = btn.querySelector('.flask-liquid');
+    if (liq) liq.setAttribute('fill', liked ? 'currentColor' : 'none');
+    var n = parseInt(countEl.textContent || '0', 10) + (liked ? 1 : -1);
+    countEl.textContent = n;
+    if (n <= 0) countEl.classList.add('hidden'); else countEl.classList.remove('hidden');
+  };
+
+  /* ── review comment form toggle ──────────────────────────────────────── */
+  window.toggleReply = function(rid) {
+    var div = document.getElementById('reply-' + rid);
+    if (div.classList.toggle('hidden') === false) {
+      var ta = document.getElementById('reply-ta-' + rid);
+      if (ta) ta.focus();
+    }
+  };
+
+  /* ── submit top-level comment ────────────────────────────────────────── */
+  var commentIdCounter = 200;
+  window.submitComment = function(rid) {
+    var ta = document.getElementById('reply-ta-' + rid);
+    var text = ta ? ta.value.trim() : '';
+    if (!text) return;
+    var cid = 'dc' + (++commentIdCounter);
+    var today = todayStr();
+    var container = document.getElementById('comments-' + rid);
+    if (container) container.classList.remove('hidden');
+    var el = document.createElement('div');
+    el.id = 'comment-' + cid;
+    el.className = 'border border-slate-200 rounded-xl p-3';
+    el.innerHTML =
+      '<div class="flex-1 min-w-0">' +
+        '<div class="flex items-center justify-between gap-2 mb-0.5">' +
+          '<span class="text-xs font-medium text-slate-600">' + esc(DEMO_USER) + '</span>' +
+          '<span class="text-xs text-slate-400 shrink-0">' + today + '</span>' +
+        '</div>' +
+        '<p class="text-sm text-slate-700 leading-relaxed mt-0.5">' + esc(text) + '</p>' +
+        '<div class="flex items-center gap-3 mt-1.5">' +
+          '<button type="button" onclick="toggleCommentLike(\'' + cid + '\')" id="clike-btn-' + cid + '" class="flex items-center gap-1 text-xs text-slate-300 hover:text-amber-400 transition-colors">' +
+            '<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="3" x2="15" y2="3"/><path d="M9 3V10L3 22H21L15 10V3Z"/><path class="flask-liquid" d="M7.5 13L16.5 13L21 22H3Z" fill="none" stroke="none"/></svg>' +
+            '<span id="clike-count-' + cid + '" class="hidden">0</span>' +
+          '</button>' +
+          '<button type="button" onclick="toggleCommentReply(\'' + cid + '\')" class="text-xs text-slate-300 hover:text-brand transition-colors">Reply</button>' +
+        '</div>' +
+        '<div id="comment-reply-' + cid + '" class="hidden mt-2 pt-2">' +
+          '<textarea id="creply-ta-' + cid + '" rows="2" maxlength="2000" placeholder="Reply..." class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none"></textarea>' +
+          '<div class="flex gap-2 mt-1">' +
+            '<button type="button" onclick="submitCommentReply(\'' + cid + '\')" class="bg-slate-700 hover:bg-slate-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">Post reply</button>' +
+            '<button type="button" onclick="toggleCommentReply(\'' + cid + '\')" class="text-xs text-slate-400 hover:text-slate-600 px-3 py-1.5">Cancel</button>' +
+          '</div>' +
+        '</div>' +
+        '<div id="replies-' + cid + '" class="mt-2 pl-3 border-l border-slate-100 space-y-2"></div>' +
+      '</div>';
+    container.appendChild(el);
+    ta.value = '';
+    document.getElementById('reply-' + rid).classList.add('hidden');
+    var countEl = document.getElementById('comment-count-' + rid);
+    if (countEl) {
+      var n = parseInt(countEl.textContent || '0', 10) + 1;
+      countEl.textContent = n;
+      countEl.classList.remove('hidden');
+    }
+  };
+
+  /* ── reply-to-comment form toggle ────────────────────────────────────── */
+  window.toggleCommentReply = function(cid) {
+    var div = document.getElementById('comment-reply-' + cid);
+    if (div.classList.toggle('hidden') === false) {
+      var ta = document.getElementById('creply-ta-' + cid);
+      if (ta) ta.focus();
+    }
+  };
+
+  /* ── submit nested reply ─────────────────────────────────────────────── */
+  window.submitCommentReply = function(cid) {
+    var ta = document.getElementById('creply-ta-' + cid);
+    var text = ta ? ta.value.trim() : '';
+    if (!text) return;
+    var rid = 'dcr' + (++commentIdCounter);
+    var el = document.createElement('div');
+    el.id = 'comment-' + rid;
+    el.className = 'border border-slate-200 rounded-lg p-2.5';
+    el.innerHTML =
+      '<div class="flex items-center justify-between gap-2 mb-0.5">' +
+        '<span class="text-xs font-medium text-slate-600">' + esc(DEMO_USER) + '</span>' +
+        '<span class="text-xs text-slate-400">' + todayStr() + '</span>' +
+      '</div>' +
+      '<p class="text-sm text-slate-700 leading-relaxed">' + esc(text) + '</p>' +
+      '<div class="flex items-center gap-3 mt-1">' +
+        '<button type="button" onclick="toggleCommentLike(\'' + rid + '\')" id="clike-btn-' + rid + '" class="flex items-center gap-1 text-xs text-slate-300 hover:text-amber-400 transition-colors">' +
+          '<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="3" x2="15" y2="3"/><path d="M9 3V10L3 22H21L15 10V3Z"/><path class="flask-liquid" d="M7.5 13L16.5 13L21 22H3Z" fill="none" stroke="none"/></svg>' +
+          '<span id="clike-count-' + rid + '" class="hidden">0</span>' +
+        '</button>' +
+      '</div>';
+    document.getElementById('replies-' + cid).appendChild(el);
+    ta.value = '';
+    document.getElementById('comment-reply-' + cid).classList.add('hidden');
+    var replyBtn = document.querySelector('#replies-' + cid)
+      && document.getElementById('replies-' + cid).closest('[id^="comment-"]')
+      && document.getElementById('replies-' + cid).closest('[id^="comment-"]').querySelector('button[onclick*="toggleCommentReply"]');
+    if (replyBtn) {
+      var m = replyBtn.textContent.match(/\d+/);
+      replyBtn.textContent = 'Reply (' + (m ? parseInt(m[0], 10) + 1 : 1) + ')';
+    }
+  };
+
+  /* ── share popup ─────────────────────────────────────────────────────── */
+  window.toggleSharePopup = function(e, rid) {
+    e.stopPropagation(); /* prevent document handler from immediately closing it */
+    var popup = document.getElementById('share-popup-' + rid);
+    var wasHidden = popup.classList.contains('hidden');
+    /* close all other popups first */
+    document.querySelectorAll('[id^="share-popup-"]').forEach(function(el) { el.classList.add('hidden'); });
+    if (wasHidden) popup.classList.remove('hidden');
+  };
+
+  var DEMO_URL = window.location.origin + '/paper/demo';
+  var DEMO_TITLE = encodeURIComponent('Suzuki–Miyaura Cross-Coupling Review on ChemRepro');
+
+  window.shareAction = function(e, type, rid) {
+    e.stopPropagation();
+    document.getElementById('share-popup-' + rid).classList.add('hidden');
+    if (type === 'whatsapp') {
+      window.open('https://api.whatsapp.com/send?text=' + DEMO_TITLE + '%20' + encodeURIComponent(DEMO_URL), '_blank');
+    } else if (type === 'email') {
+      window.location.href = 'mailto:?subject=' + DEMO_TITLE + '&body=' + encodeURIComponent(DEMO_URL);
+    } else if (type === 'linkedin') {
+      window.open('https://www.linkedin.com/sharing/share-offsite/?url=' + encodeURIComponent(DEMO_URL), '_blank');
+    } else if (type === 'copy') {
+      var btn = document.getElementById('copy-btn-' + rid);
+      navigator.clipboard.writeText(DEMO_URL).then(function() {
+        if (btn) btn.textContent = '✓ Copied!';
+        showToast('Link copied to clipboard');
+        setTimeout(function() { if (btn) btn.innerHTML = '&#128203; Copy link'; }, 1800);
+      });
+    }
+  };
+
+})();
+</script>
+{% endblock %}

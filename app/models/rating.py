@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import String, Integer, ForeignKey, DateTime, CheckConstraint, UniqueConstraint
+from sqlalchemy import Boolean, String, Integer, ForeignKey, DateTime, CheckConstraint, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -65,8 +65,10 @@ class Rating(Base):
     scope_observation: Mapped[str | None] = mapped_column(String(1000))
     modification_details: Mapped[str | None] = mapped_column(String(1000))
 
-    # "v2" = single outcome-based score | "classic" = repro stars + outcome
-    scoring_mode: Mapped[str] = mapped_column(String(10), default="v2", server_default="v2")
+    # "standard" = single outcome-based score | "classic" = repro stars + outcome
+    scoring_mode: Mapped[str] = mapped_column(String(10), default="standard", server_default="standard")
+
+    ai_flagged: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

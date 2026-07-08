@@ -3,7 +3,7 @@
 All routes are public (read). Write operations go through the HTML form flow.
 """
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -15,6 +15,16 @@ from app.services.crossref import fetch_paper_metadata, is_valid_doi, normalise_
 
 router = APIRouter(prefix="/api/v1", tags=["API v1"])
 
+# Outcome → numeric score (1–5) for standard-mode ratings
+_OUTCOME_SCORE = case(
+    (Rating.outcome == "no_repro", 1),
+    (Rating.outcome == "no_extension", 2),
+    (Rating.outcome == "reproduced", 3),
+    (Rating.outcome == "repro_extension_failed", 4),
+    (Rating.outcome == "extended", 5),
+    else_=None,
+)
+
 
 @router.get("/papers", response_model=list[PaperWithScores])
 async def list_papers(limit: int = 20, offset: int = 0, db: Session = Depends(get_db)):
@@ -23,8 +33,7 @@ async def list_papers(limit: int = 20, offset: int = 0, db: Session = Depends(ge
     result = []
     for p in papers:
         row = db.query(
-            func.avg(Rating.reproducibility_score),
-            func.avg(Rating.generalisability_score),
+            func.avg(_OUTCOME_SCORE),
             func.count(Rating.id),
         ).filter(Rating.doi == p.doi, Rating.scoring_mode != "classic").one()
         result.append(PaperWithScores(
@@ -35,8 +44,8 @@ async def list_papers(limit: int = 20, offset: int = 0, db: Session = Depends(ge
             year=p.year,
             fetched_at=p.fetched_at,
             avg_reproducibility=round(float(row[0]), 2) if row[0] else None,
-            avg_generalisability=round(float(row[1]), 2) if row[1] else None,
-            rating_count=row[2],
+            avg_generalisability=None,
+            rating_count=row[1],
         ))
     return result
 
@@ -62,8 +71,7 @@ async def get_paper(doi: str, db: Session = Depends(get_db)):
         db.refresh(paper)
 
     row = db.query(
-        func.avg(Rating.reproducibility_score),
-        func.avg(Rating.generalisability_score),
+        func.avg(_OUTCOME_SCORE),
         func.count(Rating.id),
     ).filter(Rating.doi == doi, Rating.scoring_mode != "classic").one()
 
@@ -75,8 +83,8 @@ async def get_paper(doi: str, db: Session = Depends(get_db)):
         year=paper.year,
         fetched_at=paper.fetched_at,
         avg_reproducibility=round(float(row[0]), 2) if row[0] else None,
-        avg_generalisability=round(float(row[1]), 2) if row[1] else None,
-        rating_count=row[2],
+        avg_generalisability=None,
+        rating_count=row[1],
     )
 
 
@@ -100,14 +108,13 @@ async def get_paper_scores(doi: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Paper not found")
 
     row = db.query(
-        func.avg(Rating.reproducibility_score),
-        func.avg(Rating.generalisability_score),
+        func.avg(_OUTCOME_SCORE),
         func.count(Rating.id),
     ).filter(Rating.doi == doi, Rating.scoring_mode != "classic").one()
 
     return AggregatedScores(
         doi=doi,
-        rating_count=row[2],
+        rating_count=row[1],
         avg_reproducibility=round(float(row[0]), 2) if row[0] else None,
-        avg_generalisability=round(float(row[1]), 2) if row[1] else None,
+        avg_generalisability=None,
     )

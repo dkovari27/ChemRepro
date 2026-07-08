@@ -1,7 +1,10 @@
-import secrets
+﻿import secrets
 import uuid
 from datetime import datetime, timezone
+from urllib.parse import urlencode
 
+import httpx
+from app.utils.design import register_globals
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -12,15 +15,37 @@ from app.database import get_db
 from app.models.user import CAREER_STAGES, User
 from app.services.orcid import exchange_code_for_token, fetch_orcid_name, get_auth_url
 
+_LINKEDIN_AUTH_URL = "https://www.linkedin.com/oauth/v2/authorization"
+_LINKEDIN_TOKEN_URL = "https://www.linkedin.com/oauth/v2/accessToken"
+_LINKEDIN_USERINFO_URL = "https://api.linkedin.com/v2/userinfo"
+
 templates = Jinja2Templates(directory="app/templates")
+register_globals(templates)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _post_login_redirect(user: User, next_url: str) -> RedirectResponse:
+    """Central post-login redirect: intercepts for pledge if not yet accepted."""
+    if not getattr(user, "pledge_accepted", False):
+        return RedirectResponse(f"/pledge?next={next_url}", status_code=303)
+    return RedirectResponse(next_url, status_code=303)
 
 DEV_FAKE_USERS = [
     ("0000-0000-0000-0001", "Alice Testuser"),
     ("0000-0000-0000-0002", "Bob Labrat"),
     ("0000-0000-0000-0003", "Carol Benchwork"),
 ]
+
+
+@router.get("/choose")
+async def choose_login(request: Request, error: str | None = None):
+    return templates.TemplateResponse("login_choose.html", {
+        "request": request,
+        "error": error,
+        "user_name": request.session.get("user_name"),
+        "orcid_id": request.session.get("orcid_id"),
+    })
 
 
 @router.get("/login")
@@ -70,12 +95,12 @@ async def callback(
         db.commit()
 
     request.session["orcid_id"] = orcid_id
-    request.session["user_name"] = user.name or orcid_id
+    request.session["user_name"] = user.nickname or user.name or orcid_id
 
     if not user.career_stage_set:
         request.session["after_profile_setup"] = "/"
         return RedirectResponse("/auth/profile-setup", status_code=303)
-    return RedirectResponse("/", status_code=303)
+    return _post_login_redirect(user, "/")
 
 
 @router.get("/guest-setup")
@@ -123,12 +148,12 @@ async def guest_setup(
         db.commit()
 
     request.session["orcid_id"] = user.orcid_id
-    request.session["user_name"] = user.name
+    request.session["user_name"] = user.nickname or user.name or user.orcid_id
     request.session["after_profile_setup"] = next_url or "/"
 
     # Skip profile setup if the user already configured their career stage
     if user.career_stage_set:
-        return RedirectResponse(next_url or "/", status_code=303)
+        return _post_login_redirect(user, next_url or "/")
     return RedirectResponse("/auth/profile-setup", status_code=303)
 
 
@@ -151,6 +176,7 @@ async def submit_profile_setup(
     request: Request,
     db: Session = Depends(get_db),
     career_stage: str = Form(default=""),
+    nickname: str = Form(default=""),
 ):
     orcid_id = request.session.get("orcid_id")
     if not orcid_id:
@@ -161,21 +187,27 @@ async def submit_profile_setup(
         if career_stage in CAREER_STAGES:
             user.career_stage = career_stage
         user.career_stage_set = True
+        if nickname.strip():
+            user.nickname = nickname.strip()[:60]
         db.commit()
+        request.session["user_name"] = user.nickname or user.name or orcid_id
 
     next_url = request.session.pop("after_profile_setup", "/")
-    return RedirectResponse(next_url, status_code=303)
+    request.session["tour_pending"] = 1
+    return _post_login_redirect(user, next_url) if user else RedirectResponse(next_url, status_code=303)
 
 
 @router.get("/profile-setup-skip")
 async def skip_profile_setup(request: Request, db: Session = Depends(get_db)):
     orcid_id = request.session.get("orcid_id")
+    next_url = request.session.pop("after_profile_setup", "/")
     if orcid_id:
         user = db.get(User, orcid_id)
         if user:
             user.career_stage_set = True
             db.commit()
-    next_url = request.session.pop("after_profile_setup", "/")
+            request.session["tour_pending"] = 1
+            return _post_login_redirect(user, next_url)
     return RedirectResponse(next_url, status_code=303)
 
 
@@ -189,6 +221,91 @@ async def logout(request: Request):
 @router.get("/signed-out")
 async def signed_out(request: Request):
     return templates.TemplateResponse("signed_out.html", {"request": request})
+
+
+@router.get("/linkedin")
+async def linkedin_login(request: Request):
+    if not settings.LINKEDIN_CLIENT_ID:
+        return RedirectResponse("/auth/choose?error=linkedin_not_configured", status_code=303)
+    state = secrets.token_urlsafe(16)
+    request.session["linkedin_state"] = state
+    params = urlencode({
+        "response_type": "code",
+        "client_id": settings.LINKEDIN_CLIENT_ID,
+        "redirect_uri": settings.LINKEDIN_REDIRECT_URI,
+        "state": state,
+        "scope": "openid profile email",
+    })
+    return RedirectResponse(f"{_LINKEDIN_AUTH_URL}?{params}")
+
+
+@router.get("/linkedin/callback")
+async def linkedin_callback(
+    request: Request,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+    db: Session = Depends(get_db),
+):
+    if error:
+        raise HTTPException(status_code=400, detail=f"LinkedIn auth error: {error}")
+    if not code:
+        raise HTTPException(status_code=400, detail="Missing code from LinkedIn")
+
+    saved_state = request.session.pop("linkedin_state", None)
+    if not saved_state or saved_state != state:
+        raise HTTPException(status_code=400, detail="Invalid OAuth state")
+
+    async with httpx.AsyncClient(timeout=10) as client:
+        token_resp = await client.post(_LINKEDIN_TOKEN_URL, data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": settings.LINKEDIN_REDIRECT_URI,
+            "client_id": settings.LINKEDIN_CLIENT_ID,
+            "client_secret": settings.LINKEDIN_CLIENT_SECRET,
+        })
+        if token_resp.status_code != 200:
+            raise HTTPException(status_code=502, detail="Failed to exchange code with LinkedIn")
+        access_token = token_resp.json().get("access_token", "")
+
+        info_resp = await client.get(
+            _LINKEDIN_USERINFO_URL,
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        if info_resp.status_code != 200:
+            raise HTTPException(status_code=502, detail="Failed to fetch LinkedIn user info")
+        info = info_resp.json()
+
+    sub = info.get("sub", "")
+    if not sub:
+        raise HTTPException(status_code=502, detail="LinkedIn did not return a user ID")
+
+    linkedin_id = f"linkedin:{sub}"
+    display_name = info.get("name") or info.get("given_name") or "LinkedIn User"
+    notification_email = info.get("email") or ""
+
+    user = db.get(User, linkedin_id)
+    if not user:
+        user = User(
+            orcid_id=linkedin_id,
+            name=display_name,
+            notification_email=notification_email or None,
+            verified_at=datetime.now(timezone.utc),
+        )
+        db.add(user)
+        db.commit()
+    else:
+        if notification_email and not user.notification_email:
+            user.notification_email = notification_email
+            db.commit()
+
+    request.session["orcid_id"] = linkedin_id
+    request.session["user_name"] = user.nickname or user.name or linkedin_id
+
+    if not user.career_stage_set:
+        request.session["after_profile_setup"] = "/"
+        return RedirectResponse("/auth/profile-setup", status_code=303)
+    return _post_login_redirect(user, "/")
 
 
 @router.get("/dev-login/{user_index}")

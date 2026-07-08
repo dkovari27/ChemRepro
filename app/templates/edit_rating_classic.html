@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends design_base(request) %}
 {% block title %}Edit review – ChemRepro{% endblock %}
 
 {% block content %}
@@ -34,7 +34,7 @@
       </p>
       <div class="mt-1">
         <label class="block text-xs font-medium text-slate-600 mb-1">Reproducibility observation</label>
-        <textarea name="reproducibility_observation" rows="6" maxlength="1000" spellcheck="true"
+        <textarea name="reproducibility_observation" rows="6" maxlength="1000" spellcheck="true" data-img-paste
           placeholder="{{ prompts.REPRO_OBSERVATION }}"
           class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y">{{ rating.reproducibility_observation or '' }}</textarea>
       </div>
@@ -61,7 +61,7 @@
       </p>
       <div class="mt-1">
         <label class="block text-xs font-medium text-slate-600 mb-1">Extension observation</label>
-        <textarea name="scope_observation" rows="6" maxlength="1000" spellcheck="true"
+        <textarea name="scope_observation" rows="6" maxlength="1000" spellcheck="true" data-img-paste
           placeholder="{{ prompts.SCOPE_OBSERVATION }}"
           class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y">{{ rating.scope_observation or '' }}</textarea>
       </div>

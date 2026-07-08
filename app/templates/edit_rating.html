@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends design_base(request) %}
 {% block title %}Edit review – ChemRepro{% endblock %}
 
 {% block content %}
@@ -35,7 +35,7 @@
     <!-- Reproducibility observation -->
     <div>
       <label class="block text-xs font-medium text-slate-600 mb-1">Reproducibility observation</label>
-      <textarea name="reproducibility_observation" rows="6" maxlength="1000" spellcheck="true"
+      <textarea name="reproducibility_observation" rows="6" maxlength="1000" spellcheck="true" data-img-paste
         placeholder="{{ prompts.REPRO_OBSERVATION }}"
         class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y">{{ rating.reproducibility_observation or '' }}</textarea>
     </div>
@@ -62,7 +62,7 @@
     <!-- Scope observation -->
     <div>
       <label class="block text-xs font-medium text-slate-600 mb-1">Scope observation</label>
-      <textarea name="scope_observation" rows="6" maxlength="1000" spellcheck="true"
+      <textarea name="scope_observation" rows="6" maxlength="1000" spellcheck="true" data-img-paste
         placeholder="{{ prompts.SCOPE_OBSERVATION }}"
         class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y">{{ rating.scope_observation or '' }}</textarea>
     </div>
@@ -70,7 +70,7 @@
     <!-- Modification details -->
     <div>
       <label class="block text-xs font-medium text-slate-600 mb-1">Modification details</label>
-      <textarea name="modification_details" rows="5" maxlength="1000" spellcheck="true"
+      <textarea name="modification_details" rows="5" maxlength="1000" spellcheck="true" data-img-paste
         placeholder="{{ prompts.MODIFICATION_DETAILS }}"
         class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y">{{ rating.modification_details or '' }}</textarea>
     </div>

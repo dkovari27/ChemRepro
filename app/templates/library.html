@@ -1,0 +1,389 @@
+{% extends design_base(request) %}
+{% block title %}My Library – ChemRepro{% endblock %}
+
+{% block content %}
+<div class="flex gap-6 items-start">
+
+  <!-- ═══════ LEFT SIDEBAR — collection tree ═══════ -->
+  <aside class="w-56 shrink-0 sticky top-20 self-start">
+    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+
+      <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Collections</span>
+      </div>
+
+      <nav class="py-1.5 text-sm">
+        <!-- All papers -->
+        <a href="/library"
+           class="flex items-center justify-between px-4 py-2 transition-colors
+                  {% if active_col_id is none %}bg-brand/8 text-brand font-medium{% else %}text-slate-600 hover:bg-slate-50 hover:text-brand{% endif %}">
+          <span class="flex items-center gap-2">
+            <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+            </svg>
+            All papers
+          </span>
+          <span class="text-xs text-slate-400">{{ total_saved }}</span>
+        </a>
+
+        <!-- Unsorted -->
+        <a href="/library?collection=0"
+           class="flex items-center justify-between px-4 py-2 transition-colors
+                  {% if active_col_id == 0 %}bg-brand/8 text-brand font-medium{% else %}text-slate-600 hover:bg-slate-50 hover:text-brand{% endif %}">
+          <span class="flex items-center gap-2">
+            <svg class="w-3.5 h-3.5 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+            </svg>
+            Unsorted
+          </span>
+        </a>
+
+        {% if cols_flat %}
+        <div class="border-t border-slate-100 my-1"></div>
+        {% endif %}
+
+        <!-- Collection tree (flat with depth-based indent) -->
+        {% for col, depth in cols_flat %}
+        <div class="group flex items-center justify-between pr-2
+                    {% if active_col_id == col.id %}bg-brand/8{% else %}hover:bg-slate-50{% endif %}"
+             style="padding-left: {{ 16 + depth * 14 }}px">
+          <a href="/library?collection={{ col.id }}"
+             class="flex-1 py-2 flex items-center gap-1.5 text-sm transition-colors
+                    {% if active_col_id == col.id %}text-brand font-medium{% else %}text-slate-600 hover:text-brand{% endif %}">
+            <svg class="w-3 h-3 shrink-0 {% if active_col_id == col.id %}text-brand{% else %}text-slate-400{% endif %}" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/>
+            </svg>
+            <span class="truncate max-w-[110px]" title="{{ col.name }}">{{ col.name }}</span>
+          </a>
+          <!-- Rename / Subfolder / Delete buttons (appear on hover) -->
+          <div class="hidden group-hover:flex items-center gap-0.5 shrink-0">
+            {% if depth < 4 %}
+            <button onclick="openNewFolder({{ col.id }})"
+                    class="p-1 text-slate-400 hover:text-brand transition-colors rounded" title="Add subfolder">
+              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/>
+                <line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/>
+              </svg>
+            </button>
+            {% endif %}
+            <button onclick="renameCol({{ col.id }}, '{{ col.name | replace("'", "\\'") }}')"
+                    class="p-1 text-slate-400 hover:text-brand transition-colors rounded" title="Rename">
+              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+            <button onclick="deleteCol({{ col.id }}, '{{ col.name | replace("'", "\\'") }}')"
+                    class="p-1 text-slate-400 hover:text-red-500 transition-colors rounded" title="Delete">
+              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {% endfor %}
+
+      </nav>
+
+      <!-- New root collection form toggle -->
+      <div class="border-t border-slate-100 p-3">
+        <button onclick="openNewFolder(null)"
+                class="w-full text-xs text-brand hover:text-blue-700 font-medium flex items-center gap-1.5 transition-colors">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          New collection
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ═══════ MAIN CONTENT ═══════ -->
+  <div class="flex-1 min-w-0">
+
+    <!-- Header bar -->
+    <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
+      <div>
+        <h1 class="text-lg font-bold text-slate-800">
+          {% if active_col == "unsorted" %}
+            Unsorted papers
+          {% elif active_col %}
+            {{ active_col.name }}
+          {% else %}
+            My Library
+          {% endif %}
+        </h1>
+        <p class="text-xs text-slate-400 mt-0.5">
+          {{ saved_papers | length }} paper{{ 's' if saved_papers | length != 1 }}
+          {% if active_col and active_col != "unsorted" %} in this collection{% endif %}
+        </p>
+      </div>
+
+      {% if saved_papers %}
+      <div class="flex items-center gap-2">
+        {% set export_scope = active_col_id if active_col_id is not none else "all" %}
+        <a href="/library/export/{{ export_scope }}.bib"
+           class="text-xs border border-slate-200 rounded-lg px-3 py-1.5 text-slate-500 hover:border-brand hover:text-brand transition-colors flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          BibTeX
+        </a>
+        <a href="/library/export/{{ export_scope }}.ris"
+           class="text-xs border border-slate-200 rounded-lg px-3 py-1.5 text-slate-500 hover:border-brand hover:text-brand transition-colors flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          RIS
+        </a>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Paper cards -->
+    {% if saved_papers %}
+    <div class="space-y-3" id="paper-list">
+      {% for sp in saved_papers %}
+      {% set p = sp.paper %}
+      <div class="bg-white border border-slate-200 rounded-xl p-4 group" id="entry-{{ sp.id }}">
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex-1 min-w-0">
+            <a href="/paper/{{ p.doi }}"
+               class="text-sm font-semibold text-slate-800 hover:text-brand transition-colors leading-snug line-clamp-2">
+              {{ p.title }}
+            </a>
+
+            {% set authors_list = p.authors | from_json %}
+            <p class="text-xs text-slate-500 mt-0.5 truncate">
+              {{ authors_list[:3] | join(', ') }}{% if authors_list | length > 3 %} et al.{% endif %}
+            </p>
+            <p class="text-xs text-slate-400 mt-0.5">
+              {% if p.journal %}{{ p.journal }}{% endif %}
+              {% if p.year %}&middot; {{ p.year }}{% endif %}
+              &middot; <span class="font-mono">{{ p.doi }}</span>
+            </p>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button onclick="openMove({{ sp.id }})"
+                    class="text-xs text-slate-400 hover:text-brand transition-colors px-2 py-1 rounded border border-transparent hover:border-slate-200"
+                    title="Move to collection">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/>
+              </svg>
+            </button>
+            <button onclick="removeEntry({{ sp.id }}, '{{ p.doi | replace("'", "\\'") }}')"
+                    class="text-xs text-slate-400 hover:text-red-500 transition-colors px-2 py-1 rounded border border-transparent hover:border-red-200"
+                    title="Remove from library">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Collection badge -->
+        {% if sp.collection %}
+        <div class="mt-2">
+          <span class="inline-flex items-center gap-1 text-[11px] bg-blue-50 text-brand border border-brand/20 rounded-full px-2 py-0.5">
+            <svg class="w-2.5 h-2.5" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/></svg>
+            {{ sp.collection.name }}
+          </span>
+        </div>
+        {% endif %}
+
+        <!-- Notes section -->
+        <div class="mt-3 notes-section" id="notes-{{ sp.id }}">
+          {% if sp.notes %}
+          <div class="text-xs text-slate-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 notes-display md-content" id="notes-display-{{ sp.id }}">{{ sp.notes | render_md | safe }}</div>
+          {% else %}
+          <div class="notes-display" id="notes-display-{{ sp.id }}"></div>
+          {% endif %}
+
+          <div class="notes-editor hidden mt-1" id="notes-editor-{{ sp.id }}">
+            <textarea
+              class="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+              rows="3"
+              placeholder="Add a private note about this paper..."
+              data-img-paste
+              id="notes-ta-{{ sp.id }}">{{ sp.notes or '' }}</textarea>
+            <div class="flex items-center gap-2 mt-1.5">
+              <button onclick="saveNotes({{ sp.id }})"
+                      class="text-xs bg-brand text-white rounded-lg px-3 py-1.5 hover:bg-blue-700 transition-colors font-medium">
+                Save note
+              </button>
+              <button onclick="cancelNotes({{ sp.id }})"
+                      class="text-xs text-slate-500 hover:text-slate-700 transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+
+          <button onclick="editNotes({{ sp.id }})"
+                  class="notes-edit-btn mt-1.5 text-[11px] text-slate-400 hover:text-brand transition-colors flex items-center gap-1">
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            {% if sp.notes %}Edit note{% else %}Add note{% endif %}
+          </button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {% else %}
+    <div class="bg-white border border-slate-200 rounded-xl p-12 text-center">
+      <svg class="w-10 h-10 text-slate-300 mx-auto mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+      </svg>
+      <p class="text-slate-400 text-sm">No papers saved here yet.</p>
+      <p class="text-slate-400 text-xs mt-1">Use the <strong>Save</strong> button on any paper page to add it to your library.</p>
+    </div>
+    {% endif %}
+
+  </div><!-- /main -->
+</div><!-- /flex -->
+
+
+<!-- ═══════ New collection modal ═══════ -->
+<div id="new-col-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onclick="if(event.target===this)closeNewFolder()">
+  <div class="bg-white rounded-2xl shadow-xl p-6 w-80">
+    <h2 class="text-base font-bold text-slate-800 mb-4" id="new-col-title">New collection</h2>
+    <form id="new-col-form" action="/library/collections/new" method="post">
+      <input type="hidden" name="parent_id" id="new-col-parent" value="">
+      <input type="text" name="name" id="new-col-name" required autofocus maxlength="200"
+             placeholder="Collection name"
+             class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent mb-4">
+      <div class="flex gap-2">
+        <button type="submit" class="flex-1 bg-brand text-white rounded-lg py-2 text-sm font-medium hover:bg-blue-700 transition-colors">Create</button>
+        <button type="button" onclick="closeNewFolder()" class="flex-1 border border-slate-200 text-slate-500 rounded-lg py-2 text-sm hover:bg-slate-50 transition-colors">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══════ Move to collection modal ═══════ -->
+<div id="move-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onclick="if(event.target===this)closeMove()">
+  <div class="bg-white rounded-2xl shadow-xl p-6 w-80">
+    <h2 class="text-base font-bold text-slate-800 mb-4">Move to collection</h2>
+    <select id="move-select" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-brand">
+      <option value="">Unsorted</option>
+      {% for col, depth in cols_flat %}
+      <option value="{{ col.id }}" style="padding-left:{{ depth * 12 }}px">
+        {{ '  ' * depth }}{{ col.name }}
+      </option>
+      {% endfor %}
+    </select>
+    <div class="flex gap-2">
+      <button onclick="confirmMove()" class="flex-1 bg-brand text-white rounded-lg py-2 text-sm font-medium hover:bg-blue-700 transition-colors">Move</button>
+      <button onclick="closeMove()" class="flex-1 border border-slate-200 text-slate-500 rounded-lg py-2 text-sm hover:bg-slate-50 transition-colors">Cancel</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const DOI = null; // not on a paper page
+
+// ── New collection ────────────────────────────────────────────────────────
+function openNewFolder(parentId) {
+  document.getElementById('new-col-parent').value = parentId ?? '';
+  document.getElementById('new-col-title').textContent = parentId ? 'New subfolder' : 'New collection';
+  document.getElementById('new-col-name').value = '';
+  document.getElementById('new-col-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('new-col-name').focus(), 50);
+}
+function closeNewFolder() {
+  document.getElementById('new-col-modal').classList.add('hidden');
+}
+
+// ── Rename collection ─────────────────────────────────────────────────────
+async function renameCol(id, currentName) {
+  const name = prompt('Rename collection:', currentName);
+  if (!name || name.trim() === currentName) return;
+  const fd = new FormData();
+  fd.append('name', name.trim());
+  await fetch(`/library/collections/${id}/rename`, { method: 'POST', body: fd });
+  location.reload();
+}
+
+// ── Delete collection ─────────────────────────────────────────────────────
+async function deleteCol(id, name) {
+  if (!confirm(`Delete "${name}"? Papers in it will become unsorted. Subfolders will move up one level.`)) return;
+  await fetch(`/library/collections/${id}/delete`, { method: 'POST' });
+  location.reload();
+}
+
+// ── Notes ─────────────────────────────────────────────────────────────────
+function editNotes(id) {
+  document.getElementById(`notes-display-${id}`).classList.add('hidden');
+  document.getElementById(`notes-editor-${id}`).classList.remove('hidden');
+  document.querySelector(`#notes-${id} .notes-edit-btn`).classList.add('hidden');
+  // Focus the contenteditable div that wireTextarea inserts (or fall back to the textarea)
+  const editor = document.getElementById(`notes-editor-${id}`);
+  const ce = editor.querySelector('[contenteditable]');
+  if (ce) { ce.focus(); } else { document.getElementById(`notes-ta-${id}`).focus(); }
+}
+function cancelNotes(id) {
+  document.getElementById(`notes-display-${id}`).classList.remove('hidden');
+  document.getElementById(`notes-editor-${id}`).classList.add('hidden');
+  document.querySelector(`#notes-${id} .notes-edit-btn`).classList.remove('hidden');
+}
+async function saveNotes(id) {
+  const text = document.getElementById(`notes-ta-${id}`).value;
+  const fd = new FormData();
+  fd.append('notes', text);
+  const resp = await fetch(`/library/entry/${id}/notes`, { method: 'POST', body: fd });
+  const data = await resp.json();
+
+  const display = document.getElementById(`notes-display-${id}`);
+  if (text.trim()) {
+    display.innerHTML = data.rendered_html || '';
+    display.className = 'text-xs text-slate-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 notes-display md-content';
+  } else {
+    display.innerHTML = '';
+    display.className = 'notes-display';
+  }
+  const editBtn = document.querySelector(`#notes-${id} .notes-edit-btn`);
+  const lastTextNode = [...editBtn.childNodes].find(n => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
+  if (lastTextNode) lastTextNode.textContent = text.trim() ? ' Edit note' : ' Add note';
+  cancelNotes(id);
+}
+
+// ── Move entry ────────────────────────────────────────────────────────────
+let _moveEntryId = null;
+function openMove(id) {
+  _moveEntryId = id;
+  document.getElementById('move-modal').classList.remove('hidden');
+}
+function closeMove() {
+  document.getElementById('move-modal').classList.add('hidden');
+  _moveEntryId = null;
+}
+async function confirmMove() {
+  if (!_moveEntryId) return;
+  const colId = document.getElementById('move-select').value;
+  const fd = new FormData();
+  fd.append('collection_id', colId);
+  await fetch(`/library/entry/${_moveEntryId}/move`, { method: 'POST', body: fd });
+  closeMove();
+  location.reload();
+}
+
+// ── Remove entry ──────────────────────────────────────────────────────────
+async function removeEntry(id, doi) {
+  if (!confirm('Remove this paper from your library?')) return;
+  const fd = new FormData();
+  fd.append('doi', doi);
+  await fetch('/library/unsave', { method: 'POST', body: fd });
+  const el = document.getElementById(`entry-${id}`);
+  if (el) el.remove();
+}
+</script>
+{% endblock %}

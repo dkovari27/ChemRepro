@@ -1,99 +1,188 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-slate-50">
+<html lang="en" class="h-full">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}ChemRepro{% endblock %}</title>
+
+  <!-- Inter Variable -->
+  <link rel="preconnect" href="https://rsms.me/" />
+  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
+          fontFamily: {
+            sans: ['Inter var', 'Inter', 'system-ui', 'sans-serif'],
+          },
           colors: {
-            brand: { DEFAULT: '#1e40af', light: '#3b82f6', dark: '#1e3a8a' }
-          }
-        }
-      }
+            brand: {
+              DEFAULT: '#1e40af',
+              light:   '#3b82f6',
+              dark:    '#1e3a8a',
+            },
+          },
+        },
+      },
     }
   </script>
-  <style>
-    .star-btn { cursor: pointer; transition: color 0.1s; }
-    .star-btn:hover, .star-btn.active { color: #f59e0b; }
-  </style>
-</head>
-<body class="h-full flex flex-col">
 
-  <!-- Nav -->
-  <nav class="bg-white border-b border-slate-200 shadow-sm">
-    <div class="max-w-5xl mx-auto px-4 py-3 relative flex items-center">
-      <a href="/" class="flex items-center gap-2 text-brand font-bold text-xl tracking-tight">
-        <img src="/static/logo.png" alt="ChemRepro logo" class="h-8 w-auto" />
+  <style>
+    /* ── Global reset / base ─────────────────────────────────────── */
+    html { background: #fff; }
+    body { font-feature-settings: 'cv11', 'ss01'; }
+
+    /* Reduced-motion: honour OS preference */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; }
+    }
+
+    /* ── Star interactions ───────────────────────────────────────── */
+    .star-btn { cursor: pointer; transition: color 120ms cubic-bezier(0.16,1,0.3,1); }
+    .star-btn:hover, .star-btn.active { color: #f59e0b; }
+
+    /* ── EasyMDE overrides ──────────────────────────────────────── */
+    .EasyMDEContainer .CodeMirror       { font-size: 13px; border-radius: 0.375rem; border-color: #e2e8f0; }
+    .EasyMDEContainer .editor-toolbar  { border-radius: 0.375rem 0.375rem 0 0; border-color: #e2e8f0; }
+    .EasyMDEContainer .editor-preview  { font-size: 13px; }
+
+    /* ── Rendered markdown in comments ──────────────────────────── */
+    .md-content p          { margin-bottom: 0.4em; }
+    .md-content ul,
+    .md-content ol         { margin-left: 1.25rem; margin-bottom: 0.4em; }
+    .md-content code       { background: #f0f7f4; padding: 0.1em 0.3em; border-radius: 3px; font-size: 0.85em; }
+    .md-content pre        { background: #f0f7f4; padding: 0.75rem; border-radius: 0.375rem; overflow-x: auto; }
+    .md-content blockquote { border-left: 3px solid #c6ddd6; padding-left: 0.75rem; color: #5d706a; margin: 0.4em 0; }
+    .md-content strong     { font-weight: 600; }
+    .md-content img        { max-width: 100%; height: auto; border-radius: 0.375rem; margin: 0.4em 0; cursor: zoom-in; }
+    .md-content img:hover  { opacity: 0.92; }
+    /* Sent message bubble: keep text white, images rounded */
+    .msg-mine a            { color: #bfdbfe; }
+    .msg-mine code         { background: rgba(255,255,255,0.15); }
+
+    /* ── Contenteditable placeholder ─────────────────────────────── */
+    [contenteditable][data-placeholder][data-empty]::before {
+      content: attr(data-placeholder);
+      color: #94a3b8;
+      pointer-events: none;
+    }
+
+    /* ── Nav wordmark ─────────────────────────────────────────────  */
+    .site-wordmark { letter-spacing: -0.02em; }
+
+    /* ── Card hover ──────────────────────────────────────────────── */
+    .paper-card { transition: border-color 150ms cubic-bezier(0.16,1,0.3,1), box-shadow 150ms cubic-bezier(0.16,1,0.3,1); }
+    .paper-card:hover { border-color: rgba(30,64,175,0.35); box-shadow: 0 1px 6px rgba(30,64,175,0.08); }
+
+    /* ── Version switcher active pill ───────────────────────────── */
+    .vsw-active { background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04); }
+  </style>
+
+  <link rel="stylesheet" href="https://unpkg.com/easymde/dist/easymde.min.css" />
+  {% block head_extra %}{% endblock %}
+</head>
+
+<body class="h-full flex flex-col bg-white text-[#111c17] antialiased">
+
+  <!-- ── Nav ────────────────────────────────────────────────────── -->
+  <nav class="bg-white border-b border-slate-200 sticky top-0 z-40">
+    <div class="max-w-5xl mx-auto px-4 h-14 flex items-center">
+
+      <!-- Wordmark -->
+      <a href="/" class="flex items-center gap-2 text-brand font-bold text-[1.1rem] site-wordmark shrink-0">
+        <img src="/static/logo.png" alt="ChemRepro logo" class="h-7 w-auto" />
         ChemRepro
       </a>
 
-      <!-- Version switcher: absolutely centered so it never shifts -->
-      <div class="absolute left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-slate-100 rounded-lg p-0.5 text-xs font-medium">
-        <a href="{{ switch_urls.standard if switch_urls is defined else '/' }}"
-           class="px-3 py-1.5 rounded-md transition-colors
-                  {% if site_version == 'classic' %}text-slate-500 hover:text-slate-700{% else %}bg-white shadow text-slate-800{% endif %}">
-          Standard
-        </a>
-        <a href="{{ switch_urls.classic if switch_urls is defined else '/classic/' }}"
-           class="px-3 py-1.5 rounded-md transition-colors
-                  {% if site_version == 'classic' %}bg-white shadow text-slate-800{% else %}text-slate-500 hover:text-slate-700{% endif %}">
-          Classic
-        </a>
+      <!-- Version switchers: centered -->
+      <div class="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 select-none">
+        <div class="flex items-center gap-0.5 bg-slate-100 rounded-lg p-0.5 text-xs font-medium">
+          <a href="{{ switch_urls.standard if switch_urls is defined else '/' }}"
+             class="px-3 py-1.5 rounded-md transition-colors
+                    {% if site_version == 'classic' %}text-slate-500 hover:text-slate-700{% else %}vsw-active text-slate-800{% endif %}">
+            Standard
+          </a>
+          <a href="{{ switch_urls.classic if switch_urls is defined else '/classic/' }}"
+             class="px-3 py-1.5 rounded-md transition-colors
+                    {% if site_version == 'classic' %}vsw-active text-slate-800{% else %}text-slate-500 hover:text-slate-700{% endif %}">
+            Classic
+          </a>
+        </div>
       </div>
 
+      <!-- Right controls -->
       <div class="ml-auto flex items-center gap-3 text-sm">
-        {% if orcid_id %}
-        <a href="/feedback"
-           class="text-xs font-medium text-slate-500 hover:text-brand transition-colors border border-slate-200 rounded-md px-3 py-1.5 hover:border-brand">
-          Feedback
-        </a>
-        {% endif %}
-        <a href="/api/v1/papers" target="_blank"
-           class="text-slate-500 hover:text-brand transition-colors">API</a>
+        <a href="/feedback" class="text-slate-400 hover:text-brand transition-colors text-xs hidden sm:block">Feedback</a>
         {% if orcid_id %}
 
           <!-- User dropdown -->
           <div class="relative" id="user-menu-wrap">
             <button type="button" onclick="toggleUserMenu(event)"
-              class="flex items-center gap-1.5 text-slate-600 hover:text-brand transition-colors cursor-pointer">
-              <span class="font-medium">{{ user_name }}</span>
+              class="flex items-center gap-1.5 text-slate-600 hover:text-slate-900 transition-colors cursor-pointer">
+              <span class="font-medium text-sm">{{ user_name }}</span>
               {% if orcid_id.startswith('local:') %}
-                <span class="text-xs text-slate-500 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5">guest</span>
+                <span class="text-[11px] text-slate-500 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 leading-none">guest</span>
               {% else %}
-                <span class="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-1.5 py-0.5">ORCID ✓</span>
+                <span class="text-[11px] text-brand bg-brand/8 border border-brand/20 rounded px-1.5 py-0.5 leading-none font-medium">ORCID ✓</span>
               {% endif %}
               <svg class="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
               </svg>
             </button>
+
             <div id="user-menu-dd"
-                 class="hidden absolute right-0 top-9 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1 text-sm">
+                 class="hidden absolute right-0 top-10 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1.5 text-sm overflow-hidden">
               <a href="/profile/my-reviews"
                  class="flex items-center gap-2.5 px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
-                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M9 11l3 3L22 4"/>
-                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
                 </svg>
                 My reviews
+              </a>
+              <a href="/library"
+                 class="flex items-center gap-2.5 px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
+                <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                </svg>
+                My collections
+              </a>
+              <a href="/profile/subscriptions"
+                 class="flex items-center gap-2.5 px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
+                <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                </svg>
+                My subscriptions
+              </a>
+              <a href="/profile/inbox"
+                 class="flex items-center gap-2.5 px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
+                <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+                Inbox
+                <span id="inbox-badge" class="hidden ml-auto min-w-[1.1rem] h-[1.1rem] bg-brand text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 leading-none"></span>
+              </a>
+              <a href="/profile/settings"
+                 class="flex items-center gap-2.5 px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
+                <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+                Settings
               </a>
               <div class="border-t border-slate-100 my-1"></div>
               <a href="/auth/logout"
                  class="flex items-center gap-2.5 px-4 py-2 text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors">
-                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                  <polyline points="16 17 21 12 16 7"/>
-                  <line x1="21" y1="12" x2="9" y2="12"/>
+                <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
                 </svg>
                 Sign out
               </a>
             </div>
           </div>
 
-          <!-- Bell notifications -->
+          <!-- Bell -->
           <a href="/profile/notifications" class="relative text-slate-400 hover:text-brand transition-colors p-0.5" title="Notifications">
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
@@ -105,41 +194,49 @@
           </a>
 
         {% else %}
-          <a href="/auth/guest-setup"
-             class="text-slate-500 hover:text-brand transition-colors text-sm">
+          <a href="/auth/guest-setup" class="text-slate-500 hover:text-slate-700 transition-colors text-sm">
             Continue as guest
           </a>
-          <a href="/auth/login"
-             class="inline-flex items-center gap-1.5 bg-brand text-white rounded-md px-4 py-1.5 font-medium hover:bg-blue-700 transition-colors">
-            Sign in with ORCID
+          <a href="/auth/choose"
+             class="inline-flex items-center gap-1.5 bg-brand text-white rounded-lg px-4 py-1.5 text-sm font-medium hover:bg-brand-dark transition-colors">
+            Sign in
           </a>
         {% endif %}
       </div>
+
     </div>
   </nav>
 
-  <!-- Main content -->
+  <!-- ── Main content ────────────────────────────────────────────── -->
   <main class="flex-1 max-w-5xl mx-auto w-full px-4 py-8">
     {% block content %}{% endblock %}
   </main>
 
-  <!-- Footer -->
-  <footer class="bg-white border-t border-slate-200 mt-auto">
-    <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between text-xs text-slate-400">
-      <span>ChemRepro – community reproducibility ratings for synthetic chemistry</span>
-      <div class="flex items-center gap-4">
-        <a href="/about" class="hover:text-brand transition-colors">About</a>
-        <a href="/privacy" class="hover:text-brand transition-colors">Privacy</a>
-        <span>Ratings reflect individual experiences and are not peer-reviewed. Not liable for decisions based on this information.</span>
+  <!-- ── Footer ─────────────────────────────────────────────────── -->
+  <footer class="border-t border-slate-100 mt-auto">
+    <div class="max-w-5xl mx-auto px-4 py-5 flex items-center justify-between gap-4 flex-wrap">
+      <span class="text-xs font-semibold text-brand site-wordmark">ChemRepro</span>
+      <div class="flex items-center gap-5 text-xs text-slate-400">
+        <a href="/about"    class="hover:text-brand transition-colors">About</a>
+        <a href="/privacy"  class="hover:text-brand transition-colors">Privacy</a>
+        <a href="/feedback" class="hover:text-brand transition-colors">Feedback</a>
       </div>
+      <p class="w-full text-[11px] text-slate-300 text-center">
+        Ratings reflect individual experiences and are not peer-reviewed. ChemRepro is not liable for decisions based on this information.
+      </p>
     </div>
   </footer>
 
   <script src="/static/js/moderation.js"></script>
+  <script src="/static/js/tour.js"></script>
+  {% if request.session.get('tour_pending') and request.url.path in ['/', '/classic', '/classic/'] %}
+  <script>localStorage.setItem('crTourStep', '0');</script>
+  {% set _ = request.session.pop('tour_pending', None) %}
+  {% endif %}
+  <script src="https://unpkg.com/easymde/dist/easymde.min.js"></script>
 
   {% if orcid_id and orcid_id.startswith('local:') %}
   <script>
-    // Persist guest session so the setup page can offer "Welcome back"
     localStorage.setItem('chemrepro_guest_id',   '{{ orcid_id }}');
     localStorage.setItem('chemrepro_guest_name', '{{ user_name | replace("'", "\\'") }}');
   </script>
@@ -147,7 +244,7 @@
 
   {% if orcid_id %}
   <script>
-    // ── User dropdown ─────────────────────────────────────────────────────
+    // ── User dropdown ─────────────────────────────────────────────
     function toggleUserMenu(e) {
       e.stopPropagation();
       document.getElementById('user-menu-dd').classList.toggle('hidden');
@@ -156,21 +253,215 @@
       document.getElementById('user-menu-dd')?.classList.add('hidden');
     });
 
-    // ── Notification badge (AJAX) ─────────────────────────────────────────
+    // ── Notification badge ────────────────────────────────────────
     async function loadNotifCount() {
       try {
-        const r = await fetch('/profile/notifications/count');
-        const { unread } = await r.json();
+        const { unread } = await fetch('/profile/notifications/count').then(r => r.json());
         if (unread > 0) {
-          const badge = document.getElementById('notif-badge');
-          badge.textContent = unread > 9 ? '9+' : unread;
-          badge.classList.remove('hidden');
+          const b = document.getElementById('notif-badge');
+          b.textContent = unread > 9 ? '9+' : unread;
+          b.classList.remove('hidden');
         }
       } catch (_) {}
     }
-    document.addEventListener('DOMContentLoaded', loadNotifCount);
+
+    // ── Inbox unread badge ────────────────────────────────────────
+    async function loadInboxCount() {
+      try {
+        const { unread } = await fetch('/profile/inbox/count').then(r => r.json());
+        if (unread > 0) {
+          const b = document.getElementById('inbox-badge');
+          b.textContent = unread > 9 ? '9+' : unread;
+          b.classList.remove('hidden');
+          b.classList.add('flex');
+        }
+      } catch (_) {}
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadNotifCount();
+      loadInboxCount();
+    });
   </script>
   {% endif %}
+
+  <script>
+(function () {
+  function toMarkdown(el) {
+    function walk(node) {
+      if (node.nodeType === 3) return node.textContent;
+      var tag = (node.tagName || '').toUpperCase();
+      if (tag === 'IMG') {
+        var src = node.getAttribute('src') || '';
+        return src.startsWith('/images/') ? '![](' + src + ')' : '';
+      }
+      if (tag === 'BR') return '\n';
+      var kids = Array.from(node.childNodes).map(walk).join('');
+      return (tag === 'DIV' || tag === 'P') ? '\n' + kids : kids;
+    }
+    return Array.from(el.childNodes).map(walk).join('').replace(/^\n+/, '').trimEnd();
+  }
+
+  function initDivFromMarkdown(div, md) {
+    if (!md) return;
+    var IMG_RE = /!\[\]\((\/images\/[^)]+)\)/g;
+    var lastIdx = 0, match;
+    IMG_RE.lastIndex = 0;
+    while ((match = IMG_RE.exec(md)) !== null) {
+      if (match.index > lastIdx) {
+        div.appendChild(document.createTextNode(md.slice(lastIdx, match.index)));
+      }
+      var img = document.createElement('img');
+      img.src = match[1];
+      img.alt = '';
+      img.draggable = false;
+      img.style.cssText = 'max-width:100%;max-height:300px;border-radius:6px;margin:2px 0;display:inline-block;vertical-align:middle;cursor:default';
+      div.appendChild(img);
+      lastIdx = match.index + match[0].length;
+    }
+    if (lastIdx < md.length) {
+      div.appendChild(document.createTextNode(md.slice(lastIdx)));
+    }
+    if (div.textContent.trim() || div.querySelector('img')) {
+      delete div.dataset.empty;
+    }
+  }
+
+  async function uploadAndInsert(div, ta, file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    var sel = window.getSelection();
+    var ph = null;
+    if (sel && sel.rangeCount) {
+      var range = sel.getRangeAt(0);
+      range.deleteContents();
+      ph = document.createElement('span');
+      ph.textContent = '[uploading…]';
+      ph.style.color = '#94a3b8';
+      range.insertNode(ph);
+      range.setStartAfter(ph);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+    var fd = new FormData();
+    fd.append('file', file);
+    try {
+      var resp = await fetch('/upload/image', {method: 'POST', body: fd});
+      if (resp.status === 401) { if (ph) ph.remove(); alert('Sign in to attach images.'); return; }
+      if (!resp.ok) {
+        var j = await resp.json().catch(function () { return {}; });
+        if (ph) ph.remove();
+        alert(j.error || 'Image upload failed.');
+        return;
+      }
+      var data = await resp.json();
+      var img = document.createElement('img');
+      img.src = data.url;
+      img.alt = '';
+      img.draggable = false;
+      img.style.cssText = 'max-width:100%;max-height:300px;border-radius:6px;margin:2px 0;display:inline-block;vertical-align:middle;cursor:default';
+      if (ph) { ph.replaceWith(img); } else { div.appendChild(img); }
+      var r = document.createRange();
+      r.setStartAfter(img);
+      r.collapse(true);
+      var s = window.getSelection();
+      if (s) { s.removeAllRanges(); s.addRange(r); }
+    } catch (_) {
+      if (ph) ph.remove();
+    }
+    div.dispatchEvent(new Event('input', {bubbles: true}));
+  }
+
+  function wireTextarea(ta) {
+    if (ta._imgPasteWired) return;
+    ta._imgPasteWired = true;
+
+    var div = document.createElement('div');
+    div.contentEditable = 'true';
+    div.spellcheck = ta.spellcheck !== false;
+    div.className = ta.className.replace(/\bresize-\S+/g, '').replace(/\bh-\S+/g, '').trim();
+    var minRows = parseInt(ta.getAttribute('rows') || '3', 10);
+    div.style.minHeight = (minRows * 1.625) + 'rem';
+    div.style.maxHeight = '400px';
+    div.style.overflowY = 'auto';
+    div.style.whiteSpace = 'pre-wrap';
+    div.style.wordBreak = 'break-word';
+    if (ta.placeholder) div.dataset.placeholder = ta.placeholder;
+    div.dataset.empty = '';
+
+    ta.hidden = true;
+    ta.insertAdjacentElement('beforebegin', div);
+
+    // Load pre-existing content (e.g. when editing a review)
+    initDivFromMarkdown(div, ta.value);
+
+    div.addEventListener('input', function () {
+      ta.value = toMarkdown(div);
+      var hasContent = div.textContent.trim() || div.querySelector('img');
+      if (hasContent) { delete div.dataset.empty; } else { div.dataset.empty = ''; }
+    });
+
+    var form = ta.closest('form');
+    if (form) { form.addEventListener('submit', function () { ta.value = toMarkdown(div); }, true); }
+
+    div.addEventListener('paste', function (e) {
+      var items = e.clipboardData && e.clipboardData.items;
+      if (items) {
+        for (var i = 0; i < items.length; i++) {
+          if (items[i].kind === 'file' && items[i].type.startsWith('image/')) {
+            e.preventDefault();
+            uploadAndInsert(div, ta, items[i].getAsFile());
+            return;
+          }
+        }
+        if (e.clipboardData.types.includes('text/plain')) {
+          e.preventDefault();
+          document.execCommand('insertText', false, e.clipboardData.getData('text/plain'));
+        }
+      }
+    });
+
+    div.addEventListener('dragover', function (e) {
+      if (Array.from(e.dataTransfer.types).includes('Files')) e.preventDefault();
+    });
+    div.addEventListener('drop', function (e) {
+      var files = e.dataTransfer && e.dataTransfer.files;
+      if (files && files[0] && files[0].type.startsWith('image/')) {
+        e.preventDefault();
+        uploadAndInsert(div, ta, files[0]);
+      }
+    });
+
+    var toolbar = document.createElement('div');
+    toolbar.className = 'flex items-center gap-2 mt-0.5';
+    var lbl = document.createElement('label');
+    lbl.className = 'inline-flex items-center gap-1 cursor-pointer text-xs text-slate-400 hover:text-brand transition-colors select-none';
+    lbl.title = 'Attach image (or paste / drag-and-drop)';
+    var inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'image/*'; inp.className = 'sr-only';
+    inp.addEventListener('change', function () {
+      if (this.files && this.files[0]) {
+        var range = document.createRange();
+        range.selectNodeContents(div);
+        range.collapse(false);
+        var sel = window.getSelection();
+        if (sel) { sel.removeAllRanges(); sel.addRange(range); }
+        div.focus();
+        uploadAndInsert(div, ta, this.files[0]);
+        this.value = '';
+      }
+    });
+    lbl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span>attach image</span>';
+    lbl.appendChild(inp);
+    toolbar.appendChild(lbl);
+    div.insertAdjacentElement('afterend', toolbar);
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('textarea[data-img-paste]').forEach(wireTextarea);
+  });
+})();
+  </script>
 
   {% block scripts %}{% endblock %}
 </body>

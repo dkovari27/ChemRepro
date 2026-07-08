@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends design_base(request) %}
 {% block title %}{{ paper.title | truncate(60, true, '…') }} – ChemRepro{% endblock %}
 
 {% block content %}
@@ -17,10 +17,82 @@
            class="text-brand hover:underline font-mono text-xs">{{ paper.doi }}</a>
       </p>
     </div>
-    <a href="https://doi.org/{{ paper.doi }}" target="_blank"
-       class="shrink-0 text-xs border border-slate-200 rounded-md px-3 py-1.5 text-slate-500 hover:border-brand hover:text-brand transition-colors">
-      View paper →
-    </a>
+    <div class="flex items-center gap-2 shrink-0">
+      {% if orcid_id %}
+      <!-- Save to Collection button -->
+      <div class="relative" id="save-wrap">
+        <button id="save-btn" type="button" onclick="toggleSavePanel()"
+          class="text-xs border rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5
+                 {% if saved_entry %}border-brand text-brand bg-blue-50{% else %}border-slate-200 text-slate-500 hover:border-brand hover:text-brand{% endif %}">
+          <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="{% if saved_entry %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+          </svg>
+          {% if saved_entry %}
+            Saved{% if saved_entry.collection %} &middot; {{ saved_entry.collection.name | truncate(14, true, '…') }}{% endif %}
+          {% else %}
+            Save
+          {% endif %}
+        </button>
+
+        <!-- Popover panel -->
+        <div id="save-panel" class="hidden absolute right-0 top-10 w-72 bg-white border border-slate-200 rounded-xl shadow-xl z-50 p-4">
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Save to Library</p>
+
+          <label class="block text-xs text-slate-600 mb-1">Collection (optional)</label>
+          <select id="save-col-select"
+                  class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-brand">
+            <option value="">Unsorted</option>
+            {% for col, depth in user_collections_flat %}
+            <option value="{{ col.id }}" {% if saved_entry and saved_entry.collection_id == col.id %}selected{% endif %}>
+              {{ '    ' * depth }}{{ col.name }}
+            </option>
+            {% endfor %}
+          </select>
+          <div id="new-col-inline" class="hidden mb-1 mt-1 flex gap-1.5">
+            <input type="text" id="new-col-name-inline" maxlength="200" placeholder="Collection name"
+                   class="flex-1 border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-brand">
+            <button type="button" onclick="createColInline()"
+                    class="text-xs bg-brand text-white rounded-lg px-2 py-1 hover:bg-blue-700 transition-colors">Add</button>
+            <button type="button" onclick="cancelColInline()"
+                    class="text-xs text-slate-400 hover:text-slate-600 transition-colors px-1">x</button>
+          </div>
+          <button type="button" onclick="toggleNewColInline()" id="new-col-toggle"
+                  class="text-[11px] text-brand hover:text-blue-700 transition-colors mb-2 flex items-center gap-1">
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            New collection
+          </button>
+
+          <label class="block text-xs text-slate-600 mb-1">Private note (optional)</label>
+          <textarea id="save-notes" rows="2" data-img-paste
+                    class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs resize-none mb-3 focus:outline-none focus:ring-2 focus:ring-brand"
+                    placeholder="Notes for yourself…">{{ saved_entry.notes if saved_entry and saved_entry.notes else '' }}</textarea>
+
+          <div class="flex gap-2">
+            <button onclick="doSave('{{ paper.doi }}')"
+                    class="flex-1 bg-brand text-white rounded-lg py-1.5 text-xs font-medium hover:bg-blue-700 transition-colors">
+              {% if saved_entry %}Update{% else %}Save{% endif %}
+            </button>
+            {% if saved_entry %}
+            <button onclick="doUnsave('{{ paper.doi }}')"
+                    class="text-xs border border-red-200 text-red-500 rounded-lg px-3 py-1.5 hover:bg-red-50 transition-colors">
+              Remove
+            </button>
+            {% endif %}
+            <button onclick="closeSavePanel()"
+                    class="text-xs text-slate-400 hover:text-slate-600 px-2 transition-colors">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+      <a href="https://doi.org/{{ paper.doi }}" target="_blank"
+         class="text-xs border border-slate-200 rounded-md px-3 py-1.5 text-slate-500 hover:border-brand hover:text-brand transition-colors">
+        View paper →
+      </a>
+    </div>
   </div>
   {% if paper.abstract %}
   <div class="mt-4 pt-4 border-t border-slate-100">
@@ -34,7 +106,7 @@
 
   <!-- ═══════════════ LEFT COLUMN (40%) ═══════════════ -->
   <div>
-  <div class="sticky top-4 flex flex-col gap-4">
+  <div class="sticky top-4 self-start max-h-[calc(100vh-2rem)] overflow-y-auto flex flex-col gap-4">
 
     <!-- Score card -->
     <div class="bg-white border border-slate-200 rounded-xl p-5">
@@ -82,15 +154,27 @@
     </div>
 
     <!-- Rating form -->
-    <div class="bg-white border border-slate-200 rounded-xl p-5">
+    <div id="tour-rate-box" class="bg-white border border-slate-200 rounded-xl p-5">
       <h2 class="font-semibold text-slate-700 mb-4">Rate this paper</h2>
 
       {% if not orcid_id %}
-        <p class="text-sm text-slate-500 mb-4">You must be signed in with ORCID to submit a rating.</p>
-        <a href="/auth/login"
-           class="block text-center bg-brand text-white rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-blue-700 transition-colors">
-          Sign in with ORCID
-        </a>
+        <p class="text-sm text-slate-500 mb-3">Sign in to submit a rating.</p>
+        <div class="flex flex-col gap-2">
+          <a href="/auth/guest-setup?next=/paper/{{ paper.doi }}"
+             class="block text-center border border-slate-300 text-slate-700 rounded-lg px-4 py-2 text-sm hover:border-brand transition-colors">
+            Continue as guest
+          </a>
+          <a href="/auth/login"
+             class="flex items-center justify-center gap-2 border border-[#A6CE39] text-slate-700 rounded-lg px-4 py-2 text-sm font-medium hover:bg-[#A6CE39] hover:text-white transition-colors">
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg"><path fill="#A6CE39" d="M128 0C57.3 0 0 57.3 0 128s57.3 128 128 128 128-57.3 128-128S198.7 0 128 0z"/><path fill="#fff" d="M86.3 186.2H70.9V79.1h15.4v107.1zm2.4-129.4c0 5.5-4.5 10.1-10.1 10.1-5.6 0-10.1-4.6-10.1-10.1 0-5.6 4.5-10.1 10.1-10.1 5.6 0 10.1 4.5 10.1 10.1zM108.9 79.1h41.6c39.6 0 57 28.3 57 53.6 0 27.5-21.5 53.6-56.8 53.6h-41.8V79.1zm15.4 93.3h24.5c34.9 0 42.9-26.5 42.9-39.7 0-21.5-13.7-39.7-43.7-39.7h-23.7v79.4z"/></svg>
+            Sign in with ORCID
+          </a>
+          <span class="flex items-center gap-2 border border-slate-200 text-slate-400 rounded-lg px-4 py-2 text-sm font-medium cursor-not-allowed select-none">
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+            Sign in with LinkedIn
+            <span class="ml-auto text-xs bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded">Coming soon</span>
+          </span>
+        </div>
 
       {% elif user_already_rated %}
         <div class="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-3">
@@ -123,7 +207,7 @@
           <div id="repro-section" class="hidden border-t border-slate-100 pt-4 mb-4">
             <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Reproducibility</p>
             <label class="block text-xs font-medium text-slate-600 mb-1">Reproducibility observation</label>
-            <textarea name="reproducibility_observation" rows="6" maxlength="1000" spellcheck="true"
+            <textarea name="reproducibility_observation" rows="6" maxlength="1000" spellcheck="true" data-img-paste
               placeholder="{{ prompts.REPRO_OBSERVATION }}"
               class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
           </div>
@@ -159,13 +243,13 @@
             </div>
             <div id="modification-block" class="hidden">
               <label class="block text-xs font-medium text-slate-600 mb-1">Modification details</label>
-              <textarea name="modification_details" rows="5" maxlength="1000" spellcheck="true"
+              <textarea name="modification_details" rows="5" maxlength="1000" spellcheck="true" data-img-paste
                 placeholder="{{ prompts.MODIFICATION_DETAILS }}"
                 class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
             </div>
             <div class="mt-3">
               <label class="block text-xs font-medium text-slate-600 mb-1">Scope extension observations</label>
-              <textarea name="scope_observation" rows="6" maxlength="1000" spellcheck="true"
+              <textarea name="scope_observation" rows="6" maxlength="1000" spellcheck="true" data-img-paste
                 placeholder="{{ prompts.SCOPE_OBSERVATION }}"
                 class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
             </div>
@@ -195,7 +279,7 @@
   </div><!-- end left column -->
 
   <!-- ═══════════════ RIGHT COLUMN (60%) ═══════════════ -->
-  <div>
+  <div id="reviews-section">
     <div class="flex items-center justify-between mb-3">
       <h2 class="font-semibold text-slate-700">
         Community reviews
@@ -252,40 +336,62 @@
       {% set replies = comment_map.get(r.id, []) %}
       <div id="review-{{ r.id }}" class="bg-white border border-slate-200 rounded-xl p-4">
 
-        <!-- Review header -->
-        <div class="flex items-center justify-between gap-3 mb-3 flex-wrap">
-          <div class="flex gap-3 flex-wrap items-center">
-            {% if r.outcome %}
-            <span class="text-xs font-semibold {{ txt_cls }} bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1">
-              {{ outcome_scores.get(r.outcome, '') }} – {{ outcome_labels.get(r.outcome, r.outcome) }}
-            </span>
-            {% endif %}
-            {% if r.reproducibility_score and r.scoring_mode == 'classic' %}
-            <span class="text-sm">
-              <span class="text-amber-500 font-medium">★ {{ r.reproducibility_score }}/5</span>
-              <span class="text-slate-400 text-xs ml-1">repro</span>
-            </span>
-            {% endif %}
-            {% if r.scope_level %}
-            <span class="text-xs font-semibold rounded-full px-2.5 py-1
-              {% if r.scope_level == 'major' %}bg-green-100 text-green-700
-              {% elif r.scope_level == 'medium' %}bg-yellow-100 text-yellow-700
-              {% else %}bg-blue-100 text-blue-700{% endif %}">
-              {{ r.scope_level | title }} extension
-            </span>
+        <!-- Review header: row 1 = name | career stage | date -->
+        {% set rv_name = (r.user.nickname or r.user.name or "Verified chemist") if r.user else "Verified chemist" %}
+        <div class="grid grid-cols-3 items-center gap-1 mb-2 text-xs">
+
+          <!-- Left: clickable reviewer name -->
+          <div class="relative min-w-0">
+            <button type="button" {% if loop.first %}id="tour-reviewer-name"{% endif %} onclick="toggleCommenterMenu(event,'rv-{{ r.id }}')"
+              class="font-semibold text-slate-700 hover:text-brand transition-colors cursor-pointer truncate block max-w-full text-left">
+              {{ rv_name }}
+            </button>
+            {% if r.user %}
+            <div id="rv-{{ r.id }}" class="commenter-menu hidden absolute left-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-xl shadow-lg z-30 py-1 overflow-hidden">
+              {% if orcid_id and r.user.orcid_id != orcid_id %}
+              <button type="button" data-orcid="{{ r.user.orcid_id }}"
+                onclick="toggleFollowUser(this.dataset.orcid,this);document.getElementById('rv-{{ r.id }}').classList.add('hidden')"
+                class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">Follow</button>
+              <button type="button" data-orcid="{{ r.user.orcid_id }}" data-name="{{ rv_name | e }}"
+                onclick="openMessageModal(this.dataset.orcid,this.dataset.name);document.getElementById('rv-{{ r.id }}').classList.add('hidden')"
+                class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">Message</button>
+              {% endif %}
+              <button type="button"
+                onclick="openReportModal('review','{{ r.id }}','rv-{{ r.id }}')"
+                class="w-full text-left px-3 py-2 text-xs text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors">Report</button>
+            </div>
             {% endif %}
           </div>
-          <div class="flex items-center gap-2">
+
+          <!-- Center: career stage pill -->
+          <div class="flex justify-center">
             {% if r.user and r.user.career_stage and r.user.career_stage != 'Prefer not to say' %}
-            <span class="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-100 border border-green-200 rounded-full px-2 py-0.5">
-              <span class="text-green-500">✓</span> {{ r.user.career_stage }}
-            </span>
-            {% endif %}
-            <span class="text-xs text-slate-400">{{ r.created_at.strftime('%d %b %Y') }}</span>
-            {% if r.updated_at %}
-            <span class="text-xs text-slate-400 italic">edited</span>
+            <span class="font-medium text-slate-600">{{ r.user.career_stage }}</span>
             {% endif %}
           </div>
+
+          <!-- Right: date -->
+          <div class="text-right text-slate-400">
+            {{ r.created_at.strftime('%d %b %Y') }}{% if r.updated_at %} · <em>edited</em>{% endif %}
+          </div>
+
+        </div>
+
+        <!-- Review header: row 2 = rating badges -->
+        <div class="flex gap-2 flex-wrap mb-3">
+          {% if r.outcome %}
+          <span class="text-xs font-semibold {{ txt_cls }} bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1">
+            {{ outcome_scores.get(r.outcome, '') }} – {{ outcome_labels.get(r.outcome, r.outcome) }}
+          </span>
+          {% endif %}
+          {% if r.scope_level %}
+          <span class="text-xs font-semibold rounded-full px-2.5 py-1
+            {% if r.scope_level == 'major' %}bg-green-100 text-green-700
+            {% elif r.scope_level == 'medium' %}bg-yellow-100 text-yellow-700
+            {% else %}bg-blue-100 text-blue-700{% endif %}">
+            {{ r.scope_level | title }} extension
+          </span>
+          {% endif %}
         </div>
 
         <!-- Colour accent strip -->
@@ -293,36 +399,199 @@
 
         <!-- Observations -->
         {% if r.reproducibility_observation %}
-        <p class="text-sm text-slate-700 mb-2">
-          <span class="text-xs font-medium text-slate-400 uppercase tracking-wide">Repro observation</span><br/>
-          {{ r.reproducibility_observation }}
-        </p>
+        <div class="text-sm text-slate-700 mb-2">
+          <span class="text-xs font-medium text-slate-400 uppercase tracking-wide">Repro observation</span>
+          <div class="mt-1 md-content">{{ r.reproducibility_observation | render_md_refs(papers_by_doi) | safe }}</div>
+        </div>
         {% endif %}
         {% if r.scope_observation %}
-        <p class="text-sm text-slate-700 mb-2">
-          <span class="text-xs font-medium text-slate-400 uppercase tracking-wide">Scope observation</span><br/>
-          {{ r.scope_observation }}
-        </p>
+        <div class="text-sm text-slate-700 mb-2">
+          <span class="text-xs font-medium text-slate-400 uppercase tracking-wide">Scope observation</span>
+          <div class="mt-1 md-content">{{ r.scope_observation | render_md_refs(papers_by_doi) | safe }}</div>
+        </div>
         {% endif %}
         {% if r.modification_details %}
-        <p class="text-sm text-slate-700 mb-2">
-          <span class="text-xs font-medium text-slate-400 uppercase tracking-wide">Modification details</span><br/>
-          {{ r.modification_details }}
-        </p>
+        <div class="text-sm text-slate-700 mb-2">
+          <span class="text-xs font-medium text-slate-400 uppercase tracking-wide">Modification details</span>
+          <div class="mt-1 md-content">{{ r.modification_details | render_md_refs(papers_by_doi) | safe }}</div>
+        </div>
         {% endif %}
 
-        <!-- Threaded replies -->
-        {% if replies %}
-        <div class="mt-3 border-t border-slate-100 pt-3 space-y-3">
-          {% for c in replies %}
-          <div class="flex gap-3">
-            <div class="w-0.5 bg-slate-200 rounded-full shrink-0 mt-1"></div>
-            <div>
-              <div class="flex items-center gap-2 mb-0.5">
-                <span class="text-xs font-medium text-slate-600">{{ c.user.name or "Verified chemist" }}</span>
-                <span class="text-xs text-slate-400">{{ c.created_at.strftime('%d %b %Y') }}</span>
+        <!-- Top-level comments with like + reply threading -->
+        {% set top_comments = comment_map.get(r.id, []) %}
+        {% if top_comments %}
+        <div class="mt-3 border-t border-slate-100 pt-3 space-y-4">
+          {% for c in top_comments %}
+          {% set c_liked = c.id in user_comment_likes %}
+          {% set c_likes = comment_like_counts.get(c.id, 0) %}
+          {% set c_replies = reply_map.get(c.id, []) %}
+          <div id="comment-{{ c.id }}" class="border border-slate-200 rounded-xl p-3">
+            <div class="flex gap-3">
+              <div class="flex-1 min-w-0">
+                <!-- Author row with date top-right -->
+                <div class="flex items-center justify-between gap-2 mb-0.5">
+                  <div class="flex items-center gap-2">
+                    {% if c.user %}
+                    <span class="relative inline-block">
+                      <button type="button" onclick="toggleCommenterMenu(event,'cm-{{ c.id }}')"
+                        class="text-xs font-medium text-slate-600 hover:text-brand transition-colors cursor-pointer">
+                        {{ c.user.name or "Verified chemist" }}
+                      </button>
+                      <div id="cm-{{ c.id }}" class="commenter-menu hidden absolute left-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-xl shadow-lg z-30 py-1 overflow-hidden">
+                        {% if orcid_id and c.user.orcid_id != orcid_id %}
+                        <button type="button" data-orcid="{{ c.user.orcid_id }}"
+                          onclick="toggleFollowUser(this.dataset.orcid,this);document.getElementById('cm-{{ c.id }}').classList.add('hidden')"
+                          class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
+                          Follow
+                        </button>
+                        <button type="button" data-orcid="{{ c.user.orcid_id }}" data-name="{{ c.user.name or 'Verified chemist' }}"
+                          onclick="openMessageModal(this.dataset.orcid,this.dataset.name);document.getElementById('cm-{{ c.id }}').classList.add('hidden')"
+                          class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
+                          Message
+                        </button>
+                        {% endif %}
+                        <button type="button"
+                          onclick="openReportModal('comment','{{ c.id }}','cm-{{ c.id }}')"
+                          class="w-full text-left px-3 py-2 text-xs text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors">
+                          Report
+                        </button>
+                      </div>
+                    </span>
+                    {% else %}
+                    <span class="text-xs font-medium text-slate-600">Verified chemist</span>
+                    {% endif %}
+                  </div>
+                  <span class="text-xs text-slate-400 shrink-0">{{ c.created_at.strftime('%d %b %Y') }}</span>
+                </div>
+                <!-- Comment body -->
+                <div id="ctext-{{ c.id }}" class="text-sm text-slate-700 leading-relaxed md-content">{{ c.content | render_md_refs(papers_by_doi) | safe }}</div>
+                <!-- Inline edit area (hidden by default) -->
+                <div id="cedit-{{ c.id }}" class="hidden mt-1">
+                  <textarea id="cedit-ta-{{ c.id }}" rows="3" maxlength="2000" data-img-paste
+                    class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y">{{ c.content }}</textarea>
+                  <div class="flex items-center gap-2 mt-1.5">
+                    <button type="button" onclick="saveEditComment('{{ paper.doi }}', {{ c.id }})"
+                      class="text-xs bg-brand text-white rounded-lg px-3 py-1.5 hover:bg-blue-700 transition-colors font-medium">Save</button>
+                    <button type="button" onclick="cancelEditComment({{ c.id }})"
+                      class="text-xs text-slate-500 hover:text-slate-700 transition-colors">Cancel</button>
+                  </div>
+                </div>
+                <!-- Actions: like + reply + edit -->
+                {% if orcid_id %}
+                <div class="flex items-center gap-3 mt-1.5">
+                  <button type="button" onclick="toggleCommentLike({{ c.id }}, '{{ paper.doi }}')"
+                    id="clike-btn-{{ c.id }}"
+                    class="flex items-center gap-1 text-xs transition-colors {% if c_liked %}text-amber-500{% else %}text-slate-300 hover:text-amber-400{% endif %}">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="9" y1="3" x2="15" y2="3"/>
+                      <path d="M9 3V10L3 22H21L15 10V3Z"/>
+                      <path class="flask-liquid" d="M7.5 13L16.5 13L21 22H3Z" fill="{% if c_liked %}currentColor{% else %}none{% endif %}" stroke="none"/>
+                    </svg>
+                    <span id="clike-count-{{ c.id }}" class="{% if c_likes == 0 %}hidden{% endif %}">{{ c_likes }}</span>
+                  </button>
+                  <button type="button" onclick="toggleCommentReply({{ c.id }})"
+                    class="text-xs text-slate-300 hover:text-brand transition-colors">
+                    Reply{% if c_replies %} ({{ c_replies | length }}){% endif %}
+                  </button>
+                  {% if c.user and c.user.orcid_id == orcid_id %}
+                  <button type="button" onclick="editComment({{ c.id }})"
+                    class="text-xs text-slate-300 hover:text-brand transition-colors">Edit</button>
+                  {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- Nested replies (1 level) -->
+                {% if c_replies %}
+                <div class="mt-2 space-y-2 pl-3 border-l border-slate-100">
+                  {% for rep in c_replies %}
+                  {% set rep_liked = rep.id in user_comment_likes %}
+                  {% set rep_likes = comment_like_counts.get(rep.id, 0) %}
+                  <div id="comment-{{ rep.id }}" class="border border-slate-200 rounded-lg p-2.5">
+                    <div class="flex items-center justify-between gap-2 mb-0.5">
+                      <div class="flex items-center gap-2">
+                        {% if rep.user %}
+                        <span class="relative inline-block">
+                          <button type="button" onclick="toggleCommenterMenu(event,'cmr-{{ rep.id }}')"
+                            class="text-xs font-medium text-slate-600 hover:text-brand transition-colors cursor-pointer">
+                            {{ rep.user.name or "Verified chemist" }}
+                          </button>
+                          <div id="cmr-{{ rep.id }}" class="commenter-menu hidden absolute left-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-xl shadow-lg z-30 py-1 overflow-hidden">
+                            {% if orcid_id and rep.user.orcid_id != orcid_id %}
+                            <button type="button" data-orcid="{{ rep.user.orcid_id }}"
+                              onclick="toggleFollowUser(this.dataset.orcid,this);document.getElementById('cmr-{{ rep.id }}').classList.add('hidden')"
+                              class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
+                              Follow
+                            </button>
+                            <button type="button" data-orcid="{{ rep.user.orcid_id }}" data-name="{{ rep.user.name or 'Verified chemist' }}"
+                              onclick="openMessageModal(this.dataset.orcid,this.dataset.name);document.getElementById('cmr-{{ rep.id }}').classList.add('hidden')"
+                              class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
+                              Message
+                            </button>
+                            {% endif %}
+                            <button type="button"
+                              onclick="openReportModal('comment','{{ rep.id }}','cmr-{{ rep.id }}')"
+                              class="w-full text-left px-3 py-2 text-xs text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors">
+                              Report
+                            </button>
+                          </div>
+                        </span>
+                        {% else %}
+                        <span class="text-xs font-medium text-slate-600">Verified chemist</span>
+                        {% endif %}
+                      </div>
+                      <span class="text-xs text-slate-400 shrink-0">{{ rep.created_at.strftime('%d %b %Y') }}</span>
+                    </div>
+                    <div id="ctext-{{ rep.id }}" class="text-sm text-slate-700 leading-relaxed md-content">{{ rep.content | render_md_refs(papers_by_doi) | safe }}</div>
+                    <!-- Inline edit area for reply -->
+                    <div id="cedit-{{ rep.id }}" class="hidden mt-1">
+                      <textarea id="cedit-ta-{{ rep.id }}" rows="2" maxlength="2000" data-img-paste
+                        class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y">{{ rep.content }}</textarea>
+                      <div class="flex items-center gap-2 mt-1.5">
+                        <button type="button" onclick="saveEditComment('{{ paper.doi }}', {{ rep.id }})"
+                          class="text-xs bg-brand text-white rounded-lg px-3 py-1.5 hover:bg-blue-700 transition-colors font-medium">Save</button>
+                        <button type="button" onclick="cancelEditComment({{ rep.id }})"
+                          class="text-xs text-slate-500 hover:text-slate-700 transition-colors">Cancel</button>
+                      </div>
+                    </div>
+                    {% if orcid_id %}
+                    <div class="flex items-center gap-3 mt-1">
+                      <button type="button" onclick="toggleCommentLike({{ rep.id }}, '{{ paper.doi }}')"
+                        id="clike-btn-{{ rep.id }}"
+                        class="flex items-center gap-1 text-xs transition-colors {% if rep_liked %}text-amber-500{% else %}text-slate-300 hover:text-amber-400{% endif %}">
+                        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                          <line x1="9" y1="3" x2="15" y2="3"/>
+                          <path d="M9 3V10L3 22H21L15 10V3Z"/>
+                          <path class="flask-liquid" d="M7.5 13L16.5 13L21 22H3Z" fill="{% if rep_liked %}currentColor{% else %}none{% endif %}" stroke="none"/>
+                        </svg>
+                        <span id="clike-count-{{ rep.id }}" class="{% if rep_likes == 0 %}hidden{% endif %}">{{ rep_likes }}</span>
+                      </button>
+                      {% if rep.user and rep.user.orcid_id == orcid_id %}
+                      <button type="button" onclick="editComment({{ rep.id }})"
+                        class="text-xs text-slate-300 hover:text-brand transition-colors">Edit</button>
+                      {% endif %}
+                    </div>
+                    {% endif %}
+                  </div>
+                  {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- Reply-to-comment form -->
+                {% if orcid_id %}
+                <div id="comment-reply-{{ c.id }}" class="hidden mt-2 pt-2">
+                  <form action="/paper/{{ paper.doi }}/comment/{{ c.id }}/reply" method="post" data-moderate>
+                    <textarea name="content" rows="2" maxlength="2000" required spellcheck="true" data-img-paste
+                      placeholder="Reply to {{ c.user.name or 'this comment' }}..."
+                      class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none"></textarea>
+                    <p class="text-[11px] text-slate-300 mt-0.5 mb-1">Markdown supported</p>
+                    <div class="flex gap-2">
+                      <button type="submit" class="bg-slate-700 hover:bg-slate-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">Post reply</button>
+                      <button type="button" onclick="toggleCommentReply({{ c.id }})" class="text-xs text-slate-400 hover:text-slate-600 px-3 py-1.5">Cancel</button>
+                    </div>
+                  </form>
+                </div>
+                {% endif %}
               </div>
-              <p class="text-sm text-slate-700 leading-relaxed">{{ c.content }}</p>
             </div>
           </div>
           {% endfor %}
@@ -330,7 +599,7 @@
         {% endif %}
 
         <!-- Action row: Like | Comment | Share -->
-        <div class="mt-3 border-t border-slate-100 pt-2 flex items-center gap-5">
+        <div {% if loop.first %}id="tour-review-actions"{% endif %} class="mt-3 border-t border-slate-100 pt-2 flex items-center gap-5">
 
           <!-- Flask like (AJAX, no page reload) -->
           {% if orcid_id %}
@@ -340,10 +609,11 @@
             class="flex items-center gap-1 text-xs transition-colors
                    {% if is_liked %}text-amber-500{% else %}text-slate-400 hover:text-amber-400{% endif %}">
             <svg id="like-svg-{{ r.id }}" class="w-4 h-4" viewBox="0 0 24 24"
-                 fill="{% if is_liked %}currentColor{% else %}none{% endif %}"
-                 stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="7" y1="3" x2="17" y2="3"/>
-              <path d="M9 3 V10 L3 22 H21 L15 10 V3 Z"/>
+                 fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="9" y1="3" x2="15" y2="3"/>
+              <path d="M9 3V10L3 22H21L15 10V3Z"/>
+              <path class="flask-liquid" d="M7.5 13L16.5 13L21 22H3Z"
+                    fill="{% if is_liked %}currentColor{% else %}none{% endif %}" stroke="none"/>
             </svg>
             <span id="like-count-{{ r.id }}" class="font-medium {% if like_count == 0 %}hidden{% endif %}">{{ like_count }}</span>
           </button>
@@ -351,8 +621,8 @@
           <span class="flex items-center gap-1 text-xs text-slate-200 cursor-default" title="Sign in to like">
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="7" y1="3" x2="17" y2="3"/>
-              <path d="M9 3 V10 L3 22 H21 L15 10 V3 Z"/>
+              <line x1="9" y1="3" x2="15" y2="3"/>
+              <path d="M9 3V10L3 22H21L15 10V3Z"/>
             </svg>
             {% if like_count > 0 %}<span>{{ like_count }}</span>{% endif %}
           </span>
@@ -366,7 +636,8 @@
                  stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
-            {% if replies %}<span class="font-medium">{{ replies | length }}</span>{% endif %}
+            {% set top = comment_map.get(r.id, []) %}
+            {% if top %}<span class="font-medium">{{ top | length }}</span>{% endif %}
           </button>
           {% else %}
           <span class="flex items-center gap-1 text-xs text-slate-200 cursor-default" title="Sign in to comment">
@@ -415,7 +686,7 @@
             </div>
           </div>
 
-          <!-- Edit / Delete (own reviews only – right side) -->
+          <!-- Edit / Delete – right side -->
           {% if orcid_id and r.orcid_id == orcid_id %}
           <div class="ml-auto flex items-center gap-3">
             <a href="/paper/{{ paper.doi }}/ratings/{{ r.id }}/edit"
@@ -447,10 +718,11 @@
         <div id="reply-{{ r.id }}" class="hidden mt-3 pt-3 border-t border-slate-100">
           <form action="/paper/{{ paper.doi }}/comment" method="post" data-moderate>
             <input type="hidden" name="rating_id" value="{{ r.id }}" />
-            <textarea name="content" rows="2" maxlength="2000" required spellcheck="true"
+            <textarea id="reply-ta-{{ r.id }}" name="content" rows="4" maxlength="2000" required spellcheck="true" data-img-paste
               placeholder="{{ prompts.COMMENT_PLACEHOLDER }}"
-              class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none"></textarea>
-            <div class="flex gap-2 mt-1.5">
+              class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
+            <p class="text-[11px] text-slate-300 mt-0.5 mb-1.5">Markdown supported: **bold**, _italic_, `code`, - lists</p>
+            <div class="flex gap-2">
               <button type="submit"
                 class="bg-slate-700 hover:bg-slate-900 text-white text-xs font-medium px-4 py-1.5 rounded-lg transition-colors">
                 Post reply
@@ -494,10 +766,237 @@
   </div><!-- end right column -->
 
 </div>
+
+<!-- Private message modal -->
+<div id="msg-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-base font-semibold text-slate-800">Message <span id="msg-modal-name" class="text-brand"></span></h2>
+      <button type="button" onclick="closeMessageModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <form action="/profile/messages/new" method="post">
+      <input type="hidden" name="recipient_orcid_id" id="msg-modal-recipient" />
+      <input type="hidden" name="source_doi" value="{{ paper.doi }}" />
+      <textarea name="content" rows="5" maxlength="5000" required spellcheck="true" data-img-paste
+        placeholder="Write your message…"
+        class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y mb-3"></textarea>
+      <div class="flex justify-end gap-2">
+        <button type="button" onclick="closeMessageModal()"
+          class="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 transition-colors">Cancel</button>
+        <button type="submit"
+          class="px-4 py-2 text-sm font-medium bg-brand text-white rounded-xl hover:bg-blue-700 transition-colors">Send</button>
+      </div>
+    </form>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+  // ── Private message modal ─────────────────────────────────────────────
+  function openMessageModal(recipientId, recipientName) {
+    document.getElementById('msg-modal-recipient').value = recipientId;
+    document.getElementById('msg-modal-name').textContent = recipientName;
+    document.getElementById('msg-modal').classList.remove('hidden');
+  }
+  function closeMessageModal() {
+    document.getElementById('msg-modal').classList.add('hidden');
+  }
+  document.getElementById('msg-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeMessageModal();
+  });
+
+  // ── Comment like toggle ───────────────────────────────────────────────
+  async function toggleCommentLike(commentId, doi) {
+    const btn = document.getElementById('clike-btn-' + commentId);
+    const liq = btn?.querySelector('.flask-liquid');
+    const countEl = document.getElementById('clike-count-' + commentId);
+    try {
+      const resp = await fetch(`/paper/${doi}/comment/${commentId}/like`, {
+        method: 'POST', headers: { 'Accept': 'application/json' },
+      });
+      if (!resp.ok) return;
+      const { liked, count } = await resp.json();
+      if (liq) liq.setAttribute('fill', liked ? 'currentColor' : 'none');
+      if (liked) {
+        btn.classList.remove('text-slate-300', 'hover:text-amber-400');
+        btn.classList.add('text-amber-500');
+      } else {
+        btn.classList.remove('text-amber-500');
+        btn.classList.add('text-slate-300', 'hover:text-amber-400');
+      }
+      if (countEl) { countEl.textContent = count; countEl.classList.toggle('hidden', count === 0); }
+    } catch (_) {}
+  }
+
+  // ── Commenter name dropdown ───────────────────────────────────────────
+  function toggleCommenterMenu(e, id) {
+    e.stopPropagation();
+    document.querySelectorAll('.commenter-menu').forEach(el => {
+      if (el.id !== id) el.classList.add('hidden');
+    });
+    document.getElementById(id)?.classList.toggle('hidden');
+  }
+  document.addEventListener('click', function() {
+    document.querySelectorAll('.commenter-menu').forEach(el => el.classList.add('hidden'));
+  });
+
+  async function toggleFollowUser(orcidId, btn) {
+    try {
+      const resp = await fetch(`/follow/toggle/${encodeURIComponent(orcidId)}`, {
+        method: 'POST', headers: { 'Accept': 'application/json' },
+      });
+      if (!resp.ok) return;
+      const { following } = await resp.json();
+      btn.textContent = following ? 'Following ✓' : 'Follow';
+    } catch (_) {}
+  }
+
+  function openReportModal(type, id, menuId) {
+    if (menuId) document.getElementById(menuId)?.classList.add('hidden');
+    document.getElementById('report-target-type').value = type;
+    document.getElementById('report-target-id').value = id;
+    const label = type === 'review' ? 'review' : type === 'comment' ? 'comment' : 'user';
+    document.getElementById('report-modal-label').textContent = `Report this ${label}`;
+    document.getElementById('report-reason').value = '';
+    document.getElementById('report-modal').classList.remove('hidden');
+  }
+  async function submitReport() {
+    const type = document.getElementById('report-target-type').value;
+    const id = document.getElementById('report-target-id').value;
+    const reason = document.getElementById('report-reason').value;
+    try {
+      const fd = new FormData();
+      fd.append('target_type', type);
+      fd.append('target_id', id);
+      fd.append('reason', reason);
+      await fetch('/report', { method: 'POST', body: fd });
+    } catch (_) {}
+    document.getElementById('report-modal').classList.add('hidden');
+    const toast = document.getElementById('report-toast');
+    toast.classList.remove('hidden');
+    setTimeout(() => toast.classList.add('hidden'), 3500);
+  }
+
+  function toggleCommentReply(commentId) {
+    const el = document.getElementById('comment-reply-' + commentId);
+    if (!el) return;
+    el.classList.toggle('hidden');
+    if (!el.classList.contains('hidden'))
+      (el.querySelector('[contenteditable]') || el.querySelector('textarea'))?.focus();
+  }
+
+  function editComment(id) {
+    document.getElementById('ctext-' + id).classList.add('hidden');
+    const editDiv = document.getElementById('cedit-' + id);
+    editDiv.classList.remove('hidden');
+    const ce = editDiv.querySelector('[contenteditable]');
+    if (ce) { ce.focus(); } else { document.getElementById('cedit-ta-' + id)?.focus(); }
+  }
+
+  function cancelEditComment(id) {
+    document.getElementById('ctext-' + id).classList.remove('hidden');
+    document.getElementById('cedit-' + id).classList.add('hidden');
+  }
+
+  async function saveEditComment(doi, id) {
+    const ta = document.getElementById('cedit-ta-' + id);
+    if (!ta) return;
+    const content = ta.value.trim();
+    if (!content) return;
+    const fd = new FormData();
+    fd.append('content', content);
+    try {
+      const resp = await fetch('/paper/' + doi + '/comment/' + id + '/edit', { method: 'POST', body: fd });
+      const data = await resp.json();
+      if (data.ok) {
+        document.getElementById('ctext-' + id).innerHTML = data.rendered_html;
+        cancelEditComment(id);
+      } else {
+        alert(data.error || 'Could not save comment.');
+      }
+    } catch (_) {
+      alert('Network error. Please try again.');
+    }
+  }
+
+  // ── Save to Library ───────────────────────────────────────────────────
+  function toggleSavePanel() {
+    document.getElementById('save-panel').classList.toggle('hidden');
+  }
+  function closeSavePanel() {
+    document.getElementById('save-panel').classList.add('hidden');
+  }
+  document.addEventListener('click', function(e) {
+    const wrap = document.getElementById('save-wrap');
+    if (wrap && !wrap.contains(e.target)) closeSavePanel();
+  });
+
+  function toggleNewColInline() {
+    const box = document.getElementById('new-col-inline');
+    const btn = document.getElementById('new-col-toggle');
+    const visible = !box.classList.contains('hidden');
+    box.classList.toggle('hidden', visible);
+    btn.querySelector('span') ? null : null;
+    if (!visible) setTimeout(() => document.getElementById('new-col-name-inline').focus(), 30);
+  }
+  function cancelColInline() {
+    document.getElementById('new-col-inline').classList.add('hidden');
+    document.getElementById('new-col-name-inline').value = '';
+  }
+  async function createColInline() {
+    const name = document.getElementById('new-col-name-inline').value.trim();
+    if (!name) return;
+    const fd = new FormData();
+    fd.append('name', name);
+    try {
+      const resp = await fetch('/library/collections/new-json', { method: 'POST', body: fd });
+      if (!resp.ok) return;
+      const { id, name: colName } = await resp.json();
+      const sel = document.getElementById('save-col-select');
+      const opt = document.createElement('option');
+      opt.value = id; opt.textContent = colName; opt.selected = true;
+      sel.appendChild(opt);
+      cancelColInline();
+    } catch (_) {}
+  }
+
+  async function doSave(doi) {
+    const col = document.getElementById('save-col-select').value;
+    const notes = document.getElementById('save-notes').value;
+    const fd = new FormData();
+    fd.append('doi', doi);
+    fd.append('collection_id', col);
+    fd.append('notes', notes);
+    try {
+      const resp = await fetch('/library/save', { method: 'POST', body: fd });
+      if (!resp.ok) return;
+      const data = await resp.json();
+      const btn = document.getElementById('save-btn');
+      let label = 'Saved';
+      if (data.collection_name) label += ' · ' + data.collection_name.substring(0, 14);
+      btn.innerHTML = `<svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg> ${label}`;
+      btn.classList.add('border-brand', 'text-brand', 'bg-blue-50');
+      btn.classList.remove('border-slate-200', 'text-slate-500');
+      closeSavePanel();
+    } catch (_) {}
+  }
+
+  async function doUnsave(doi) {
+    const fd = new FormData();
+    fd.append('doi', doi);
+    try {
+      await fetch('/library/unsave', { method: 'POST', body: fd });
+      const btn = document.getElementById('save-btn');
+      btn.innerHTML = `<svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg> Save`;
+      btn.classList.remove('border-brand', 'text-brand', 'bg-blue-50');
+      btn.classList.add('border-slate-200', 'text-slate-500');
+      closeSavePanel();
+    } catch (_) {}
+  }
+
   // ── URL filter / sort helper ──────────────────────────────────────────
   function applyFilter(key, value) {
     const params = new URLSearchParams(window.location.search);
@@ -530,7 +1029,8 @@
       if (!resp.ok) { window.location.reload(); return; }
       const { liked, count } = await resp.json();
 
-      svg.setAttribute('fill', liked ? 'currentColor' : 'none');
+      const liq = svg?.querySelector('.flask-liquid');
+      if (liq) liq.setAttribute('fill', liked ? 'currentColor' : 'none');
       if (liked) {
         btn.classList.remove('text-slate-400', 'hover:text-amber-400');
         btn.classList.add('text-amber-500');
@@ -547,7 +1047,8 @@
   function toggleReply(id) {
     const el = document.getElementById('reply-' + id);
     el.classList.toggle('hidden');
-    if (!el.classList.contains('hidden')) el.querySelector('textarea').focus();
+    if (!el.classList.contains('hidden'))
+      (el.querySelector('[contenteditable]') || el.querySelector('textarea'))?.focus();
   }
 
   // ── Share popup ────────────────────────────────────────────────────────
@@ -639,4 +1140,34 @@
   function enable()  { document.getElementById('submit-btn').disabled = false; }
   function disable() { document.getElementById('submit-btn').disabled = true; }
 </script>
+
+<!-- Report modal -->
+<div id="report-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+  <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4">
+    <h3 id="report-modal-label" class="text-base font-semibold text-slate-800 mb-3">Report this content</h3>
+    <input type="hidden" id="report-target-type" />
+    <input type="hidden" id="report-target-id" />
+    <textarea id="report-reason" rows="3" maxlength="500"
+      placeholder="Briefly describe the issue (optional)…"
+      class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm resize-none
+             placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand mb-4"></textarea>
+    <div class="flex gap-2">
+      <button onclick="submitReport()"
+        class="flex-1 bg-red-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-red-700 transition-colors">
+        Submit report
+      </button>
+      <button onclick="document.getElementById('report-modal').classList.add('hidden')"
+        class="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 transition-colors">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Report toast -->
+<div id="report-toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50
+     bg-slate-800 text-white text-sm px-5 py-3 rounded-full shadow-lg pointer-events-none">
+  Report submitted. Thanks for helping keep ChemRepro clean.
+</div>
+
 {% endblock %}

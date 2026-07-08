@@ -1,7 +1,17 @@
 import smtplib
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 from app.config import settings
+
+
+def _smtp_send(msg: MIMEText | MIMEMultipart) -> None:
+    """Send via Gmail SMTP on port 587 (STARTTLS). Railway blocks 465."""
+    with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as smtp:
+        smtp.ehlo()
+        smtp.starttls()
+        smtp.login(settings.GMAIL_ADDRESS, settings.GMAIL_APP_PASSWORD)
+        smtp.send_message(msg)
 
 
 def send_feedback_notification(
@@ -22,8 +32,22 @@ def send_feedback_notification(
         msg["Subject"] = f"[ChemRepro] New feedback – {preference}"
         msg["From"] = settings.GMAIL_ADDRESS
         msg["To"] = settings.FEEDBACK_NOTIFY_EMAIL
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as smtp:
-            smtp.login(settings.GMAIL_ADDRESS, settings.GMAIL_APP_PASSWORD)
-            smtp.send_message(msg)
+        _smtp_send(msg)
+    except Exception:
+        pass
+
+
+def send_generic_email(to: str, subject: str, body_html: str, body_text: str) -> None:
+    """Send a generic email (used for author notifications, subscriber alerts, etc.)."""
+    if not all([settings.GMAIL_ADDRESS, settings.GMAIL_APP_PASSWORD]):
+        return
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"ChemRepro <{settings.GMAIL_ADDRESS}>"
+        msg["To"] = to
+        msg.attach(MIMEText(body_text, "plain"))
+        msg.attach(MIMEText(body_html, "html"))
+        _smtp_send(msg)
     except Exception:
         pass
