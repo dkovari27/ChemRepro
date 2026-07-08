@@ -292,6 +292,15 @@ async def demo_paper_page(request: Request):
     })
 
 
+@router.get("/demo", response_class=HTMLResponse)
+async def demo_index_page(request: Request):
+    return templates.TemplateResponse("demo_index.html", {
+        "request": request,
+        "user_name": request.session.get("user_name"),
+        "orcid_id": request.session.get("orcid_id"),
+    })
+
+
 # ── Standard: GET edit (must be before the greedy /paper/{doi:path} route) ───
 
 @router.get("/paper/{doi:path}/ratings/{rating_id}/edit", response_class=HTMLResponse)

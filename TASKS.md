@@ -14,6 +14,8 @@ _Last updated: 8 July 2026_
 
 ### 🟡 MEDIUM
 
+- [ ] **C22** — Tour step review: (1) Is step 2 (community feed + rating explanation) necessary, or does it slow the flow? (2) Should step 2 better demonstrate the hover-over breakdown tooltip, e.g. by pre-opening it programmatically during the tour? (3) Is step 3 (score card on the paper page) redundant given step 2 already explains scoring? Consider merging or cutting.
+
 - [ ] **B4/C9/D7** — Chemistry keyword/condition tags on rating form (Yield discrepancy, Purity issue, Safety concern…) — deferred, design not settled
 - [ ] **C10** — Logo polish (current logo is placeholder)
 - [x] **C20** — Migration script `scripts/fix_abstract_prefix.py` strips leading "Abstract" prefix from existing rows. Run locally or against Railway with `DATABASE_URL=... python scripts/fix_abstract_prefix.py`.
