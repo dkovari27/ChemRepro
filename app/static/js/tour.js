@@ -36,7 +36,7 @@
       body: 'The aggregated star rating for this paper. '
         + 'Stars run from <strong>1 (Did not work)</strong> through '
         + '<strong>3 (Reproduced as published)</strong> to '
-        + '<strong>5 (Major extension successful)</strong>. '
+        + '<strong>5 (Major extension (new functional group))</strong>. '
         + 'Each bar shows how many reviewers gave that rating. '
         + 'Click a bar on a real paper to filter the reviews by that score.',
       nextLabel: 'Next →',

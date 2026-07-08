@@ -33,7 +33,8 @@ register_globals(templates)
 
 
 def _collections_flat(orcid_id: str, db: Session) -> list[tuple]:
-    all_cols = db.query(Collection).filter(Collection.orcid_id == orcid_id).all()
+    all_cols = db.query(Collection).filter(
+        Collection.orcid_id == orcid_id).all()
     by_parent: dict = {}
     for c in all_cols:
         by_parent.setdefault(c.parent_id, []).append(c)
@@ -66,7 +67,8 @@ OUTCOME_LABELS = {
 }
 
 # Best → worst display order
-OUTCOME_ORDER = ["extended", "repro_extension_failed", "reproduced", "no_extension", "no_repro"]
+OUTCOME_ORDER = ["extended", "repro_extension_failed",
+                 "reproduced", "no_extension", "no_repro"]
 
 # Tailwind color classes per outcome (bar bg, text)
 OUTCOME_COLORS = {
@@ -81,8 +83,8 @@ ND_STAR_LABELS = {
     1: "Did not work",
     2: "Reproduced with deviation",
     3: "Reproduced as published",
-    4: "Minor extension successful",
-    5: "Major extension successful",
+    4: "Minor extension (no new functional group)",
+    5: "Major extension (new functional group)",
 }
 ND_STAR_ORDER = [5, 4, 3, 2, 1]
 ND_STAR_COLORS = {
@@ -108,7 +110,8 @@ _SCORE_EXPR = case(
 
 
 def _get_nd_paper_scores(doi: str, db: Session) -> dict:
-    nd_filter = [Rating.doi == doi, Rating.scoring_mode == "new_design", Rating.nd_star.isnot(None)]
+    nd_filter = [Rating.doi == doi, Rating.scoring_mode ==
+                 "new_design", Rating.nd_star.isnot(None)]
     row = db.query(
         func.avg(Rating.nd_star).label("avg_star"),
         func.count(Rating.id).label("count"),
@@ -162,7 +165,8 @@ def _format_authors(authors_json: str) -> str:
 
 def _dev_context() -> dict:
     return {
-        "dev_mode": False,  # hidden for user testing; endpoint still works at /auth/dev-login/{i}
+        # hidden for user testing; endpoint still works at /auth/dev-login/{i}
+        "dev_mode": False,
         "dev_users": list(enumerate(name for _, name in DEV_FAKE_USERS)),
     }
 
@@ -176,27 +180,14 @@ def _scoring_context() -> dict:
     }
 
 
-def _nd_scoring_context() -> dict:
-    return {
-        "nd_star_labels": ND_STAR_LABELS,
-        "nd_star_order": ND_STAR_ORDER,
-        "nd_star_colors": ND_STAR_COLORS,
-        "nd_failure_context_labels": ND_FAILURE_CONTEXT_LABELS,
-    }
-
-
-@router.get("/", response_class=HTMLResponse)
-async def index(request: Request):
-    return RedirectResponse("/nd/", status_code=302)
-
-
 @router.get("/design-archive/standard/", response_class=HTMLResponse)
 async def design_archive_standard(request: Request, db: Session = Depends(get_db)):
     orcid_id = request.session.get("orcid_id")
 
     def _enrich(papers):
         return [
-            {"paper": p, "display_authors": _format_authors(p.authors), **_get_paper_scores(p.doi, db)}
+            {"paper": p, "display_authors": _format_authors(
+                p.authors), **_get_paper_scores(p.doi, db)}
             for p in papers
         ]
 
@@ -230,7 +221,8 @@ async def design_archive_standard(request: Request, db: Session = Depends(get_db
         .limit(10 + len(my_doi_set))
         .all()
     )
-    community_papers = _enrich([p for p in community_candidates if p.doi not in my_doi_set][:10])
+    community_papers = _enrich(
+        [p for p in community_candidates if p.doi not in my_doi_set][:10])
 
     return templates.TemplateResponse("index.html", {
         "request": request,
@@ -292,7 +284,7 @@ async def search(request: Request, doi: str = "", db: Session = Depends(get_db))
         db.commit()
         db.refresh(paper)
 
-    return RedirectResponse(f"/nd/paper/{doi}", status_code=303)
+    return RedirectResponse(f"/paper/{doi}", status_code=303)
 
 
 # ── Helpers (defined early so edit/notification routes can reference them) ────
@@ -343,8 +335,9 @@ async def demo_paper_page(request: Request):
         "request": request,
         "user_name": request.session.get("user_name"),
         "orcid_id": request.session.get("orcid_id"),
-        "site_version": "standard",
+        "site_version": "new_design",
         "switch_urls": {"standard": "/paper/demo", "classic": "/paper/demo", "new_design": "/paper/demo"},
+        **_nd_scoring_context(),
     })
 
 
@@ -356,16 +349,17 @@ async def demo_index_page(request: Request):
         "user_name": request.session.get("user_name"),
         "orcid_id": request.session.get("orcid_id"),
         "start_tour": start_tour,
+        **_nd_scoring_context(),
     })
 
 
-# ── Standard: GET edit (must be before the greedy /paper/{doi:path} route) ───
+# ── Standard: GET edit (must be before the greedy /design-archive/standard/paper/{doi:path} route) ───
 
-@router.get("/paper/{doi:path}/ratings/{rating_id}/edit", response_class=HTMLResponse)
+@router.get("/design-archive/standard/paper/{doi:path}/ratings/{rating_id}/edit", response_class=HTMLResponse)
 async def edit_rating_page(doi: str, rating_id: int, request: Request, db: Session = Depends(get_db)):
     orcid_id = request.session.get("orcid_id")
     if not orcid_id:
-        return RedirectResponse(f"/auth/guest-setup?next=/paper/{doi}", status_code=303)
+        return RedirectResponse(f"/auth/guest-setup?next=/design-archive/standard/paper/{doi}", status_code=303)
     r = _own_rating_or_404(rating_id, orcid_id, db)
     paper = db.get(Paper, doi)
     if not paper:
@@ -385,7 +379,7 @@ async def edit_rating_page(doi: str, rating_id: int, request: Request, db: Sessi
     })
 
 
-@router.get("/paper/{doi:path}", response_class=HTMLResponse)
+@router.get("/design-archive/standard/paper/{doi:path}", response_class=HTMLResponse)
 async def paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
     paper = db.get(Paper, doi)
     if not paper:
@@ -418,13 +412,14 @@ async def paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
                     Rating.reproducibility_score.isnot(None))
             .one()
         )
-        classic_scores["avg_repro"] = round(float(row.avg_repro), 1) if row.avg_repro else None
+        classic_scores["avg_repro"] = round(
+            float(row.avg_repro), 1) if row.avg_repro else None
 
     # ── Filter / sort / paginate ─────────────────────────────────────────
     PAGE_SIZE = 25
     active_outcome = request.query_params.get("outcome", "")
-    active_scope   = request.query_params.get("scope",   "")
-    active_sort    = request.query_params.get("sort",    "newest")
+    active_scope = request.query_params.get("scope",   "")
+    active_sort = request.query_params.get("sort",    "newest")
     try:
         active_page = max(1, int(request.query_params.get("page", 1)))
     except ValueError:
@@ -443,9 +438,11 @@ async def paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
     if active_sort == "oldest":
         q = q.order_by(Rating.created_at.asc())
     elif active_sort == "highest":
-        q = q.order_by(_SCORE_EXPR.desc().nullslast(), Rating.created_at.desc())
+        q = q.order_by(_SCORE_EXPR.desc().nullslast(),
+                       Rating.created_at.desc())
     elif active_sort == "lowest":
-        q = q.order_by(_SCORE_EXPR.asc().nullsfirst(), Rating.created_at.desc())
+        q = q.order_by(_SCORE_EXPR.asc().nullsfirst(),
+                       Rating.created_at.desc())
     elif active_sort == "most_liked":
         like_sq = (
             select(Like.rating_id, func.count(Like.id).label("lc"))
@@ -453,7 +450,8 @@ async def paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
             .subquery()
         )
         q = q.outerjoin(like_sq, Rating.id == like_sq.c.rating_id)
-        q = q.order_by(func.coalesce(like_sq.c.lc, 0).desc(), Rating.created_at.desc())
+        q = q.order_by(func.coalesce(like_sq.c.lc, 0).desc(),
+                       Rating.created_at.desc())
     else:
         q = q.order_by(Rating.created_at.desc())
 
@@ -584,12 +582,12 @@ async def paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
         "papers_by_doi": papers_by_doi,
         "prompts": prompts,
         "site_version": "standard",
-        "switch_urls": {"standard": f"/paper/{doi}", "classic": f"/classic/paper/{doi}", "new_design": f"/nd/paper/{doi}"},
+        "switch_urls": {"standard": f"/design-archive/standard/paper/{doi}", "classic": f"/classic/paper/{doi}", "new_design": f"/paper/{doi}"},
         **_scoring_context(),
     })
 
 
-@router.post("/paper/{doi:path}/comment")
+@router.post("/design-archive/standard/paper/{doi:path}/comment")
 async def submit_comment(
     doi: str,
     request: Request,
@@ -602,9 +600,10 @@ async def submit_comment(
     if not orcid_id:
         return RedirectResponse(f"/auth/guest-setup?next={request.url.path}", status_code=303)
     if not content.strip():
-        return RedirectResponse(f"/paper/{doi}", status_code=303)
+        return RedirectResponse(f"/design-archive/standard/paper/{doi}", status_code=303)
     if not _is_clean(content):
-        raise HTTPException(status_code=422, detail="Content contains prohibited language.")
+        raise HTTPException(
+            status_code=422, detail="Content contains prohibited language.")
 
     paper = db.get(Paper, doi)
     if not paper:
@@ -635,10 +634,10 @@ async def submit_comment(
     )
     db.commit()
     background_tasks.add_task(moderate_comment_bg, comment.id)
-    return RedirectResponse(f"/paper/{doi}#review-{rating_id}", status_code=303)
+    return RedirectResponse(f"/design-archive/standard/paper/{doi}#review-{rating_id}", status_code=303)
 
 
-@router.post("/paper/{doi:path}/ratings/{rating_id}/like")
+@router.post("/design-archive/standard/paper/{doi:path}/ratings/{rating_id}/like")
 async def toggle_like(doi: str, rating_id: int, request: Request, db: Session = Depends(get_db)):
     wants_json = "application/json" in request.headers.get("Accept", "")
     orcid_id = request.session.get("orcid_id")
@@ -647,7 +646,8 @@ async def toggle_like(doi: str, rating_id: int, request: Request, db: Session = 
             return JSONResponse({"error": "not authenticated"}, status_code=401)
         return RedirectResponse(f"/auth/guest-setup?next={request.url.path}", status_code=303)
 
-    existing = db.query(Like).filter(Like.rating_id == rating_id, Like.orcid_id == orcid_id).first()
+    existing = db.query(Like).filter(
+        Like.rating_id == rating_id, Like.orcid_id == orcid_id).first()
     if existing:
         db.delete(existing)
         liked = False
@@ -668,14 +668,15 @@ async def toggle_like(doi: str, rating_id: int, request: Request, db: Session = 
                 )
     db.commit()
 
-    count = db.query(func.count(Like.id)).filter(Like.rating_id == rating_id).scalar()
+    count = db.query(func.count(Like.id)).filter(
+        Like.rating_id == rating_id).scalar()
 
     if wants_json:
         return JSONResponse({"liked": liked, "count": count})
-    return RedirectResponse(f"/paper/{doi}#review-{rating_id}", status_code=303)
+    return RedirectResponse(f"/design-archive/standard/paper/{doi}#review-{rating_id}", status_code=303)
 
 
-@router.post("/paper/{doi:path}/rate")
+@router.post("/design-archive/standard/paper/{doi:path}/rate")
 async def submit_rating(
     doi: str,
     request: Request,
@@ -700,19 +701,24 @@ async def submit_rating(
         raise HTTPException(status_code=404, detail="Paper not found")
 
     if coi_confirmed != "on":
-        raise HTTPException(status_code=422, detail="You must confirm no conflict of interest")
+        raise HTTPException(
+            status_code=422, detail="You must confirm no conflict of interest")
     if not _is_clean(reproducibility_observation, scope_observation, modification_details):
-        raise HTTPException(status_code=422, detail="Content contains prohibited language.")
+        raise HTTPException(
+            status_code=422, detail="Content contains prohibited language.")
 
     existing = db.query(Rating).filter(
         Rating.doi == doi, Rating.orcid_id == orcid_id, Rating.scoring_mode == "standard"
     ).first()
     if existing:
-        raise HTTPException(status_code=409, detail="You have already rated this paper")
+        raise HTTPException(
+            status_code=409, detail="You have already rated this paper")
 
-    repro_score_int = int(reproducibility_score) if reproducibility_score else None
+    repro_score_int = int(
+        reproducibility_score) if reproducibility_score else None
     if repro_score_int is not None and not (1 <= repro_score_int <= 5):
-        raise HTTPException(status_code=422, detail="Reproducibility score must be 1–5")
+        raise HTTPException(
+            status_code=422, detail="Reproducibility score must be 1–5")
 
     rating = Rating(
         doi=doi,
@@ -739,12 +745,12 @@ async def submit_rating(
         notify_author_if_possible, doi, paper.title or "", rating.id, db, base_url
     )
     background_tasks.add_task(moderate_rating_bg, rating.id)
-    return RedirectResponse(f"/paper/{doi}", status_code=303)
+    return RedirectResponse(f"/design-archive/standard/paper/{doi}", status_code=303)
 
 
 # ── Subscription toggle ───────────────────────────────────────────────────────
 
-@router.post("/paper/{doi:path}/subscribe")
+@router.post("/design-archive/standard/paper/{doi:path}/subscribe")
 async def toggle_subscribe(doi: str, request: Request, db: Session = Depends(get_db)):
     orcid_id = request.session.get("orcid_id")
     if not orcid_id:
@@ -764,7 +770,7 @@ async def toggle_subscribe(doi: str, request: Request, db: Session = Depends(get
 
 # ── Comment likes ────────────────────────────────────────────────────────────
 
-@router.post("/paper/{doi:path}/comment/{comment_id}/like")
+@router.post("/design-archive/standard/paper/{doi:path}/comment/{comment_id}/like")
 async def toggle_comment_like(doi: str, comment_id: int, request: Request, db: Session = Depends(get_db)):
     wants_json = "application/json" in request.headers.get("Accept", "")
     orcid_id = request.session.get("orcid_id")
@@ -795,15 +801,16 @@ async def toggle_comment_like(doi: str, comment_id: int, request: Request, db: S
                 ))
     db.commit()
 
-    count = db.query(func.count(CommentLike.id)).filter(CommentLike.comment_id == comment_id).scalar()
+    count = db.query(func.count(CommentLike.id)).filter(
+        CommentLike.comment_id == comment_id).scalar()
     if wants_json:
         return JSONResponse({"liked": liked, "count": count})
-    return RedirectResponse(f"/paper/{doi}", status_code=303)
+    return RedirectResponse(f"/design-archive/standard/paper/{doi}", status_code=303)
 
 
 # ── Edit a comment ───────────────────────────────────────────────────────────
 
-@router.post("/paper/{doi:path}/comment/{comment_id}/edit")
+@router.post("/design-archive/standard/paper/{doi:path}/comment/{comment_id}/edit")
 async def edit_comment(
     doi: str,
     comment_id: int,
@@ -855,7 +862,7 @@ async def edit_comment(
 
 # ── Reply to a comment (1 level deep) ────────────────────────────────────────
 
-@router.post("/paper/{doi:path}/comment/{parent_id}/reply")
+@router.post("/design-archive/standard/paper/{doi:path}/comment/{parent_id}/reply")
 async def submit_reply(
     doi: str,
     parent_id: int,
@@ -866,12 +873,13 @@ async def submit_reply(
 ):
     orcid_id = request.session.get("orcid_id")
     if not orcid_id:
-        return RedirectResponse(f"/auth/guest-setup?next=/paper/{doi}", status_code=303)
+        return RedirectResponse(f"/auth/guest-setup?next=/design-archive/standard/paper/{doi}", status_code=303)
     content = content.strip()[:2000]
     if not content:
-        return RedirectResponse(f"/paper/{doi}", status_code=303)
+        return RedirectResponse(f"/design-archive/standard/paper/{doi}", status_code=303)
     if not _is_clean(content):
-        raise HTTPException(status_code=422, detail="Content contains prohibited language.")
+        raise HTTPException(
+            status_code=422, detail="Content contains prohibited language.")
 
     parent = db.get(Comment, parent_id)
     if not parent:
@@ -901,7 +909,7 @@ async def submit_reply(
     db.commit()
     background_tasks.add_task(moderate_comment_bg, reply.id)
     anchor = f"#review-{parent.rating_id}" if parent.rating_id else ""
-    return RedirectResponse(f"/paper/{doi}{anchor}", status_code=303)
+    return RedirectResponse(f"/design-archive/standard/paper/{doi}{anchor}", status_code=303)
 
 
 # ── Classic-view variants (redirect back to /classic/paper/{doi}) ─────────────
@@ -921,7 +929,8 @@ async def classic_submit_comment(
     if not content.strip():
         return RedirectResponse(f"/classic/paper/{doi}", status_code=303)
     if not _is_clean(content):
-        raise HTTPException(status_code=422, detail="Content contains prohibited language.")
+        raise HTTPException(
+            status_code=422, detail="Content contains prohibited language.")
 
     paper = db.get(Paper, doi)
     if not paper:
@@ -971,7 +980,8 @@ async def classic_submit_reply(
     if not content:
         return RedirectResponse(f"/classic/paper/{doi}", status_code=303)
     if not _is_clean(content):
-        raise HTTPException(status_code=422, detail="Content contains prohibited language.")
+        raise HTTPException(
+            status_code=422, detail="Content contains prohibited language.")
 
     parent = db.get(Comment, parent_id)
     if not parent:
@@ -1014,7 +1024,8 @@ def _notify_paper_subscribers(
     exclude_orcid: str | None = None,
 ) -> None:
     """Create in-app notifications for all subscribers of a paper."""
-    subs = db.query(PaperSubscription).filter(PaperSubscription.doi == doi).all()
+    subs = db.query(PaperSubscription).filter(
+        PaperSubscription.doi == doi).all()
     for sub in subs:
         if sub.orcid_id == exclude_orcid:
             continue
@@ -1042,6 +1053,7 @@ def _opt_out_ctx(request, record, token, done=None):
         "switch_urls": {"standard": "/", "classic": "/classic/", "new_design": "/nd/"},
     }
 
+
 @router.get("/notify/opt-out/{token}", response_class=HTMLResponse)
 async def author_opt_out(token: str, request: Request, db: Session = Depends(get_db)):
     record = db.query(AuthorNotification).filter(
@@ -1049,6 +1061,7 @@ async def author_opt_out(token: str, request: Request, db: Session = Depends(get
     ).first()
     done = request.query_params.get("done")
     return templates.TemplateResponse("opt_out.html", _opt_out_ctx(request, record, token, done))
+
 
 @router.get("/notify/opt-out/{token}/paper")
 @router.post("/notify/opt-out/{token}/paper")
@@ -1060,6 +1073,7 @@ async def author_opt_out_paper(token: str, request: Request, db: Session = Depen
         record.opted_out = True
         db.commit()
     return RedirectResponse(f"/notify/opt-out/{token}?done=paper", status_code=303)
+
 
 @router.get("/notify/opt-out/{token}/all")
 @router.post("/notify/opt-out/{token}/all")
@@ -1113,13 +1127,13 @@ async def classic_index(request: Request, db: Session = Depends(get_db)):
                         Rating.generalisability_score.isnot(None)).one()
             )
             repro_dist = {i: (db.query(func.count(Rating.id))
-                .filter(Rating.doi == p.doi, Rating.scoring_mode == "classic",
-                        Rating.reproducibility_score == i).scalar() or 0)
-                for i in range(1, 6)}
+                              .filter(Rating.doi == p.doi, Rating.scoring_mode == "classic",
+                                      Rating.reproducibility_score == i).scalar() or 0)
+                          for i in range(1, 6)}
             ext_dist = {i: (db.query(func.count(Rating.id))
-                .filter(Rating.doi == p.doi, Rating.scoring_mode == "classic",
+                            .filter(Rating.doi == p.doi, Rating.scoring_mode == "classic",
                         Rating.generalisability_score == i).scalar() or 0)
-                for i in range(1, 6)}
+                        for i in range(1, 6)}
             out.append({
                 "paper": p,
                 "display_authors": _format_authors(p.authors),
@@ -1138,7 +1152,8 @@ async def classic_index(request: Request, db: Session = Depends(get_db)):
     )
     my_papers, my_doi_set = [], set()
     if orcid_id:
-        my_dois_sq = db.query(Rating.doi).filter(Rating.orcid_id == orcid_id).subquery()
+        my_dois_sq = db.query(Rating.doi).filter(
+            Rating.orcid_id == orcid_id).subquery()
         my_papers = _enrich_classic(
             db.query(Paper)
             .join(my_dois_sq, Paper.doi == my_dois_sq.c.doi)
@@ -1151,7 +1166,8 @@ async def classic_index(request: Request, db: Session = Depends(get_db)):
         db.query(Paper).join(last_rated_sq, Paper.doi == last_rated_sq.c.doi)
         .order_by(last_rated_sq.c.last_rated.desc()).limit(10 + len(my_doi_set)).all()
     )
-    community_papers = _enrich_classic([p for p in community_candidates if p.doi not in my_doi_set][:10])
+    community_papers = _enrich_classic(
+        [p for p in community_candidates if p.doi not in my_doi_set][:10])
 
     return templates.TemplateResponse(index_tpl(request), {
         "request": request,
@@ -1268,7 +1284,8 @@ async def classic_paper_page(doi: str, request: Request, db: Session = Depends(g
             .group_by(Like.rating_id).subquery()
         )
         q = q.outerjoin(like_sq, Rating.id == like_sq.c.rating_id)
-        q = q.order_by(func.coalesce(like_sq.c.lc, 0).desc(), Rating.created_at.desc())
+        q = q.order_by(func.coalesce(like_sq.c.lc, 0).desc(),
+                       Rating.created_at.desc())
     else:
         q = q.order_by(Rating.created_at.desc())
 
@@ -1387,7 +1404,7 @@ async def classic_paper_page(doi: str, request: Request, db: Session = Depends(g
         "papers_by_doi": papers_by_doi,
         "prompts": prompts,
         "site_version": "classic",
-        "switch_urls": {"standard": f"/paper/{doi}", "classic": f"/classic/paper/{doi}", "new_design": f"/nd/paper/{doi}"},
+        "switch_urls": {"standard": f"/design-archive/standard/paper/{doi}", "classic": f"/classic/paper/{doi}", "new_design": f"/paper/{doi}"},
     })
 
 
@@ -1404,13 +1421,15 @@ async def classic_submit_rating(
     if not orcid_id:
         return RedirectResponse(f"/auth/guest-setup?next=/classic/paper/{doi}", status_code=303)
     if coi_confirmed != "on":
-        raise HTTPException(status_code=422, detail="Conflict of interest confirmation required")
+        raise HTTPException(
+            status_code=422, detail="Conflict of interest confirmation required")
 
     existing = db.query(Rating).filter(
         Rating.doi == doi, Rating.orcid_id == orcid_id, Rating.scoring_mode == "classic"
     ).first()
     if existing:
-        raise HTTPException(status_code=409, detail="You have already rated this paper in Classic mode")
+        raise HTTPException(
+            status_code=409, detail="You have already rated this paper in Classic mode")
 
     paper = db.get(Paper, doi)
     if not paper:
@@ -1419,16 +1438,19 @@ async def classic_submit_rating(
     repro_int = int(reproducibility_score) if reproducibility_score else None
     ext_int = int(generalisability_score) if generalisability_score else None
     if repro_int is not None and not (1 <= repro_int <= 5):
-        raise HTTPException(status_code=422, detail="Reproducibility score must be 1–5")
+        raise HTTPException(
+            status_code=422, detail="Reproducibility score must be 1–5")
     if ext_int is not None and not (1 <= ext_int <= 5):
-        raise HTTPException(status_code=422, detail="Extension score must be 1–5")
+        raise HTTPException(
+            status_code=422, detail="Extension score must be 1–5")
 
     db.add(Rating(
         doi=doi,
         orcid_id=orcid_id,
         scoring_mode="classic",
         reproducibility_score=repro_int,
-        reproducibility_observation=reproducibility_observation.strip()[:1000] or None,
+        reproducibility_observation=reproducibility_observation.strip()[
+            :1000] or None,
         generalisability_score=ext_int,
         scope_observation=scope_observation.strip()[:1000] or None,
     ))
@@ -1438,17 +1460,17 @@ async def classic_submit_rating(
 
 # ── Standard: edit / delete ──────────────────────────────────────────────────
 
-@router.post("/paper/{doi:path}/ratings/{rating_id}/delete")
+@router.post("/design-archive/standard/paper/{doi:path}/ratings/{rating_id}/delete")
 async def delete_rating(doi: str, rating_id: int, request: Request, db: Session = Depends(get_db)):
     orcid_id = request.session.get("orcid_id")
     if not orcid_id:
         raise HTTPException(status_code=403, detail="Not authenticated")
     r = _own_rating_or_404(rating_id, orcid_id, db)
     _delete_rating(r, db)
-    return RedirectResponse(f"/paper/{doi}", status_code=303)
+    return RedirectResponse(f"/design-archive/standard/paper/{doi}", status_code=303)
 
 
-@router.post("/paper/{doi:path}/ratings/{rating_id}/edit")
+@router.post("/design-archive/standard/paper/{doi:path}/ratings/{rating_id}/edit")
 async def edit_rating_submit(
     doi: str, rating_id: int, request: Request, db: Session = Depends(get_db),
     outcome: str = Form(""),
@@ -1463,13 +1485,14 @@ async def edit_rating_submit(
     r = _own_rating_or_404(rating_id, orcid_id, db)
     if outcome:
         r.outcome = outcome
-    r.reproducibility_observation = reproducibility_observation.strip()[:1000] or None
+    r.reproducibility_observation = reproducibility_observation.strip()[
+        :1000] or None
     r.scope_level = scope_level or None
     r.scope_observation = scope_observation.strip()[:1000] or None
     r.modification_details = modification_details.strip()[:1000] or None
     r.updated_at = datetime.now(timezone.utc)
     db.commit()
-    return RedirectResponse(f"/paper/{doi}#review-{rating_id}", status_code=303)
+    return RedirectResponse(f"/design-archive/standard/paper/{doi}#review-{rating_id}", status_code=303)
 
 
 # ── Classic: edit / delete ───────────────────────────────────────────────────
@@ -1503,7 +1526,8 @@ async def classic_edit_rating_submit(
     if ext_int is not None and not (1 <= ext_int <= 5):
         raise HTTPException(status_code=422)
     r.reproducibility_score = repro_int
-    r.reproducibility_observation = reproducibility_observation.strip()[:1000] or None
+    r.reproducibility_observation = reproducibility_observation.strip()[
+        :1000] or None
     r.generalisability_score = ext_int
     r.scope_observation = scope_observation.strip()[:1000] or None
     r.updated_at = datetime.now(timezone.utc)
@@ -1533,6 +1557,7 @@ def _nd_scoring_context() -> dict:
     }
 
 
+@router.get("/", response_class=HTMLResponse)
 @router.get("/nd/", response_class=HTMLResponse)
 @router.get("/nd", response_class=HTMLResponse)
 async def nd_index(request: Request, db: Session = Depends(get_db)):
@@ -1540,7 +1565,8 @@ async def nd_index(request: Request, db: Session = Depends(get_db)):
 
     def _enrich_nd(papers):
         return [
-            {"paper": p, "display_authors": _format_authors(p.authors), **_get_nd_paper_scores(p.doi, db)}
+            {"paper": p, "display_authors": _format_authors(
+                p.authors), **_get_nd_paper_scores(p.doi, db)}
             for p in papers
         ]
 
@@ -1575,7 +1601,8 @@ async def nd_index(request: Request, db: Session = Depends(get_db)):
         .limit(10 + len(my_doi_set))
         .all()
     )
-    community_papers = _enrich_nd([p for p in community_candidates if p.doi not in my_doi_set][:10])
+    community_papers = _enrich_nd(
+        [p for p in community_candidates if p.doi not in my_doi_set][:10])
 
     return templates.TemplateResponse("index_nd.html", {
         "request": request,
@@ -1590,11 +1617,11 @@ async def nd_index(request: Request, db: Session = Depends(get_db)):
     })
 
 
-@router.get("/nd/paper/{doi:path}/ratings/{rating_id}/edit", response_class=HTMLResponse)
+@router.get("/paper/{doi:path}/ratings/{rating_id}/edit", response_class=HTMLResponse)
 async def nd_edit_rating_page(doi: str, rating_id: int, request: Request, db: Session = Depends(get_db)):
     orcid_id = request.session.get("orcid_id")
     if not orcid_id:
-        return RedirectResponse(f"/auth/guest-setup?next=/nd/paper/{doi}", status_code=303)
+        return RedirectResponse(f"/auth/guest-setup?next=/paper/{doi}", status_code=303)
     r = _own_rating_or_404(rating_id, orcid_id, db)
     paper = db.get(Paper, doi)
     if not paper:
@@ -1611,7 +1638,7 @@ async def nd_edit_rating_page(doi: str, rating_id: int, request: Request, db: Se
     })
 
 
-@router.get("/nd/paper/{doi:path}", response_class=HTMLResponse)
+@router.get("/paper/{doi:path}", response_class=HTMLResponse)
 async def nd_paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
     paper = db.get(Paper, doi)
     if not paper:
@@ -1631,9 +1658,9 @@ async def nd_paper_page(doi: str, request: Request, db: Session = Depends(get_db
     nd_scores = _get_nd_paper_scores(doi, db)
 
     PAGE_SIZE = 25
-    active_star  = request.query_params.get("star",  "")
-    active_ctx   = request.query_params.get("ctx",   "")
-    active_sort  = request.query_params.get("sort",  "newest")
+    active_star = request.query_params.get("star",  "")
+    active_ctx = request.query_params.get("ctx",   "")
+    active_sort = request.query_params.get("sort",  "newest")
     try:
         active_page = max(1, int(request.query_params.get("page", 1)))
     except ValueError:
@@ -1657,9 +1684,11 @@ async def nd_paper_page(doi: str, request: Request, db: Session = Depends(get_db
     if active_sort == "oldest":
         q = q.order_by(Rating.created_at.asc())
     elif active_sort == "highest":
-        q = q.order_by(Rating.nd_star.desc().nullslast(), Rating.created_at.desc())
+        q = q.order_by(Rating.nd_star.desc().nullslast(),
+                       Rating.created_at.desc())
     elif active_sort == "lowest":
-        q = q.order_by(Rating.nd_star.asc().nullsfirst(), Rating.created_at.desc())
+        q = q.order_by(Rating.nd_star.asc().nullsfirst(),
+                       Rating.created_at.desc())
     elif active_sort == "most_liked":
         like_sq = (
             select(Like.rating_id, func.count(Like.id).label("lc"))
@@ -1667,7 +1696,8 @@ async def nd_paper_page(doi: str, request: Request, db: Session = Depends(get_db
             .subquery()
         )
         q = q.outerjoin(like_sq, Rating.id == like_sq.c.rating_id)
-        q = q.order_by(func.coalesce(like_sq.c.lc, 0).desc(), Rating.created_at.desc())
+        q = q.order_by(func.coalesce(like_sq.c.lc, 0).desc(),
+                       Rating.created_at.desc())
     else:
         q = q.order_by(Rating.created_at.desc())
 
@@ -1791,12 +1821,12 @@ async def nd_paper_page(doi: str, request: Request, db: Session = Depends(get_db
         "user_collections_flat": user_collections_flat,
         "papers_by_doi": papers_by_doi,
         "site_version": "new_design",
-        "switch_urls": {"standard": f"/paper/{doi}", "classic": f"/classic/paper/{doi}", "new_design": f"/nd/paper/{doi}"},
+        "switch_urls": {"standard": f"/design-archive/standard/paper/{doi}", "classic": f"/classic/paper/{doi}", "new_design": f"/paper/{doi}"},
         **_nd_scoring_context(),
     })
 
 
-@router.post("/nd/paper/{doi:path}/comment")
+@router.post("/paper/{doi:path}/comment")
 async def nd_submit_comment(
     doi: str,
     request: Request,
@@ -1807,29 +1837,32 @@ async def nd_submit_comment(
 ):
     orcid_id = request.session.get("orcid_id")
     if not orcid_id:
-        return RedirectResponse(f"/auth/guest-setup?next=/nd/paper/{doi}", status_code=303)
+        return RedirectResponse(f"/auth/guest-setup?next=/paper/{doi}", status_code=303)
     if not content.strip():
-        return RedirectResponse(f"/nd/paper/{doi}", status_code=303)
+        return RedirectResponse(f"/paper/{doi}", status_code=303)
     if not _is_clean(content):
-        raise HTTPException(status_code=422, detail="Content contains prohibited language.")
+        raise HTTPException(
+            status_code=422, detail="Content contains prohibited language.")
     paper = db.get(Paper, doi)
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
     rating = db.get(Rating, rating_id)
-    comment = Comment(doi=doi, rating_id=rating_id, orcid_id=orcid_id, content=content.strip()[:2000])
+    comment = Comment(doi=doi, rating_id=rating_id,
+                      orcid_id=orcid_id, content=content.strip()[:2000])
     db.add(comment)
     if rating:
         _maybe_notify(db, notif_type="comment", actor_orcid_id=orcid_id,
                       actor_name=request.session.get("user_name", "Someone"), rating=rating, paper=paper)
     _notify_paper_subscribers(db, doi=doi, paper=paper, notif_type="new_comment",
-                               actor_name=request.session.get("user_name", "Someone"),
-                               rating_id=rating_id, exclude_orcid=orcid_id)
+                              actor_name=request.session.get(
+                                  "user_name", "Someone"),
+                              rating_id=rating_id, exclude_orcid=orcid_id)
     db.commit()
     background_tasks.add_task(moderate_comment_bg, comment.id)
-    return RedirectResponse(f"/nd/paper/{doi}#review-{rating_id}", status_code=303)
+    return RedirectResponse(f"/paper/{doi}#review-{rating_id}", status_code=303)
 
 
-@router.post("/nd/paper/{doi:path}/comment/{parent_id}/reply")
+@router.post("/paper/{doi:path}/comment/{parent_id}/reply")
 async def nd_submit_reply(
     doi: str, parent_id: int, request: Request,
     background_tasks: BackgroundTasks, db: Session = Depends(get_db),
@@ -1837,16 +1870,18 @@ async def nd_submit_reply(
 ):
     orcid_id = request.session.get("orcid_id")
     if not orcid_id:
-        return RedirectResponse(f"/auth/guest-setup?next=/nd/paper/{doi}", status_code=303)
+        return RedirectResponse(f"/auth/guest-setup?next=/paper/{doi}", status_code=303)
     content = content.strip()[:2000]
     if not content:
-        return RedirectResponse(f"/nd/paper/{doi}", status_code=303)
+        return RedirectResponse(f"/paper/{doi}", status_code=303)
     if not _is_clean(content):
-        raise HTTPException(status_code=422, detail="Content contains prohibited language.")
+        raise HTTPException(
+            status_code=422, detail="Content contains prohibited language.")
     parent = db.get(Comment, parent_id)
     if not parent:
         raise HTTPException(status_code=404, detail="Comment not found")
-    reply = Comment(doi=doi, rating_id=parent.rating_id, parent_id=parent_id, orcid_id=orcid_id, content=content)
+    reply = Comment(doi=doi, rating_id=parent.rating_id,
+                    parent_id=parent_id, orcid_id=orcid_id, content=content)
     db.add(reply)
     if parent.orcid_id != orcid_id:
         paper = db.get(Paper, doi)
@@ -1859,10 +1894,10 @@ async def nd_submit_reply(
     db.commit()
     background_tasks.add_task(moderate_comment_bg, reply.id)
     anchor = f"#review-{parent.rating_id}" if parent.rating_id else ""
-    return RedirectResponse(f"/nd/paper/{doi}{anchor}", status_code=303)
+    return RedirectResponse(f"/paper/{doi}{anchor}", status_code=303)
 
 
-@router.post("/nd/paper/{doi:path}/ratings/{rating_id}/like")
+@router.post("/paper/{doi:path}/ratings/{rating_id}/like")
 async def nd_toggle_like(doi: str, rating_id: int, request: Request, db: Session = Depends(get_db)):
     wants_json = "application/json" in request.headers.get("Accept", "")
     orcid_id = request.session.get("orcid_id")
@@ -1870,7 +1905,8 @@ async def nd_toggle_like(doi: str, rating_id: int, request: Request, db: Session
         if wants_json:
             return JSONResponse({"error": "not authenticated"}, status_code=401)
         return RedirectResponse(f"/auth/guest-setup?next={request.url.path}", status_code=303)
-    existing = db.query(Like).filter(Like.rating_id == rating_id, Like.orcid_id == orcid_id).first()
+    existing = db.query(Like).filter(
+        Like.rating_id == rating_id, Like.orcid_id == orcid_id).first()
     if existing:
         db.delete(existing)
         liked = False
@@ -1884,13 +1920,14 @@ async def nd_toggle_like(doi: str, rating_id: int, request: Request, db: Session
                 _maybe_notify(db, notif_type="like", actor_orcid_id=orcid_id,
                               actor_name=request.session.get("user_name", "Someone"), rating=rating, paper=paper)
     db.commit()
-    count = db.query(func.count(Like.id)).filter(Like.rating_id == rating_id).scalar()
+    count = db.query(func.count(Like.id)).filter(
+        Like.rating_id == rating_id).scalar()
     if wants_json:
         return JSONResponse({"liked": liked, "count": count})
-    return RedirectResponse(f"/nd/paper/{doi}#review-{rating_id}", status_code=303)
+    return RedirectResponse(f"/paper/{doi}#review-{rating_id}", status_code=303)
 
 
-@router.post("/nd/paper/{doi:path}/comment/{comment_id}/like")
+@router.post("/paper/{doi:path}/comment/{comment_id}/like")
 async def nd_toggle_comment_like(doi: str, comment_id: int, request: Request, db: Session = Depends(get_db)):
     wants_json = "application/json" in request.headers.get("Accept", "")
     orcid_id = request.session.get("orcid_id")
@@ -1915,13 +1952,14 @@ async def nd_toggle_comment_like(doi: str, comment_id: int, request: Request, db
                     rating_id=comment.rating_id or 0, doi=doi, paper_title=(paper.title or "")[:200],
                 ))
     db.commit()
-    count = db.query(func.count(CommentLike.id)).filter(CommentLike.comment_id == comment_id).scalar()
+    count = db.query(func.count(CommentLike.id)).filter(
+        CommentLike.comment_id == comment_id).scalar()
     if wants_json:
         return JSONResponse({"liked": liked, "count": count})
-    return RedirectResponse(f"/nd/paper/{doi}", status_code=303)
+    return RedirectResponse(f"/paper/{doi}", status_code=303)
 
 
-@router.post("/nd/paper/{doi:path}/rate")
+@router.post("/paper/{doi:path}/rate")
 async def nd_submit_rating(
     doi: str,
     request: Request,
@@ -1934,24 +1972,28 @@ async def nd_submit_rating(
 ):
     orcid_id = request.session.get("orcid_id")
     if not orcid_id:
-        return RedirectResponse(f"/auth/guest-setup?next=/nd/paper/{doi}", status_code=303)
+        return RedirectResponse(f"/auth/guest-setup?next=/paper/{doi}", status_code=303)
 
     paper = db.get(Paper, doi)
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
 
     if coi_confirmed != "on":
-        raise HTTPException(status_code=422, detail="You must confirm no conflict of interest")
+        raise HTTPException(
+            status_code=422, detail="You must confirm no conflict of interest")
     if not _is_clean(reproducibility_observation):
-        raise HTTPException(status_code=422, detail="Content contains prohibited language.")
+        raise HTTPException(
+            status_code=422, detail="Content contains prohibited language.")
 
     star_int = int(nd_star) if nd_star else None
     if star_int is None or not (1 <= star_int <= 5):
-        raise HTTPException(status_code=422, detail="Star rating 1–5 is required")
+        raise HTTPException(
+            status_code=422, detail="Star rating 1–5 is required")
 
     ctx = nd_failure_context.strip() or None
     if star_int == 1 and ctx not in ("original_tested", "extension_only"):
-        raise HTTPException(status_code=422, detail="Failure context is required for a 1-star review")
+        raise HTTPException(
+            status_code=422, detail="Failure context is required for a 1-star review")
     if star_int != 1:
         ctx = None
 
@@ -1959,7 +2001,8 @@ async def nd_submit_rating(
         Rating.doi == doi, Rating.orcid_id == orcid_id, Rating.scoring_mode == "new_design"
     ).first()
     if existing:
-        raise HTTPException(status_code=409, detail="You have already rated this paper in New Design mode")
+        raise HTTPException(
+            status_code=409, detail="You have already rated this paper in New Design mode")
 
     rating = Rating(
         doi=doi,
@@ -1967,7 +2010,8 @@ async def nd_submit_rating(
         scoring_mode="new_design",
         nd_star=star_int,
         nd_failure_context=ctx,
-        reproducibility_observation=reproducibility_observation.strip()[:1000] or None,
+        reproducibility_observation=reproducibility_observation.strip()[
+            :1000] or None,
     )
     db.add(rating)
     db.flush()
@@ -1978,22 +2022,23 @@ async def nd_submit_rating(
     )
     db.commit()
     base_url = str(request.base_url).rstrip("/")
-    background_tasks.add_task(notify_author_if_possible, doi, paper.title or "", rating.id, db, base_url)
+    background_tasks.add_task(
+        notify_author_if_possible, doi, paper.title or "", rating.id, db, base_url)
     background_tasks.add_task(moderate_rating_bg, rating.id)
-    return RedirectResponse(f"/nd/paper/{doi}", status_code=303)
+    return RedirectResponse(f"/paper/{doi}", status_code=303)
 
 
-@router.post("/nd/paper/{doi:path}/ratings/{rating_id}/delete")
+@router.post("/paper/{doi:path}/ratings/{rating_id}/delete")
 async def nd_delete_rating(doi: str, rating_id: int, request: Request, db: Session = Depends(get_db)):
     orcid_id = request.session.get("orcid_id")
     if not orcid_id:
         raise HTTPException(status_code=403, detail="Not authenticated")
     r = _own_rating_or_404(rating_id, orcid_id, db)
     _delete_rating(r, db)
-    return RedirectResponse(f"/nd/paper/{doi}", status_code=303)
+    return RedirectResponse(f"/paper/{doi}", status_code=303)
 
 
-@router.post("/nd/paper/{doi:path}/ratings/{rating_id}/edit")
+@router.post("/paper/{doi:path}/ratings/{rating_id}/edit")
 async def nd_edit_rating_submit(
     doi: str, rating_id: int, request: Request, db: Session = Depends(get_db),
     nd_star: str = Form(""),
@@ -2007,25 +2052,39 @@ async def nd_edit_rating_submit(
 
     star_int = int(nd_star) if nd_star else None
     if star_int is None or not (1 <= star_int <= 5):
-        raise HTTPException(status_code=422, detail="Star rating 1–5 is required")
+        raise HTTPException(
+            status_code=422, detail="Star rating 1–5 is required")
 
     ctx = nd_failure_context.strip() or None
     if star_int == 1 and ctx not in ("original_tested", "extension_only"):
-        raise HTTPException(status_code=422, detail="Failure context is required for a 1-star review")
+        raise HTTPException(
+            status_code=422, detail="Failure context is required for a 1-star review")
     if star_int != 1:
         ctx = None
 
     r.nd_star = star_int
     r.nd_failure_context = ctx
-    r.reproducibility_observation = reproducibility_observation.strip()[:1000] or None
+    r.reproducibility_observation = reproducibility_observation.strip()[
+        :1000] or None
     r.updated_at = datetime.now(timezone.utc)
     db.commit()
-    return RedirectResponse(f"/nd/paper/{doi}#review-{rating_id}", status_code=303)
+    return RedirectResponse(f"/paper/{doi}#review-{rating_id}", status_code=303)
 
 
 @router.get("/privacy", response_class=HTMLResponse)
 async def privacy(request: Request):
     return templates.TemplateResponse("privacy.html", {
+        "request": request,
+        "user_name": request.session.get("user_name"),
+        "orcid_id": request.session.get("orcid_id"),
+        "site_version": "standard",
+        "switch_urls": {"standard": "/", "classic": "/classic/"},
+    })
+
+
+@router.get("/terms", response_class=HTMLResponse)
+async def terms(request: Request):
+    return templates.TemplateResponse("terms.html", {
         "request": request,
         "user_name": request.session.get("user_name"),
         "orcid_id": request.session.get("orcid_id"),
@@ -2058,14 +2117,17 @@ async def design_demo(request: Request, db: Session = Depends(get_db)):
     if not paper:
         raise HTTPException(status_code=404, detail="Run seed_demo.py first")
 
-    reviews = db.query(Rating).filter(Rating.doi == DEMO_DOI).order_by(Rating.created_at.desc()).all()
-    scored = [OUTCOME_SCORES[r.outcome] for r in reviews if r.outcome in OUTCOME_SCORES]
+    reviews = db.query(Rating).filter(Rating.doi == DEMO_DOI).order_by(
+        Rating.created_at.desc()).all()
+    scored = [OUTCOME_SCORES[r.outcome]
+              for r in reviews if r.outcome in OUTCOME_SCORES]
     score_a = round(sum(scored) / len(scored), 1) if scored else None
     breakdown = {}
     for r in reviews:
         if r.outcome:
             breakdown[r.outcome] = breakdown.get(r.outcome, 0) + 1
-    distribution = [(o, OUTCOME_LABELS[o], breakdown.get(o, 0)) for o in OUTCOME_ORDER]
+    distribution = [(o, OUTCOME_LABELS[o], breakdown.get(o, 0))
+                    for o in OUTCOME_ORDER]
 
     return templates.TemplateResponse("design_demo.html", {
         "request": request,

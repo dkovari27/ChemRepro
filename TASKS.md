@@ -7,7 +7,9 @@ _Last updated: 8 July 2026_
 
 ### 🟠 HIGH
 
-- [ ] **B16** — Literature scraper for implicit reproducibility data: crawl open-access chemistry papers (PubMed Central, Europe PMC, ChemRxiv, RSC Gold open-access) and detect sentences that follow patterns like "according to the procedure of X et al.", "following the method reported by", "adapted from", "as described in ref. X" — i.e. cases where an author explicitly states they replicated or adapted a published reaction. For each hit: resolve the cited DOI, extract context (substrate, yield, any deviation noted), and auto-write a structured review into the DB with `scoring_mode="literature_mined"`, display_name="Literature miner (auto)", and a note field containing the citing paper DOI and the extracted sentence. The outcome label should be inferred from the language (success/partial/failure language maps to reproduced/repro_extension_failed/no_repro). Requires: an NLP sentence classifier or regex pattern library, an open-access full-text API (PMC OAI-PMH or Europe PMC REST), and a deduplication check so the same citing sentence is not ingested twice.
+- [x] **B16** — Literature scraper for implicit reproducibility data: crawl open-access chemistry papers (PubMed Central, Europe PMC, ChemRxiv, RSC Gold open-access) and detect sentences that follow patterns like "according to the procedure of X et al.", "following the method reported by", "adapted from", "as described in ref. X" — i.e. cases where an author explicitly states they replicated or adapted a published reaction. Scraper is built and running (as of 8 July 2026).
+
+- [ ] **B17** — Wire scraped literature data into ChemRepro review cards: define the data schema the scraper must output (DOI of cited paper, citing paper DOI, extracted sentence, inferred outcome, source database, confidence score), build an import endpoint or script that reads scraper output and writes structured Rating rows with `scoring_mode="literature_mined"`, design the review card UI for auto-mined entries (distinct badge vs. user reviews, link to citing paper, extracted sentence as observation), and add a deduplication check so the same citing sentence is never ingested twice.
 
 - [ ] **B11** — Activate author email notification (`AUTHOR_NOTIFY_ENABLED=true` in Railway `.env`) — disabled pending test that CrossRef/PMC/PubMed lookup works on real chemistry DOIs
 - [ ] **B12** — Wire `notification_email` to SMTP sender — field is saved in Settings but never read; when a followed paper gets a new review/comment, send an email to `notification_email` if set
@@ -49,7 +51,7 @@ _Last updated: 8 July 2026_
 
 ## CURRENT STANDING (8 July 2026)
 
-- **New Design scoring mode** fully implemented: `/nd/` homepage, `/nd/paper/{doi}` paper page, `nd_star` (1–5) + `nd_failure_context` (original_tested / extension_only), star filter + context filter, failure_context badge on 1-star reviews, 3-way nav switcher (Standard / Classic / New Design) in base.html
+- **New Design scoring mode** fully implemented: `/` homepage, `/paper/{doi}` paper page, `nd_star` (1–5) + `nd_failure_context` (original_tested / extension_only), star filter + context filter, failure_context badge on 1-star reviews, 3-way nav switcher (Standard / Classic / New Design) in base.html
 - Standard mode filter fixed: `scoring_mode != "classic"` changed to `scoring_mode == "standard"` so ND reviews are isolated from standard averages
 - API key management: all `/api/v1/` routes gated behind `X-API-Key` header; admin can generate/revoke keys; raw key shown once after generation; about page documents API access
 

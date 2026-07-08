@@ -160,7 +160,7 @@
       {% if not orcid_id %}
         <p class="text-sm text-slate-500 mb-3">Sign in to submit a rating.</p>
         <div class="flex flex-col gap-2">
-          <a href="/auth/guest-setup?next=/paper/{{ paper.doi }}"
+          <a href="/auth/guest-setup?next=/design-archive/standard/paper/{{ paper.doi }}"
              class="block text-center border border-slate-300 text-slate-700 rounded-lg px-4 py-2 text-sm hover:border-brand transition-colors">
             Continue as guest
           </a>
@@ -182,7 +182,7 @@
         </div>
 
       {% else %}
-        <form action="/paper/{{ paper.doi }}/rate" method="post" id="rating-form" data-moderate>
+        <form action="/design-archive/standard/paper/{{ paper.doi }}/rate" method="post" id="rating-form" data-moderate>
           <input type="hidden" name="scoring_mode" value="standard" />
 
           <!-- ══ STEP 1: OUTCOME ════════════════════════════════════ -->
@@ -577,7 +577,7 @@
                 <!-- Reply-to-comment form -->
                 {% if orcid_id %}
                 <div id="comment-reply-{{ c.id }}" class="hidden mt-2 pt-2">
-                  <form action="/paper/{{ paper.doi }}/comment/{{ c.id }}/reply" method="post" data-moderate>
+                  <form action="/design-archive/standard/paper/{{ paper.doi }}/comment/{{ c.id }}/reply" method="post" data-moderate>
                     <textarea name="content" rows="2" maxlength="2000" required spellcheck="true" data-img-paste
                       placeholder="Reply to {{ c.user.name or 'this comment' }}..."
                       class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none"></textarea>
@@ -687,14 +687,14 @@
           <!-- Edit / Delete – right side -->
           {% if orcid_id and r.orcid_id == orcid_id %}
           <div class="ml-auto flex items-center gap-3">
-            <a href="/paper/{{ paper.doi }}/ratings/{{ r.id }}/edit"
+            <a href="/design-archive/standard/paper/{{ paper.doi }}/ratings/{{ r.id }}/edit"
               class="flex items-center gap-1 text-xs text-slate-400 hover:text-brand transition-colors" title="Edit">
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
               </svg>
             </a>
-            <form action="/paper/{{ paper.doi }}/ratings/{{ r.id }}/delete" method="post"
+            <form action="/design-archive/standard/paper/{{ paper.doi }}/ratings/{{ r.id }}/delete" method="post"
                   onsubmit="return confirm('Delete this review? This cannot be undone.')">
               <button type="submit" title="Delete"
                 class="flex items-center gap-1 text-xs text-slate-400 hover:text-red-500 transition-colors">
@@ -714,7 +714,7 @@
         <!-- Reply form – hidden, shown by comment button -->
         {% if orcid_id %}
         <div id="reply-{{ r.id }}" class="hidden mt-3 pt-3 border-t border-slate-100">
-          <form action="/paper/{{ paper.doi }}/comment" method="post" data-moderate>
+          <form action="/design-archive/standard/paper/{{ paper.doi }}/comment" method="post" data-moderate>
             <input type="hidden" name="rating_id" value="{{ r.id }}" />
             <textarea id="reply-ta-{{ r.id }}" name="content" rows="4" maxlength="2000" required spellcheck="true" data-img-paste
               placeholder="{{ prompts.COMMENT_PLACEHOLDER }}"
@@ -812,7 +812,7 @@
     const liq = btn?.querySelector('.flask-liquid');
     const countEl = document.getElementById('clike-count-' + commentId);
     try {
-      const resp = await fetch(`/paper/${doi}/comment/${commentId}/like`, {
+      const resp = await fetch(`/design-archive/standard/paper/${doi}/comment/${commentId}/like`, {
         method: 'POST', headers: { 'Accept': 'application/json' },
       });
       if (!resp.ok) return;
@@ -907,7 +907,7 @@
     const fd = new FormData();
     fd.append('content', content);
     try {
-      const resp = await fetch('/paper/' + doi + '/comment/' + id + '/edit', { method: 'POST', body: fd });
+      const resp = await fetch('/design-archive/standard/paper/' + doi + '/comment/' + id + '/edit', { method: 'POST', body: fd });
       const data = await resp.json();
       if (data.ok) {
         document.getElementById('ctext-' + id).innerHTML = data.rendered_html;
@@ -1020,7 +1020,7 @@
     const svg      = document.getElementById('like-svg-'   + reviewId);
     const countEl  = document.getElementById('like-count-' + reviewId);
     try {
-      const resp = await fetch(`/paper/${doi}/ratings/${reviewId}/like`, {
+      const resp = await fetch(`/design-archive/standard/paper/${doi}/ratings/${reviewId}/like`, {
         method: 'POST',
         headers: { 'Accept': 'application/json' },
       });
@@ -1056,25 +1056,25 @@
   }
 
   function shareWhatsApp(reviewId, doi) {
-    const url = `${window.location.origin}/paper/${doi}#review-${reviewId}`;
+    const url = `${window.location.origin}/design-archive/standard/paper/${doi}#review-${reviewId}`;
     window.open('https://wa.me/?text=' + encodeURIComponent(url), '_blank');
     document.getElementById('share-popup-' + reviewId).classList.add('hidden');
   }
 
   function shareEmail(reviewId, doi) {
-    const url = `${window.location.origin}/paper/${doi}#review-${reviewId}`;
+    const url = `${window.location.origin}/design-archive/standard/paper/${doi}#review-${reviewId}`;
     window.location.href = 'mailto:?subject=ChemRepro%20review&body=' + encodeURIComponent(url);
     document.getElementById('share-popup-' + reviewId).classList.add('hidden');
   }
 
   function shareLinkedIn(reviewId, doi) {
-    const url = `${window.location.origin}/paper/${doi}#review-${reviewId}`;
+    const url = `${window.location.origin}/design-archive/standard/paper/${doi}#review-${reviewId}`;
     window.open('https://www.linkedin.com/sharing/share-offsite/?url=' + encodeURIComponent(url), '_blank');
     document.getElementById('share-popup-' + reviewId).classList.add('hidden');
   }
 
   async function copyReviewLink(reviewId, doi) {
-    const url = `${window.location.origin}/paper/${doi}#review-${reviewId}`;
+    const url = `${window.location.origin}/design-archive/standard/paper/${doi}#review-${reviewId}`;
     const btn = document.getElementById('copy-btn-' + reviewId);
     try {
       await navigator.clipboard.writeText(url);

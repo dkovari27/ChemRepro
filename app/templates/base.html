@@ -206,6 +206,7 @@
       <div class="flex items-center gap-5 text-xs text-slate-400">
         <a href="/about"    class="hover:text-brand transition-colors">About</a>
         <a href="/privacy"  class="hover:text-brand transition-colors">Privacy</a>
+        <a href="/terms"    class="hover:text-brand transition-colors">Terms</a>
         <a href="/feedback" class="hover:text-brand transition-colors">Feedback</a>
       </div>
       <p class="w-full text-[11px] text-slate-300 text-center">
@@ -216,7 +217,7 @@
 
   <script src="/static/js/moderation.js"></script>
   <script src="/static/js/tour.js"></script>
-  {% if request.session.get('tour_pending') and request.url.path in ['/nd/', '/nd'] %}
+  {% if request.session.get('tour_pending') and request.url.path in ['/', '/nd/', '/nd'] %}
   <script>localStorage.removeItem('crTourDone'); localStorage.setItem('crTourStep', '0');</script>
   {% set _ = request.session.pop('tour_pending', None) %}
   {% endif %}
