@@ -81,9 +81,9 @@
     s.id = 'cr-tour-style';
     s.textContent = [
       '#cr-tour-shield{position:fixed;inset:0;z-index:7999;pointer-events:all;background:transparent;display:none}',
-      '#cr-tour-spotlight{position:fixed;border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,0.52);pointer-events:none;z-index:8000;opacity:1;transition:opacity .2s ease,top .3s ease-in-out,left .3s ease-in-out,width .3s ease-in-out,height .3s ease-in-out}',
+      '#cr-tour-spotlight{position:fixed;border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,0.52);pointer-events:none;z-index:8000;opacity:1;transition:opacity .25s ease}',
       '#cr-tour-spotlight.zoomed{border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,0.68),0 0 0 3px #1e40af}',
-      '#cr-tour-tip{position:fixed;z-index:9000;background:#fff;border-radius:14px;padding:18px 20px 14px;width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.18),0 0 0 1px rgba(0,0,0,0.06);font-family:inherit;opacity:1;transition:opacity .2s ease}',
+      '#cr-tour-tip{position:fixed;z-index:9000;background:#fff;border-radius:14px;padding:18px 20px 14px;width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.18),0 0 0 1px rgba(0,0,0,0.06);font-family:inherit;opacity:1;transition:opacity .25s ease}',
       '#cr-tour-tip code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:11px;font-family:monospace}',
       '#cr-tour-step-label{font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}',
       '#cr-tour-title{font-size:15px;font-weight:700;color:#0f172a;margin-bottom:7px}',
@@ -202,26 +202,31 @@
     var above = !!step.preferAbove;
     var alreadyVisible = _spotlight && _spotlight.style.display === 'block';
 
-    if (alreadyVisible) {
-      _spotlight.style.opacity = '0';
-      _tip.style.opacity = '0';
-    }
-
-    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-    setTimeout(function () {
-      positionAround(target, zoom, above);
-      if (alreadyVisible) {
-        setTimeout(function () {
-          _spotlight.style.opacity = '1';
-          _tip.style.opacity = '1';
-        }, 30);
-      }
-    }, 380);
-
     if (_resizeHandler) window.removeEventListener('resize', _resizeHandler);
     _resizeHandler = function () { positionAround(target, zoom, above); };
     window.addEventListener('resize', _resizeHandler, { passive: true });
+
+    function placeAndReveal() {
+      // Instant scroll so getBoundingClientRect is accurate on the very next frame
+      target.scrollIntoView({ block: 'center' });
+      requestAnimationFrame(function () {
+        positionAround(target, zoom, above);
+        requestAnimationFrame(function () {
+          _spotlight.style.opacity = '1';
+          _tip.style.opacity = '1';
+        });
+      });
+    }
+
+    // Always start invisible so every appearance fades in cleanly
+    _spotlight.style.opacity = '0';
+    _tip.style.opacity = '0';
+
+    if (alreadyVisible) {
+      setTimeout(placeAndReveal, 280);   // wait for fade-out to finish
+    } else {
+      requestAnimationFrame(placeAndReveal);
+    }
   }
 
   function onNext() {
