@@ -1,12 +1,15 @@
 """
-/api/v1/* — clean JSON endpoints for external consumers and AI tools.
-All routes are public (read). Write operations go through the HTML form flow.
+/api/v1/* — structured JSON endpoints for authorized external consumers and AI tools.
+All routes require a valid X-API-Key header. Request access via chemrepro@gmail.com.
 """
-from fastapi import APIRouter, Depends, HTTPException
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.models.api_key import ApiKey
 from app.models.paper import Paper
 from app.models.rating import Rating
 from app.schemas.paper import PaperWithScores
@@ -26,9 +29,27 @@ _OUTCOME_SCORE = case(
 )
 
 
+def _check_api_key(request: Request, db: Session) -> ApiKey:
+    raw_key = request.headers.get("X-API-Key")
+    if not raw_key:
+        raise HTTPException(
+            status_code=401,
+            detail="API key required. Add an X-API-Key header. Request access: chemrepro@gmail.com",
+            headers={"WWW-Authenticate": "ApiKey"},
+        )
+    key_hash = ApiKey.hash_key(raw_key)
+    key = db.query(ApiKey).filter(ApiKey.key_hash == key_hash, ApiKey.is_active == True).first()  # noqa: E712
+    if not key:
+        raise HTTPException(status_code=403, detail="Invalid or inactive API key")
+    key.last_used = datetime.utcnow()
+    db.commit()
+    return key
+
+
 @router.get("/papers", response_model=list[PaperWithScores])
-async def list_papers(limit: int = 20, offset: int = 0, db: Session = Depends(get_db)):
+async def list_papers(request: Request, limit: int = 20, offset: int = 0, db: Session = Depends(get_db)):
     """Return recently added papers with aggregated scores."""
+    _check_api_key(request, db)
     papers = db.query(Paper).order_by(Paper.fetched_at.desc()).offset(offset).limit(min(limit, 100)).all()
     result = []
     for p in papers:
@@ -51,11 +72,12 @@ async def list_papers(limit: int = 20, offset: int = 0, db: Session = Depends(ge
 
 
 @router.get("/papers/{doi:path}", response_model=PaperWithScores)
-async def get_paper(doi: str, db: Session = Depends(get_db)):
+async def get_paper(doi: str, request: Request, db: Session = Depends(get_db)):
     """
     Fetch a paper by DOI. If not in DB, queries CrossRef and caches it.
     DOI can be bare (10.1000/xyz123) or URL-encoded.
     """
+    _check_api_key(request, db)
     doi = normalise_doi(doi)
     if not is_valid_doi(doi):
         raise HTTPException(status_code=422, detail="Invalid DOI format")
@@ -89,8 +111,9 @@ async def get_paper(doi: str, db: Session = Depends(get_db)):
 
 
 @router.get("/papers/{doi:path}/ratings", response_model=list[RatingOut])
-async def get_paper_ratings(doi: str, db: Session = Depends(get_db)):
+async def get_paper_ratings(doi: str, request: Request, db: Session = Depends(get_db)):
     """Return all individual ratings for a paper. Reviewer ORCID iDs are NOT included."""
+    _check_api_key(request, db)
     doi = normalise_doi(doi)
     paper = db.get(Paper, doi)
     if not paper:
@@ -100,8 +123,9 @@ async def get_paper_ratings(doi: str, db: Session = Depends(get_db)):
 
 
 @router.get("/papers/{doi:path}/scores", response_model=AggregatedScores)
-async def get_paper_scores(doi: str, db: Session = Depends(get_db)):
+async def get_paper_scores(doi: str, request: Request, db: Session = Depends(get_db)):
     """Aggregated scores for a paper."""
+    _check_api_key(request, db)
     doi = normalise_doi(doi)
     paper = db.get(Paper, doi)
     if not paper:

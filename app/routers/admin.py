@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
+from app.models.api_key import ApiKey
 from app.models.comment import Comment, CommentLike
 from app.models.like import Like
 from app.models.message import Message
@@ -133,6 +134,7 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
 
     papers_map = {p.doi: p for p in db.query(Paper).all()}
     users_map = {u.orcid_id: u for u in db.query(User).all()}
+    api_keys = db.query(ApiKey).order_by(ApiKey.created_at.desc()).all()
 
     return templates.TemplateResponse("admin_dashboard.html", {
         **_base(request),
@@ -146,6 +148,7 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
         "all_users": all_users,
         "papers_map": papers_map,
         "users_map": users_map,
+        "api_keys": api_keys,
     })
 
 
@@ -298,5 +301,38 @@ async def admin_delete_paper(doi: str, request: Request, db: Session = Depends(g
     db.query(Rating).filter(Rating.doi == doi).delete()
     db.query(PaperSubscription).filter(PaperSubscription.doi == doi).delete()
     db.delete(paper)
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
+# ── API key management ────────────────────────────────────────────────────────
+
+@router.post("/api-keys/generate")
+async def admin_generate_api_key(request: Request, db: Session = Depends(get_db)):
+    _require_admin(request)
+    body = await request.json()
+    label = (body.get("label") or "").strip()
+    owner_email = (body.get("owner_email") or "").strip()
+    if not label or not owner_email:
+        return JSONResponse({"error": "label and owner_email are required"}, status_code=400)
+    raw = ApiKey.generate()
+    key = ApiKey(
+        key_hash=ApiKey.hash_key(raw),
+        label=label,
+        owner_email=owner_email,
+    )
+    db.add(key)
+    db.commit()
+    db.refresh(key)
+    return JSONResponse({"ok": True, "id": key.id, "key": raw})
+
+
+@router.post("/api-keys/{key_id}/revoke")
+async def admin_revoke_api_key(key_id: int, request: Request, db: Session = Depends(get_db)):
+    _require_admin(request)
+    key = db.get(ApiKey, key_id)
+    if not key:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    key.is_active = False
     db.commit()
     return JSONResponse({"ok": True})
