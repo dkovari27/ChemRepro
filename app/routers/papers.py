@@ -1638,6 +1638,7 @@ async def nd_edit_rating_page(doi: str, rating_id: int, request: Request, db: Se
     })
 
 
+
 @router.get("/paper/{doi:path}", response_class=HTMLResponse)
 async def nd_paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
     paper = db.get(Paper, doi)
@@ -2050,6 +2051,7 @@ async def nd_delete_rating(doi: str, rating_id: int, request: Request, db: Sessi
     r = _own_rating_or_404(rating_id, orcid_id, db)
     _delete_rating(r, db)
     return RedirectResponse(f"/paper/{doi}", status_code=303)
+
 
 
 @router.post("/paper/{doi:path}/ratings/{rating_id}/edit")
