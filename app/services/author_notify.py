@@ -177,8 +177,8 @@ async def notify_author_if_possible(
     You are welcome to read or respond to the review on the platform.</p>
     <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0"/>
     <p style="font-size:12px;color:#94a3b8">
-    <a href="{opt_out_url}">Manage email preferences</a>
-    &mdash; unsubscribe from this paper or from all ChemRepro emails.
+    <a href="{opt_out_url}">Manage email preferences</a>:
+    unsubscribe from this paper or from all ChemRepro emails.
     </p>
     """
 

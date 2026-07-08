@@ -2,12 +2,12 @@
 {% block title %}Community Pledge – ChemRepro{% endblock %}
 
 {% block content %}
-<div class="min-h-[70vh] flex items-start justify-center pt-8 pb-16">
-<div class="w-full max-w-4xl grid grid-cols-1 md:grid-cols-[1fr_340px] gap-8 items-start">
+<div class="min-h-[70vh] flex items-start justify-center pt-4 pb-16">
+<div class="w-full grid grid-cols-1 md:grid-cols-[1fr_340px] gap-8 items-start">
 
   <!-- ═══════ LEFT — pledge form ═══════ -->
   <div>
-    <div class="mb-6">
+    <div class="mb-3">
       <span class="text-xs font-semibold text-brand uppercase tracking-widest">Before you continue</span>
       <h1 class="text-2xl font-bold text-slate-800 mt-1">Community Pledge</h1>
     </div>
@@ -24,7 +24,7 @@
         <li id="item-{{ s.id }}"
             class="pledge-item border rounded-xl p-5 transition-all duration-300
                    {% if loop.first %}border-brand bg-white shadow-sm{% else %}border-slate-200 bg-slate-50 opacity-50 pointer-events-none{% endif %}">
-          <div class="flex items-start gap-4">
+          <div class="flex items-center gap-4">
             <!-- Number / check icon -->
             <div class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300
                         {% if loop.first %}bg-brand text-white{% else %}bg-slate-200 text-slate-400{% endif %}"
@@ -45,32 +45,27 @@
               </p>
               {% endif %}
             </div>
-          </div>
-
-          <!-- I agree button (visible while item is active) -->
-          <div class="mt-4 flex justify-end" id="btn-wrap-{{ s.id }}">
-            {% if not loop.last %}
-            <button type="button"
-                    onclick="agreeItem({{ s.id }}, {{ s.id + 1 }})"
-                    class="inline-flex items-center gap-2 bg-brand text-white text-sm font-medium rounded-lg px-4 py-2 hover:bg-blue-700 transition-colors">
-              <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-              </svg>
-              I agree
-            </button>
-            {% else %}
-            <!-- Final submit button — hidden until this item is active -->
-            <button type="submit" id="final-btn"
-                    class="inline-flex items-center gap-2 bg-brand text-white text-sm font-semibold rounded-lg px-5 py-2.5 hover:bg-blue-700 transition-colors">
-              <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-              </svg>
-              Agree and continue
-              <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
-              </svg>
-            </button>
-            {% endif %}
+            <!-- I agree button – inline with statement -->
+            <div id="btn-wrap-{{ s.id }}" class="shrink-0">
+              {% if not loop.last %}
+              <button type="button"
+                      onclick="agreeItem({{ s.id }}, {{ s.id + 1 }})"
+                      class="inline-flex items-center gap-2 bg-brand text-white text-sm font-medium rounded-lg px-4 py-2 hover:bg-blue-700 transition-colors">
+                <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                </svg>
+                I agree
+              </button>
+              {% else %}
+              <button type="submit" id="final-btn"
+                      class="inline-flex items-center gap-2 bg-brand text-white text-sm font-semibold rounded-lg px-4 py-2 hover:bg-blue-700 transition-colors">
+                <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                </svg>
+                Agree &amp; continue
+              </button>
+              {% endif %}
+            </div>
           </div>
         </li>
         {% endfor %}

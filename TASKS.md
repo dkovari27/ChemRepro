@@ -1,5 +1,5 @@
 # ChemRepro — Task Tracker
-_Last updated: 6 July 2026_
+_Last updated: 8 July 2026_
 
 ---
 
@@ -7,7 +7,6 @@ _Last updated: 6 July 2026_
 
 ### 🟠 HIGH
 
-- [ ] **C21** — Onboarding product tour: 4-step spotlight walkthrough shown once after first login (DOI search → rate a paper → save to Library → connect with reviewers). Fires via `tour_pending` session flag set in profile-setup. Built with vanilla JS + box-shadow spotlight. No external library.
 - [ ] **B11** — Activate author email notification (`AUTHOR_NOTIFY_ENABLED=true` in Railway `.env`) — disabled pending test that CrossRef/PMC/PubMed lookup works on real chemistry DOIs
 - [ ] **B12** — Wire `notification_email` to SMTP sender — field is saved in Settings but never read; when a followed paper gets a new review/comment, send an email to `notification_email` if set
 - [ ] **B14** — LinkedIn OAuth: routes + UI fully built, button shows "Coming soon". Before release: register app at developer.linkedin.com, set `LINKEDIN_CLIENT_ID` + `LINKEDIN_CLIENT_SECRET` + `LINKEDIN_REDIRECT_URI` in Railway `.env`, then restore button to active link.
@@ -17,7 +16,7 @@ _Last updated: 6 July 2026_
 
 - [ ] **B4/C9/D7** — Chemistry keyword/condition tags on rating form (Yield discrepancy, Purity issue, Safety concern…) — deferred, design not settled
 - [ ] **C10** — Logo polish (current logo is placeholder)
-- [ ] **C20** — Before deployment: audit existing `paper.abstract` rows in the database and strip any leading "Abstract" prefix (artefact of CrossRef JATS XML parsing, now fixed in `crossref.py` for new fetches)
+- [x] **C20** — Migration script `scripts/fix_abstract_prefix.py` strips leading "Abstract" prefix from existing rows. Run locally or against Railway with `DATABASE_URL=... python scripts/fix_abstract_prefix.py`.
 
 ### 🔵 POST-LAUNCH
 
@@ -76,6 +75,7 @@ _Last updated: 6 July 2026_
 - [x] **B15** — Image upload/paste in all text inputs. Contenteditable replaces textarea for inline image rendering; `initDivFromMarkdown` loads pre-filled content on edit pages; JS served from `base.html` globally
 
 ### Block C — UX Polish
+- [x] **C21** — Onboarding product tour: 5-step spotlight walkthrough shown once after first login, fires via `tour_pending` session flag → demo page. Built with vanilla JS + box-shadow spotlight + click shield.
 - [x] **C1** — Footer cleanup
 - [x] **C2** — Em dash sweep (privacy page, author notification email, all templates)
 - [x] **C3** — Textarea sizing

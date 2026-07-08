@@ -391,8 +391,7 @@
           {% for c in top_comments %}
           {% set c_liked = c.id in user_comment_likes %}
           {% set c_like_count = comment_like_counts.get(c.id, 0) %}
-          <div id="comment-{{ c.id }}" class="flex gap-3">
-            <div class="w-0.5 bg-slate-200 rounded-full shrink-0 mt-1"></div>
+          <div id="comment-{{ c.id }}" class="border border-slate-200 rounded-xl p-3">
             <div class="flex-1">
               <!-- Author row with date top-right -->
               <div class="flex items-center justify-between gap-2 mb-0.5">
@@ -467,7 +466,7 @@
               {% if sub_replies %}
               <div class="mt-2 space-y-2 border-l-2 border-slate-100 pl-3">
                 {% for sr in sub_replies %}
-                <div id="comment-{{ sr.id }}">
+                <div id="comment-{{ sr.id }}" class="border border-slate-200 rounded-lg p-2.5">
                   <div class="flex items-center justify-between gap-2 mb-0.5">
                     <div class="flex items-center gap-2">
                       {% if sr.user %}
@@ -552,7 +551,7 @@
         {% endif %}
 
         {# Action row #}
-        <div class="mt-3 border-t border-slate-100 pt-2 flex items-center gap-5">
+        <div {% if loop.first %}id="tour-review-actions"{% endif %} class="mt-3 border-t border-slate-100 pt-2 flex items-center gap-5">
 
           <!-- Like -->
           {% if orcid_id %}
@@ -637,7 +636,7 @@
             </div>
           </div>
 
-          <!-- Edit / Delete / Message – right side -->
+          <!-- Edit / Delete – right side -->
           {% if orcid_id and r.orcid_id == orcid_id %}
           <div class="ml-auto flex items-center gap-3">
             <a href="/classic/paper/{{ paper.doi }}/ratings/{{ r.id }}/edit"
@@ -659,16 +658,6 @@
                 </svg>
               </button>
             </form>
-          </div>
-          {% elif orcid_id and r.orcid_id != orcid_id %}
-          <div class="ml-auto">
-            <button type="button" onclick="openMessageModal('{{ r.orcid_id }}', '{{ r.user.name | replace("'", "\\'") if r.user else "User" }}')"
-              class="flex items-center gap-1 text-xs text-slate-400 hover:text-brand transition-colors" title="Send private message">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-              </svg>
-              Message
-            </button>
           </div>
           {% endif %}
 

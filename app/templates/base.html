@@ -146,7 +146,7 @@
                 <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
                 </svg>
-                My library
+                My collections
               </a>
               <a href="/profile/subscriptions"
                  class="flex items-center gap-2.5 px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
@@ -229,7 +229,7 @@
 
   <script src="/static/js/moderation.js"></script>
   <script src="/static/js/tour.js"></script>
-  {% if request.session.get('tour_pending') and request.url.path in ['/', '/classic'] %}
+  {% if request.session.get('tour_pending') and request.url.path in ['/', '/classic', '/classic/'] %}
   <script>localStorage.setItem('crTourStep', '0');</script>
   {% set _ = request.session.pop('tour_pending', None) %}
   {% endif %}

@@ -200,6 +200,9 @@ async def search(request: Request, doi: str = "", db: Session = Depends(get_db))
     if not doi:
         return RedirectResponse("/")
 
+    if doi.strip().lower() == "demo":
+        return RedirectResponse("/paper/demo", status_code=303)
+
     # Some publisher URLs (PubMed, ScienceDirect) need an async API call to resolve to DOI
     resolved = await resolve_url_to_doi(doi)
     doi = resolved if resolved else normalise_doi(doi)
@@ -274,6 +277,19 @@ def _delete_rating(r: Rating, db: Session) -> None:
     db.query(Comment).filter(Comment.rating_id == r.id).delete()
     db.delete(r)
     db.commit()
+
+
+# ── Demo paper (must be before the greedy /paper/{doi:path} route) ───────────
+
+@router.get("/paper/demo", response_class=HTMLResponse)
+async def demo_paper_page(request: Request):
+    return templates.TemplateResponse("demo.html", {
+        "request": request,
+        "user_name": request.session.get("user_name"),
+        "orcid_id": request.session.get("orcid_id"),
+        "site_version": "standard",
+        "switch_urls": {"standard": "/paper/demo", "classic": "/paper/demo"},
+    })
 
 
 # ── Standard: GET edit (must be before the greedy /paper/{doi:path} route) ───
