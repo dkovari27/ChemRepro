@@ -1572,7 +1572,7 @@ async def nd_index(request: Request, db: Session = Depends(get_db)):
 
     last_rated_sq = (
         db.query(Rating.doi, func.max(Rating.created_at).label("last_rated"))
-        .filter(Rating.scoring_mode == "new_design")
+        .filter(Rating.scoring_mode.in_(["new_design", "standard"]))
         .group_by(Rating.doi)
         .subquery()
     )
@@ -1581,7 +1581,7 @@ async def nd_index(request: Request, db: Session = Depends(get_db)):
     if orcid_id:
         my_dois_sq = (
             db.query(Rating.doi)
-            .filter(Rating.orcid_id == orcid_id, Rating.scoring_mode == "new_design")
+            .filter(Rating.orcid_id == orcid_id, Rating.scoring_mode.in_(["new_design", "standard"]))
             .subquery()
         )
         my_papers = _enrich_nd(
