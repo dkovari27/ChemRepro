@@ -77,6 +77,26 @@ OUTCOME_COLORS = {
     "no_repro":               ("bg-red-500",    "text-red-700"),
 }
 
+ND_STAR_LABELS = {
+    1: "Did not work",
+    2: "Reproduced with deviation",
+    3: "Reproduced as published",
+    4: "Minor extension successful",
+    5: "Major extension successful",
+}
+ND_STAR_ORDER = [5, 4, 3, 2, 1]
+ND_STAR_COLORS = {
+    5: ("bg-blue-500",   "text-blue-700"),
+    4: ("bg-teal-500",   "text-teal-700"),
+    3: ("bg-green-500",  "text-green-700"),
+    2: ("bg-orange-400", "text-orange-700"),
+    1: ("bg-red-500",    "text-red-700"),
+}
+ND_FAILURE_CONTEXT_LABELS = {
+    "original_tested": "Tested original",
+    "extension_only":  "Extension only",
+}
+
 _SCORE_EXPR = case(
     (Rating.outcome == "no_repro", 1),
     (Rating.outcome == "no_extension", 2),
@@ -87,8 +107,27 @@ _SCORE_EXPR = case(
 )
 
 
+def _get_nd_paper_scores(doi: str, db: Session) -> dict:
+    nd_filter = [Rating.doi == doi, Rating.scoring_mode == "new_design", Rating.nd_star.isnot(None)]
+    row = db.query(
+        func.avg(Rating.nd_star).label("avg_star"),
+        func.count(Rating.id).label("count"),
+    ).filter(*nd_filter).one()
+    dist_rows = (
+        db.query(Rating.nd_star, func.count(Rating.id))
+        .filter(*nd_filter)
+        .group_by(Rating.nd_star)
+        .all()
+    )
+    return {
+        "nd_avg_star": round(float(row.avg_star), 1) if row.avg_star else None,
+        "nd_rating_count": row.count,
+        "nd_star_dist": {star: cnt for star, cnt in dist_rows},
+    }
+
+
 def _get_paper_scores(doi: str, db: Session) -> dict:
-    std_filter = [Rating.doi == doi, Rating.scoring_mode != "classic"]
+    std_filter = [Rating.doi == doi, Rating.scoring_mode == "standard"]
     row = db.query(
         func.avg(_SCORE_EXPR).label("avg_score"),
         func.count(Rating.id).label("count"),
@@ -189,7 +228,7 @@ async def index(request: Request, db: Session = Depends(get_db)):
         "user_name": request.session.get("user_name"),
         "orcid_id": orcid_id,
         "site_version": "standard",
-        "switch_urls": {"standard": "/", "classic": "/classic/"},
+        "switch_urls": {"standard": "/", "classic": "/classic/", "new_design": "/nd/"},
         **_dev_context(),
         **_scoring_context(),
     })
@@ -288,7 +327,7 @@ async def demo_paper_page(request: Request):
         "user_name": request.session.get("user_name"),
         "orcid_id": request.session.get("orcid_id"),
         "site_version": "standard",
-        "switch_urls": {"standard": "/paper/demo", "classic": "/paper/demo"},
+        "switch_urls": {"standard": "/paper/demo", "classic": "/paper/demo", "new_design": "/paper/demo"},
     })
 
 
@@ -325,7 +364,7 @@ async def edit_rating_page(doi: str, rating_id: int, request: Request, db: Sessi
         "user_name": request.session.get("user_name"),
         "orcid_id": orcid_id,
         "site_version": "standard",
-        "switch_urls": {"standard": "/", "classic": "/classic/"},
+        "switch_urls": {"standard": "/", "classic": "/classic/", "new_design": "/nd/"},
     })
 
 
@@ -374,7 +413,7 @@ async def paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
     except ValueError:
         active_page = 1
 
-    q = db.query(Rating).filter(Rating.doi == doi, Rating.scoring_mode != "classic", Rating.ai_flagged == False)  # noqa: E712
+    q = db.query(Rating).filter(Rating.doi == doi, Rating.scoring_mode == "standard", Rating.ai_flagged == False)  # noqa: E712
     if active_outcome:
         q = q.filter(Rating.outcome == active_outcome)
     if active_scope:
@@ -440,7 +479,7 @@ async def paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
         }
     user_already_rated = (
         db.query(Rating).filter(
-            Rating.doi == doi, Rating.orcid_id == orcid_id, Rating.scoring_mode != "classic"
+            Rating.doi == doi, Rating.orcid_id == orcid_id, Rating.scoring_mode == "standard"
         ).first()
         if orcid_id else None
     )
@@ -528,7 +567,7 @@ async def paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
         "papers_by_doi": papers_by_doi,
         "prompts": prompts,
         "site_version": "standard",
-        "switch_urls": {"standard": f"/paper/{doi}", "classic": f"/classic/paper/{doi}"},
+        "switch_urls": {"standard": f"/paper/{doi}", "classic": f"/classic/paper/{doi}", "new_design": f"/nd/paper/{doi}"},
         **_scoring_context(),
     })
 
@@ -983,7 +1022,7 @@ def _opt_out_ctx(request, record, token, done=None):
         "user_name": request.session.get("user_name"),
         "orcid_id": request.session.get("orcid_id"),
         "site_version": "standard",
-        "switch_urls": {"standard": "/", "classic": "/classic/"},
+        "switch_urls": {"standard": "/", "classic": "/classic/", "new_design": "/nd/"},
     }
 
 @router.get("/notify/opt-out/{token}", response_class=HTMLResponse)
@@ -1104,7 +1143,7 @@ async def classic_index(request: Request, db: Session = Depends(get_db)):
         "user_name": request.session.get("user_name"),
         "orcid_id": orcid_id,
         "site_version": "classic",
-        "switch_urls": {"standard": "/", "classic": "/classic/"},
+        "switch_urls": {"standard": "/", "classic": "/classic/", "new_design": "/nd/"},
         **_dev_context(),
         **_scoring_context(),
     })
@@ -1129,7 +1168,7 @@ async def classic_edit_rating_page(doi: str, rating_id: int, request: Request, d
         "user_name": request.session.get("user_name"),
         "orcid_id": orcid_id,
         "site_version": "classic",
-        "switch_urls": {"standard": "/", "classic": "/classic/"},
+        "switch_urls": {"standard": "/", "classic": "/classic/", "new_design": "/nd/"},
     })
 
 
@@ -1331,7 +1370,7 @@ async def classic_paper_page(doi: str, request: Request, db: Session = Depends(g
         "papers_by_doi": papers_by_doi,
         "prompts": prompts,
         "site_version": "classic",
-        "switch_urls": {"standard": f"/paper/{doi}", "classic": f"/classic/paper/{doi}"},
+        "switch_urls": {"standard": f"/paper/{doi}", "classic": f"/classic/paper/{doi}", "new_design": f"/nd/paper/{doi}"},
     })
 
 
@@ -1462,8 +1501,509 @@ async def about(request: Request):
         "user_name": request.session.get("user_name"),
         "orcid_id": request.session.get("orcid_id"),
         "site_version": "standard",
-        "switch_urls": {"standard": "/", "classic": "/classic/"},
+        "switch_urls": {"standard": "/", "classic": "/classic/", "new_design": "/nd/"},
     })
+
+
+# ── New Design (ND) mode ──────────────────────────────────────────────────────
+
+def _nd_scoring_context() -> dict:
+    return {
+        "nd_star_labels": ND_STAR_LABELS,
+        "nd_star_order": ND_STAR_ORDER,
+        "nd_star_colors": ND_STAR_COLORS,
+        "nd_failure_context_labels": ND_FAILURE_CONTEXT_LABELS,
+    }
+
+
+@router.get("/nd/", response_class=HTMLResponse)
+@router.get("/nd", response_class=HTMLResponse)
+async def nd_index(request: Request, db: Session = Depends(get_db)):
+    orcid_id = request.session.get("orcid_id")
+
+    def _enrich_nd(papers):
+        return [
+            {"paper": p, "display_authors": _format_authors(p.authors), **_get_nd_paper_scores(p.doi, db)}
+            for p in papers
+        ]
+
+    last_rated_sq = (
+        db.query(Rating.doi, func.max(Rating.created_at).label("last_rated"))
+        .filter(Rating.scoring_mode == "new_design")
+        .group_by(Rating.doi)
+        .subquery()
+    )
+
+    my_papers = []
+    if orcid_id:
+        my_dois_sq = (
+            db.query(Rating.doi)
+            .filter(Rating.orcid_id == orcid_id, Rating.scoring_mode == "new_design")
+            .subquery()
+        )
+        my_papers = _enrich_nd(
+            db.query(Paper)
+            .join(my_dois_sq, Paper.doi == my_dois_sq.c.doi)
+            .join(last_rated_sq, Paper.doi == last_rated_sq.c.doi)
+            .order_by(last_rated_sq.c.last_rated.desc())
+            .limit(5)
+            .all()
+        )
+
+    my_doi_set = {e["paper"].doi for e in my_papers}
+    community_candidates = (
+        db.query(Paper)
+        .join(last_rated_sq, Paper.doi == last_rated_sq.c.doi)
+        .order_by(last_rated_sq.c.last_rated.desc())
+        .limit(10 + len(my_doi_set))
+        .all()
+    )
+    community_papers = _enrich_nd([p for p in community_candidates if p.doi not in my_doi_set][:10])
+
+    return templates.TemplateResponse("index_nd.html", {
+        "request": request,
+        "my_papers": my_papers,
+        "community_papers": community_papers,
+        "user_name": request.session.get("user_name"),
+        "orcid_id": orcid_id,
+        "site_version": "new_design",
+        "switch_urls": {"standard": "/", "classic": "/classic/", "new_design": "/nd/"},
+        **_dev_context(),
+        **_nd_scoring_context(),
+    })
+
+
+@router.get("/nd/paper/{doi:path}/ratings/{rating_id}/edit", response_class=HTMLResponse)
+async def nd_edit_rating_page(doi: str, rating_id: int, request: Request, db: Session = Depends(get_db)):
+    orcid_id = request.session.get("orcid_id")
+    if not orcid_id:
+        return RedirectResponse(f"/auth/guest-setup?next=/nd/paper/{doi}", status_code=303)
+    r = _own_rating_or_404(rating_id, orcid_id, db)
+    paper = db.get(Paper, doi)
+    if not paper:
+        raise HTTPException(status_code=404)
+    return templates.TemplateResponse("edit_rating_nd.html", {
+        "request": request,
+        "paper": paper,
+        "rating": r,
+        "user_name": request.session.get("user_name"),
+        "orcid_id": orcid_id,
+        "site_version": "new_design",
+        "switch_urls": {"standard": "/", "classic": "/classic/", "new_design": "/nd/"},
+        **_nd_scoring_context(),
+    })
+
+
+@router.get("/nd/paper/{doi:path}", response_class=HTMLResponse)
+async def nd_paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
+    paper = db.get(Paper, doi)
+    if not paper:
+        meta = await fetch_paper_metadata(doi)
+        if not meta:
+            raise HTTPException(status_code=404, detail="Paper not found")
+        paper = Paper(**meta)
+        db.add(paper)
+        db.commit()
+        db.refresh(paper)
+    elif paper.abstract is None:
+        meta = await fetch_paper_metadata(doi)
+        if meta and meta.get("abstract"):
+            paper.abstract = meta["abstract"]
+            db.commit()
+
+    nd_scores = _get_nd_paper_scores(doi, db)
+
+    PAGE_SIZE = 25
+    active_star  = request.query_params.get("star",  "")
+    active_ctx   = request.query_params.get("ctx",   "")
+    active_sort  = request.query_params.get("sort",  "newest")
+    try:
+        active_page = max(1, int(request.query_params.get("page", 1)))
+    except ValueError:
+        active_page = 1
+
+    q = db.query(Rating).filter(
+        Rating.doi == doi, Rating.scoring_mode == "new_design", Rating.ai_flagged == False  # noqa: E712
+    )
+    if active_star:
+        try:
+            q = q.filter(Rating.nd_star == int(active_star))
+        except ValueError:
+            pass
+    if active_ctx:
+        q = q.filter(Rating.nd_failure_context == active_ctx)
+
+    total_count = q.count()
+    total_pages = max(1, (total_count + PAGE_SIZE - 1) // PAGE_SIZE)
+    active_page = min(active_page, total_pages)
+
+    if active_sort == "oldest":
+        q = q.order_by(Rating.created_at.asc())
+    elif active_sort == "highest":
+        q = q.order_by(Rating.nd_star.desc().nullslast(), Rating.created_at.desc())
+    elif active_sort == "lowest":
+        q = q.order_by(Rating.nd_star.asc().nullsfirst(), Rating.created_at.desc())
+    elif active_sort == "most_liked":
+        like_sq = (
+            select(Like.rating_id, func.count(Like.id).label("lc"))
+            .group_by(Like.rating_id)
+            .subquery()
+        )
+        q = q.outerjoin(like_sq, Rating.id == like_sq.c.rating_id)
+        q = q.order_by(func.coalesce(like_sq.c.lc, 0).desc(), Rating.created_at.desc())
+    else:
+        q = q.order_by(Rating.created_at.desc())
+
+    reviews = q.offset((active_page - 1) * PAGE_SIZE).limit(PAGE_SIZE).all()
+
+    all_comments = (
+        db.query(Comment)
+        .filter(Comment.doi == doi, Comment.ai_flagged == False)  # noqa: E712
+        .order_by(Comment.created_at.asc())
+        .all()
+    )
+    comment_map: dict[int, list] = {}
+    reply_map: dict[int, list] = {}
+    for c in all_comments:
+        if c.parent_id:
+            reply_map.setdefault(c.parent_id, []).append(c)
+        elif c.rating_id:
+            comment_map.setdefault(c.rating_id, []).append(c)
+
+    comment_ids = [c.id for c in all_comments]
+    comment_like_rows = (
+        db.query(CommentLike.comment_id, func.count(CommentLike.id))
+        .filter(CommentLike.comment_id.in_(comment_ids))
+        .group_by(CommentLike.comment_id)
+        .all()
+    ) if comment_ids else []
+    comment_like_counts = {cid: cnt for cid, cnt in comment_like_rows}
+
+    orcid_id = request.session.get("orcid_id")
+    user_comment_likes: set[int] = set()
+    if orcid_id and comment_ids:
+        user_comment_likes = {
+            row.comment_id for row in
+            db.query(CommentLike.comment_id)
+            .filter(CommentLike.orcid_id == orcid_id, CommentLike.comment_id.in_(comment_ids))
+            .all()
+        }
+
+    user_already_rated = (
+        db.query(Rating).filter(
+            Rating.doi == doi, Rating.orcid_id == orcid_id, Rating.scoring_mode == "new_design"
+        ).first()
+        if orcid_id else None
+    )
+
+    try:
+        authors = json.loads(paper.authors)
+    except Exception:
+        authors = [paper.authors]
+
+    rating_ids = [r.id for r in reviews]
+    like_rows = (
+        db.query(Like.rating_id, func.count(Like.id))
+        .filter(Like.rating_id.in_(rating_ids))
+        .group_by(Like.rating_id)
+        .all()
+    ) if rating_ids else []
+    like_counts = {rid: cnt for rid, cnt in like_rows}
+
+    user_likes: set[int] = set()
+    if orcid_id and rating_ids:
+        user_likes = {
+            row.rating_id for row in
+            db.query(Like.rating_id)
+            .filter(Like.orcid_id == orcid_id, Like.rating_id.in_(rating_ids))
+            .all()
+        }
+
+    _ref_texts = (
+        [r.reproducibility_observation for r in reviews]
+        + [c.content for c in all_comments]
+    )
+    _ref_dois = collect_doi_refs(_ref_texts) - {doi}
+    papers_by_doi: dict = {}
+    if _ref_dois:
+        for _p in db.query(Paper).filter(Paper.doi.in_(_ref_dois)).all():
+            papers_by_doi[_p.doi] = _p
+        for _missing_doi in _ref_dois - papers_by_doi.keys():
+            try:
+                _meta = await fetch_paper_metadata(_missing_doi)
+                if _meta:
+                    _new_p = Paper(**_meta)
+                    db.add(_new_p)
+                    db.commit()
+                    db.refresh(_new_p)
+                    papers_by_doi[_missing_doi] = _new_p
+            except Exception:
+                db.rollback()
+
+    saved_entry = (
+        db.query(SavedPaper).filter(
+            SavedPaper.orcid_id == orcid_id,
+            SavedPaper.doi == doi,
+        ).first()
+        if orcid_id else None
+    )
+    user_collections_flat = _collections_flat(orcid_id, db) if orcid_id else []
+
+    return templates.TemplateResponse("paper_nd.html", {
+        "request": request,
+        "paper": paper,
+        "authors": authors,
+        "nd_scores": nd_scores,
+        "reviews": reviews,
+        "comment_map": comment_map,
+        "reply_map": reply_map,
+        "comment_like_counts": comment_like_counts,
+        "user_comment_likes": user_comment_likes,
+        "like_counts": like_counts,
+        "user_likes": user_likes,
+        "total_count": total_count,
+        "total_pages": total_pages,
+        "active_page": active_page,
+        "active_star": active_star,
+        "active_ctx": active_ctx,
+        "active_sort": active_sort,
+        "user_name": request.session.get("user_name"),
+        "orcid_id": orcid_id,
+        "user_already_rated": user_already_rated,
+        "saved_entry": saved_entry,
+        "user_collections_flat": user_collections_flat,
+        "papers_by_doi": papers_by_doi,
+        "site_version": "new_design",
+        "switch_urls": {"standard": f"/paper/{doi}", "classic": f"/classic/paper/{doi}", "new_design": f"/nd/paper/{doi}"},
+        **_nd_scoring_context(),
+    })
+
+
+@router.post("/nd/paper/{doi:path}/comment")
+async def nd_submit_comment(
+    doi: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    rating_id: int = Form(...),
+    content: str = Form(""),
+):
+    orcid_id = request.session.get("orcid_id")
+    if not orcid_id:
+        return RedirectResponse(f"/auth/guest-setup?next=/nd/paper/{doi}", status_code=303)
+    if not content.strip():
+        return RedirectResponse(f"/nd/paper/{doi}", status_code=303)
+    if not _is_clean(content):
+        raise HTTPException(status_code=422, detail="Content contains prohibited language.")
+    paper = db.get(Paper, doi)
+    if not paper:
+        raise HTTPException(status_code=404, detail="Paper not found")
+    rating = db.get(Rating, rating_id)
+    comment = Comment(doi=doi, rating_id=rating_id, orcid_id=orcid_id, content=content.strip()[:2000])
+    db.add(comment)
+    if rating:
+        _maybe_notify(db, notif_type="comment", actor_orcid_id=orcid_id,
+                      actor_name=request.session.get("user_name", "Someone"), rating=rating, paper=paper)
+    _notify_paper_subscribers(db, doi=doi, paper=paper, notif_type="new_comment",
+                               actor_name=request.session.get("user_name", "Someone"),
+                               rating_id=rating_id, exclude_orcid=orcid_id)
+    db.commit()
+    background_tasks.add_task(moderate_comment_bg, comment.id)
+    return RedirectResponse(f"/nd/paper/{doi}#review-{rating_id}", status_code=303)
+
+
+@router.post("/nd/paper/{doi:path}/comment/{parent_id}/reply")
+async def nd_submit_reply(
+    doi: str, parent_id: int, request: Request,
+    background_tasks: BackgroundTasks, db: Session = Depends(get_db),
+    content: str = Form(""),
+):
+    orcid_id = request.session.get("orcid_id")
+    if not orcid_id:
+        return RedirectResponse(f"/auth/guest-setup?next=/nd/paper/{doi}", status_code=303)
+    content = content.strip()[:2000]
+    if not content:
+        return RedirectResponse(f"/nd/paper/{doi}", status_code=303)
+    if not _is_clean(content):
+        raise HTTPException(status_code=422, detail="Content contains prohibited language.")
+    parent = db.get(Comment, parent_id)
+    if not parent:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    reply = Comment(doi=doi, rating_id=parent.rating_id, parent_id=parent_id, orcid_id=orcid_id, content=content)
+    db.add(reply)
+    if parent.orcid_id != orcid_id:
+        paper = db.get(Paper, doi)
+        if paper:
+            db.add(Notification(
+                recipient_orcid_id=parent.orcid_id, type="comment_reply",
+                actor_name=request.session.get("user_name", "Someone"),
+                rating_id=parent.rating_id or 0, doi=doi, paper_title=(paper.title or "")[:200],
+            ))
+    db.commit()
+    background_tasks.add_task(moderate_comment_bg, reply.id)
+    anchor = f"#review-{parent.rating_id}" if parent.rating_id else ""
+    return RedirectResponse(f"/nd/paper/{doi}{anchor}", status_code=303)
+
+
+@router.post("/nd/paper/{doi:path}/ratings/{rating_id}/like")
+async def nd_toggle_like(doi: str, rating_id: int, request: Request, db: Session = Depends(get_db)):
+    wants_json = "application/json" in request.headers.get("Accept", "")
+    orcid_id = request.session.get("orcid_id")
+    if not orcid_id:
+        if wants_json:
+            return JSONResponse({"error": "not authenticated"}, status_code=401)
+        return RedirectResponse(f"/auth/guest-setup?next={request.url.path}", status_code=303)
+    existing = db.query(Like).filter(Like.rating_id == rating_id, Like.orcid_id == orcid_id).first()
+    if existing:
+        db.delete(existing)
+        liked = False
+    else:
+        db.add(Like(rating_id=rating_id, orcid_id=orcid_id))
+        liked = True
+        rating = db.get(Rating, rating_id)
+        if rating:
+            paper = db.get(Paper, doi)
+            if paper:
+                _maybe_notify(db, notif_type="like", actor_orcid_id=orcid_id,
+                              actor_name=request.session.get("user_name", "Someone"), rating=rating, paper=paper)
+    db.commit()
+    count = db.query(func.count(Like.id)).filter(Like.rating_id == rating_id).scalar()
+    if wants_json:
+        return JSONResponse({"liked": liked, "count": count})
+    return RedirectResponse(f"/nd/paper/{doi}#review-{rating_id}", status_code=303)
+
+
+@router.post("/nd/paper/{doi:path}/comment/{comment_id}/like")
+async def nd_toggle_comment_like(doi: str, comment_id: int, request: Request, db: Session = Depends(get_db)):
+    wants_json = "application/json" in request.headers.get("Accept", "")
+    orcid_id = request.session.get("orcid_id")
+    if not orcid_id:
+        return JSONResponse({"error": "not authenticated"}, status_code=401)
+    existing = db.query(CommentLike).filter(
+        CommentLike.comment_id == comment_id, CommentLike.orcid_id == orcid_id
+    ).first()
+    if existing:
+        db.delete(existing)
+        liked = False
+    else:
+        db.add(CommentLike(comment_id=comment_id, orcid_id=orcid_id))
+        liked = True
+        comment = db.get(Comment, comment_id)
+        if comment and comment.orcid_id != orcid_id:
+            paper = db.get(Paper, doi)
+            if paper:
+                db.add(Notification(
+                    recipient_orcid_id=comment.orcid_id, type="comment_like",
+                    actor_name=request.session.get("user_name", "Someone"),
+                    rating_id=comment.rating_id or 0, doi=doi, paper_title=(paper.title or "")[:200],
+                ))
+    db.commit()
+    count = db.query(func.count(CommentLike.id)).filter(CommentLike.comment_id == comment_id).scalar()
+    if wants_json:
+        return JSONResponse({"liked": liked, "count": count})
+    return RedirectResponse(f"/nd/paper/{doi}", status_code=303)
+
+
+@router.post("/nd/paper/{doi:path}/rate")
+async def nd_submit_rating(
+    doi: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    nd_star: str = Form(""),
+    nd_failure_context: str = Form(""),
+    reproducibility_observation: str = Form(""),
+    coi_confirmed: str = Form(""),
+):
+    orcid_id = request.session.get("orcid_id")
+    if not orcid_id:
+        return RedirectResponse(f"/auth/guest-setup?next=/nd/paper/{doi}", status_code=303)
+
+    paper = db.get(Paper, doi)
+    if not paper:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    if coi_confirmed != "on":
+        raise HTTPException(status_code=422, detail="You must confirm no conflict of interest")
+    if not _is_clean(reproducibility_observation):
+        raise HTTPException(status_code=422, detail="Content contains prohibited language.")
+
+    star_int = int(nd_star) if nd_star else None
+    if star_int is None or not (1 <= star_int <= 5):
+        raise HTTPException(status_code=422, detail="Star rating 1–5 is required")
+
+    ctx = nd_failure_context.strip() or None
+    if star_int == 1 and ctx not in ("original_tested", "extension_only"):
+        raise HTTPException(status_code=422, detail="Failure context is required for a 1-star review")
+    if star_int != 1:
+        ctx = None
+
+    existing = db.query(Rating).filter(
+        Rating.doi == doi, Rating.orcid_id == orcid_id, Rating.scoring_mode == "new_design"
+    ).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="You have already rated this paper in New Design mode")
+
+    rating = Rating(
+        doi=doi,
+        orcid_id=orcid_id,
+        scoring_mode="new_design",
+        nd_star=star_int,
+        nd_failure_context=ctx,
+        reproducibility_observation=reproducibility_observation.strip()[:1000] or None,
+    )
+    db.add(rating)
+    db.flush()
+    _notify_paper_subscribers(
+        db, doi=doi, paper=paper, notif_type="new_review",
+        actor_name=request.session.get("user_name", "Someone"),
+        rating_id=rating.id, exclude_orcid=orcid_id,
+    )
+    db.commit()
+    base_url = str(request.base_url).rstrip("/")
+    background_tasks.add_task(notify_author_if_possible, doi, paper.title or "", rating.id, db, base_url)
+    background_tasks.add_task(moderate_rating_bg, rating.id)
+    return RedirectResponse(f"/nd/paper/{doi}", status_code=303)
+
+
+@router.post("/nd/paper/{doi:path}/ratings/{rating_id}/delete")
+async def nd_delete_rating(doi: str, rating_id: int, request: Request, db: Session = Depends(get_db)):
+    orcid_id = request.session.get("orcid_id")
+    if not orcid_id:
+        raise HTTPException(status_code=403, detail="Not authenticated")
+    r = _own_rating_or_404(rating_id, orcid_id, db)
+    _delete_rating(r, db)
+    return RedirectResponse(f"/nd/paper/{doi}", status_code=303)
+
+
+@router.post("/nd/paper/{doi:path}/ratings/{rating_id}/edit")
+async def nd_edit_rating_submit(
+    doi: str, rating_id: int, request: Request, db: Session = Depends(get_db),
+    nd_star: str = Form(""),
+    nd_failure_context: str = Form(""),
+    reproducibility_observation: str = Form(""),
+):
+    orcid_id = request.session.get("orcid_id")
+    if not orcid_id:
+        raise HTTPException(status_code=403)
+    r = _own_rating_or_404(rating_id, orcid_id, db)
+
+    star_int = int(nd_star) if nd_star else None
+    if star_int is None or not (1 <= star_int <= 5):
+        raise HTTPException(status_code=422, detail="Star rating 1–5 is required")
+
+    ctx = nd_failure_context.strip() or None
+    if star_int == 1 and ctx not in ("original_tested", "extension_only"):
+        raise HTTPException(status_code=422, detail="Failure context is required for a 1-star review")
+    if star_int != 1:
+        ctx = None
+
+    r.nd_star = star_int
+    r.nd_failure_context = ctx
+    r.reproducibility_observation = reproducibility_observation.strip()[:1000] or None
+    r.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    return RedirectResponse(f"/nd/paper/{doi}#review-{rating_id}", status_code=303)
 
 
 @router.get("/privacy", response_class=HTMLResponse)

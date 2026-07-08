@@ -46,6 +46,10 @@ class Rating(Base):
             "generalisability_score IS NULL OR generalisability_score BETWEEN 1 AND 5",
             name="ck_gen_score",
         ),
+        CheckConstraint(
+            "nd_star IS NULL OR nd_star BETWEEN 1 AND 5",
+            name="ck_nd_star",
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -65,7 +69,11 @@ class Rating(Base):
     scope_observation: Mapped[str | None] = mapped_column(String(1000))
     modification_details: Mapped[str | None] = mapped_column(String(1000))
 
-    # "standard" = single outcome-based score | "classic" = repro stars + outcome
+    # New Design mode columns (scoring_mode == "new_design")
+    nd_star: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    nd_failure_context: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
+    # "standard" = single outcome-based score | "classic" = repro stars + outcome | "new_design" = 1-5 star
     scoring_mode: Mapped[str] = mapped_column(String(10), default="standard", server_default="standard")
 
     ai_flagged: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")

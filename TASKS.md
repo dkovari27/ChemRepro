@@ -7,6 +7,8 @@ _Last updated: 8 July 2026_
 
 ### 🟠 HIGH
 
+- [ ] **B16** — Literature scraper for implicit reproducibility data: crawl open-access chemistry papers (PubMed Central, Europe PMC, ChemRxiv, RSC Gold open-access) and detect sentences that follow patterns like "according to the procedure of X et al.", "following the method reported by", "adapted from", "as described in ref. X" — i.e. cases where an author explicitly states they replicated or adapted a published reaction. For each hit: resolve the cited DOI, extract context (substrate, yield, any deviation noted), and auto-write a structured review into the DB with `scoring_mode="literature_mined"`, display_name="Literature miner (auto)", and a note field containing the citing paper DOI and the extracted sentence. The outcome label should be inferred from the language (success/partial/failure language maps to reproduced/repro_extension_failed/no_repro). Requires: an NLP sentence classifier or regex pattern library, an open-access full-text API (PMC OAI-PMH or Europe PMC REST), and a deduplication check so the same citing sentence is not ingested twice.
+
 - [ ] **B11** — Activate author email notification (`AUTHOR_NOTIFY_ENABLED=true` in Railway `.env`) — disabled pending test that CrossRef/PMC/PubMed lookup works on real chemistry DOIs
 - [ ] **B12** — Wire `notification_email` to SMTP sender — field is saved in Settings but never read; when a followed paper gets a new review/comment, send an email to `notification_email` if set
 - [ ] **B14** — LinkedIn OAuth: routes + UI fully built, button shows "Coming soon". Before release: register app at developer.linkedin.com, set `LINKEDIN_CLIENT_ID` + `LINKEDIN_CLIENT_SECRET` + `LINKEDIN_REDIRECT_URI` in Railway `.env`, then restore button to active link.
@@ -42,6 +44,14 @@ _Last updated: 8 July 2026_
 - [ ] **D15** — Review extraction agent: after a paper accumulates several reviews, an AI agent (Claude) reads all reviews, extracts: attempted conditions, substrate photos (if attached), what worked / what failed, and writes a short structured summary displayed on the paper page. Fire as a background task when review count hits a threshold (e.g. 3+).
 - [ ] **D13** — Switch from Gmail SMTP to a transactional email service (Resend, SendGrid, or Brevo) with a custom domain (e.g. noreply@chemrepro.io) — eliminates spam-folder delivery risk. Gmail SMTP works today but new sender accounts have no reputation. Requires: buy domain, set up DNS (SPF/DKIM/DMARC), register with chosen provider, replace `smtp.gmail.com` calls in `app/utils/email.py` with provider SDK or relay config.
 - [ ] **D12** — Registration pledge page: one-time ethics click-through shown after first login, before a user can submit a review. Inspired by Sage Bionetworks Synapse pledge (reference saved at `chemrepro/Sage Bionetworks Sign-in.mhtml`). 6 lab-ethics statements, each requiring individual "I agree" click; stored as `pledge_accepted` bool on User model. See memory `project_chemrepro_pledge.md` for proposed pledge wording.
+
+---
+
+## CURRENT STANDING (8 July 2026)
+
+- **New Design scoring mode** fully implemented: `/nd/` homepage, `/nd/paper/{doi}` paper page, `nd_star` (1–5) + `nd_failure_context` (original_tested / extension_only), star filter + context filter, failure_context badge on 1-star reviews, 3-way nav switcher (Standard / Classic / New Design) in base.html
+- Standard mode filter fixed: `scoring_mode != "classic"` changed to `scoring_mode == "standard"` so ND reviews are isolated from standard averages
+- API key management: all `/api/v1/` routes gated behind `X-API-Key` header; admin can generate/revoke keys; raw key shown once after generation; about page documents API access
 
 ---
 

@@ -65,6 +65,10 @@ def _migrate():
             rating_cols2 = [row[1] for row in conn.execute(text("PRAGMA table_info(ratings)"))]
             if "ai_flagged" not in rating_cols2:
                 conn.execute(text("ALTER TABLE ratings ADD COLUMN ai_flagged BOOLEAN NOT NULL DEFAULT 0"))
+            if "nd_star" not in rating_cols2:
+                conn.execute(text("ALTER TABLE ratings ADD COLUMN nd_star INTEGER"))
+            if "nd_failure_context" not in rating_cols2:
+                conn.execute(text("ALTER TABLE ratings ADD COLUMN nd_failure_context VARCHAR(20)"))
             # collections and saved_papers are created by create_all above; no ALTER needed
         else:
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS career_stage VARCHAR(60)"))
@@ -77,6 +81,8 @@ def _migrate():
             conn.execute(text("ALTER TABLE comments ADD COLUMN IF NOT EXISTS parent_id INTEGER REFERENCES comments(id)"))
             conn.execute(text("ALTER TABLE comments ADD COLUMN IF NOT EXISTS ai_flagged BOOLEAN NOT NULL DEFAULT FALSE"))
             conn.execute(text("ALTER TABLE author_notifications ADD COLUMN IF NOT EXISTS global_opted_out BOOLEAN NOT NULL DEFAULT FALSE"))
+            conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS nd_star INTEGER"))
+            conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS nd_failure_context VARCHAR(20)"))
         conn.commit()
 
 _migrate()
