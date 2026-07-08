@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Boolean, String, Integer, ForeignKey, DateTime, CheckConstraint, UniqueConstraint
+from sqlalchemy import Boolean, String, Integer, ForeignKey, DateTime, CheckConstraint, UniqueConstraint, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -60,7 +60,7 @@ class Rating(Base):
 
     # Reproducibility section (shown when OUTCOME_SHOWS_REPRO)
     reproducibility_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    reproducibility_observation: Mapped[str | None] = mapped_column(String(1000))
+    reproducibility_observation: Mapped[str | None] = mapped_column(Text)
 
     # Scope extension section (shown when OUTCOME_SHOWS_SCOPE)
     # generalisability_score kept for future numeric use; scope_level is the active field
@@ -77,6 +77,7 @@ class Rating(Base):
     scoring_mode: Mapped[str] = mapped_column(String(10), default="standard", server_default="standard")
 
     ai_flagged: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    is_demo: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

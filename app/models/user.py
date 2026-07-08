@@ -24,6 +24,7 @@ class User(Base):
     career_stage: Mapped[str | None] = mapped_column(String(60), nullable=True)
     career_stage_set: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     pledge_accepted: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    is_demo: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     verified_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

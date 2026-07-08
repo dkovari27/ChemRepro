@@ -15,7 +15,7 @@ def _md_attrs(tag: str, name: str, value: str) -> bool:
         return name in ("href", "title")
     if tag == "img":
         if name == "src":
-            return value.startswith("/images/")
+            return value.startswith("/images/") or value.startswith("https://")
         return name in ("alt", "title")
     return False
 

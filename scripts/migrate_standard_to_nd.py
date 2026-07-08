@@ -25,6 +25,14 @@ engine = create_engine(DATABASE_URL)
 
 FAILURE_CONTEXTS = ["original_tested", "extension_only"]
 
+
+def _delete_rating(db, rid):
+    db.execute(text("DELETE FROM comment_likes WHERE comment_id IN (SELECT id FROM comments WHERE rating_id = :id)"), {"id": rid})
+    db.execute(text("DELETE FROM comments WHERE rating_id = :id"), {"id": rid})
+    db.execute(text("DELETE FROM likes WHERE rating_id = :id"), {"id": rid})
+    db.execute(text("DELETE FROM ratings WHERE id = :id"), {"id": rid})
+
+
 with Session(engine) as db:
     rows = db.execute(
         text("SELECT id, doi, orcid_id, reproducibility_score FROM ratings WHERE scoring_mode = 'standard'")
@@ -36,7 +44,7 @@ with Session(engine) as db:
         rid, doi, orcid_id, score = row
 
         if score is None:
-            db.execute(text("DELETE FROM ratings WHERE id = :id"), {"id": rid})
+            _delete_rating(db, rid)
             deleted += 1
             continue
 
@@ -46,7 +54,7 @@ with Session(engine) as db:
         ).first()
 
         if conflict:
-            db.execute(text("DELETE FROM ratings WHERE id = :id"), {"id": rid})
+            _delete_rating(db, rid)
             deleted += 1
             continue
 
