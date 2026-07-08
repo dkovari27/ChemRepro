@@ -96,27 +96,6 @@
         ChemRepro
       </a>
 
-      <!-- Version switchers: centered -->
-      <div class="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 select-none">
-        <div class="flex items-center gap-0.5 bg-slate-100 rounded-lg p-0.5 text-xs font-medium">
-          <a href="{{ switch_urls.standard if switch_urls is defined else '/' }}"
-             class="px-3 py-1.5 rounded-md transition-colors
-                    {% if site_version == 'standard' %}vsw-active text-slate-800{% else %}text-slate-500 hover:text-slate-700{% endif %}">
-            Standard
-          </a>
-          <a href="{{ switch_urls.classic if switch_urls is defined else '/classic/' }}"
-             class="px-3 py-1.5 rounded-md transition-colors
-                    {% if site_version == 'classic' %}vsw-active text-slate-800{% else %}text-slate-500 hover:text-slate-700{% endif %}">
-            Classic
-          </a>
-          <a href="{{ switch_urls.get('new_design', '/nd/') if switch_urls is defined else '/nd/' }}"
-             class="px-3 py-1.5 rounded-md transition-colors
-                    {% if site_version == 'new_design' %}vsw-active text-slate-800{% else %}text-slate-500 hover:text-slate-700{% endif %}">
-            New Design
-          </a>
-        </div>
-      </div>
-
       <!-- Right controls -->
       <div class="ml-auto flex items-center gap-3 text-sm">
         <a href="/feedback" class="text-slate-400 hover:text-brand transition-colors text-xs hidden sm:block">Feedback</a>
@@ -237,7 +216,7 @@
 
   <script src="/static/js/moderation.js"></script>
   <script src="/static/js/tour.js"></script>
-  {% if request.session.get('tour_pending') and request.url.path in ['/', '/classic', '/classic/'] %}
+  {% if request.session.get('tour_pending') and request.url.path in ['/nd/', '/nd'] %}
   <script>localStorage.removeItem('crTourDone'); localStorage.setItem('crTourStep', '0');</script>
   {% set _ = request.session.pop('tour_pending', None) %}
   {% endif %}

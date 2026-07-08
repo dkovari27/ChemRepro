@@ -28,6 +28,12 @@
   </p>
 </div>
 
+{% if error %}
+<div class="max-w-2xl mx-auto mb-6 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+  {{ error }}
+</div>
+{% endif %}
+
 <!-- ── Search ────────────────────────────────────────────────────── -->
 <form action="/search" method="get" class="flex gap-2 max-w-2xl mx-auto mb-10">
   <input type="text" name="doi" placeholder="Paste a DOI – e.g. 10.1021/jacs.2c00001"

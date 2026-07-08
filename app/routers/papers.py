@@ -176,8 +176,22 @@ def _scoring_context() -> dict:
     }
 
 
+def _nd_scoring_context() -> dict:
+    return {
+        "nd_star_labels": ND_STAR_LABELS,
+        "nd_star_order": ND_STAR_ORDER,
+        "nd_star_colors": ND_STAR_COLORS,
+        "nd_failure_context_labels": ND_FAILURE_CONTEXT_LABELS,
+    }
+
+
 @router.get("/", response_class=HTMLResponse)
-async def index(request: Request, db: Session = Depends(get_db)):
+async def index(request: Request):
+    return RedirectResponse("/nd/", status_code=302)
+
+
+@router.get("/design-archive/standard/", response_class=HTMLResponse)
+async def design_archive_standard(request: Request, db: Session = Depends(get_db)):
     orcid_id = request.session.get("orcid_id")
 
     def _enrich(papers):
@@ -186,14 +200,12 @@ async def index(request: Request, db: Session = Depends(get_db)):
             for p in papers
         ]
 
-    # Sub-query: most recent rating date per paper
     last_rated_sq = (
         db.query(Rating.doi, func.max(Rating.created_at).label("last_rated"))
         .group_by(Rating.doi)
         .subquery()
     )
 
-    # Papers the logged-in user rated, ordered by their own latest rating
     my_papers = []
     if orcid_id:
         my_dois_sq = (
@@ -210,7 +222,6 @@ async def index(request: Request, db: Session = Depends(get_db)):
             .all()
         )
 
-    # Community feed: most recently rated, excluding user's own papers already shown
     my_doi_set = {e["paper"].doi for e in my_papers}
     community_candidates = (
         db.query(Paper)
@@ -221,14 +232,14 @@ async def index(request: Request, db: Session = Depends(get_db)):
     )
     community_papers = _enrich([p for p in community_candidates if p.doi not in my_doi_set][:10])
 
-    return templates.TemplateResponse(index_tpl(request), {
+    return templates.TemplateResponse("index.html", {
         "request": request,
         "my_papers": my_papers,
         "community_papers": community_papers,
         "user_name": request.session.get("user_name"),
         "orcid_id": orcid_id,
         "site_version": "standard",
-        "switch_urls": {"standard": "/", "classic": "/classic/", "new_design": "/nd/"},
+        "switch_urls": {"standard": "/design-archive/standard/", "classic": "/classic/", "new_design": "/nd/"},
         **_dev_context(),
         **_scoring_context(),
     })
@@ -247,35 +258,41 @@ async def search(request: Request, doi: str = "", db: Session = Depends(get_db))
     doi = resolved if resolved else normalise_doi(doi)
 
     if not is_valid_doi(doi):
-        return templates.TemplateResponse("index.html", {
+        return templates.TemplateResponse("index_nd.html", {
             "request": request,
             "error": "That doesn't look like a valid DOI. Try: 10.xxxx/...",
-            "papers": [],
+            "my_papers": [],
+            "community_papers": [],
             "user_name": request.session.get("user_name"),
             "orcid_id": request.session.get("orcid_id"),
+            "site_version": "new_design",
+            "switch_urls": {"standard": "/design-archive/standard/", "classic": "/classic/", "new_design": "/nd/"},
             **_dev_context(),
-            **_scoring_context(),
+            **_nd_scoring_context(),
         })
 
     paper = db.get(Paper, doi)
     if not paper:
         meta = await fetch_paper_metadata(doi)
         if not meta:
-            return templates.TemplateResponse("index.html", {
+            return templates.TemplateResponse("index_nd.html", {
                 "request": request,
                 "error": f"No paper found for DOI: {doi}",
-                "papers": [],
+                "my_papers": [],
+                "community_papers": [],
                 "user_name": request.session.get("user_name"),
                 "orcid_id": request.session.get("orcid_id"),
+                "site_version": "new_design",
+                "switch_urls": {"standard": "/design-archive/standard/", "classic": "/classic/", "new_design": "/nd/"},
                 **_dev_context(),
-                **_scoring_context(),
+                **_nd_scoring_context(),
             })
         paper = Paper(**meta)
         db.add(paper)
         db.commit()
         db.refresh(paper)
 
-    return RedirectResponse(f"/paper/{doi}", status_code=303)
+    return RedirectResponse(f"/nd/paper/{doi}", status_code=303)
 
 
 # ── Helpers (defined early so edit/notification routes can reference them) ────
