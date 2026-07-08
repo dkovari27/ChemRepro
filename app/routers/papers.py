@@ -294,10 +294,12 @@ async def demo_paper_page(request: Request):
 
 @router.get("/demo", response_class=HTMLResponse)
 async def demo_index_page(request: Request):
+    start_tour = bool(request.session.pop("tour_pending", None))
     return templates.TemplateResponse("demo_index.html", {
         "request": request,
         "user_name": request.session.get("user_name"),
         "orcid_id": request.session.get("orcid_id"),
+        "start_tour": start_tour,
     })
 
 

@@ -94,7 +94,7 @@
 
   function currentPage() {
     var p = window.location.pathname;
-    if (p === '/demo') return 'demo-home';
+    if (p === '/demo' || p === '/demo/') return 'demo-home';
     if (p === '/' || p === '/classic' || p === '/classic/') return 'home';
     if (p.startsWith('/paper/') || p.startsWith('/classic/paper/')) return 'paper';
     return 'other';
