@@ -151,7 +151,8 @@ async def save_settings(
         return RedirectResponse("/auth/login", status_code=303)
     user = db.query(User).filter(User.orcid_id == orcid_id).first()
     if user:
-        user.nickname = nickname.strip() or None
+        if not user.nickname:
+            user.nickname = nickname.strip() or None
         user.notification_email = notification_email.strip() or None
         if career_stage in CAREER_STAGES:
             user.career_stage = career_stage

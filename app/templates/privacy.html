@@ -1,16 +1,16 @@
-﻿{% extends design_base(request) %}
+{% extends design_base(request) %}
 {% block title %}Privacy Policy – ChemRepro{% endblock %}
 
 {% block content %}
 <div class="max-w-2xl mx-auto">
 
   <h1 class="text-3xl font-bold text-slate-800 mb-2">Privacy Policy</h1>
-  <p class="text-slate-400 text-sm mb-2">Last updated: 8 July 2026</p>
+  <p class="text-slate-400 text-sm mb-2">Last updated: 14 July 2026</p>
   <p class="text-slate-500 text-sm mb-10">
     This policy is provided to you before you create an account or submit any data.
     It explains what personal data ChemRepro collects, why, on what legal basis,
     and what rights you have over it. It applies to all users of
-    <strong>chemrepro-test.up.railway.app</strong> and any future production domain.
+    <strong>chemrepro.io</strong> and any other domain operated by ChemRepro.
   </p>
 
   <!-- 1. Controller -->
@@ -21,8 +21,8 @@
     </p>
     <div class="mt-3 text-sm text-slate-700 bg-slate-50 rounded-lg p-4 leading-relaxed">
       Daniel Kovari<br/>
-      Breisacherstrasse 68<br/>
-      4057 Basel, Switzerland<br/>
+      [Registered correspondence address — to be confirmed before publication]<br/>
+      Basel, Switzerland<br/>
       <a href="mailto:chemrepro@gmail.com" class="text-brand hover:underline">chemrepro@gmail.com</a>
     </div>
     <p class="text-sm text-slate-600 leading-relaxed mt-3">
@@ -31,9 +31,31 @@
     </p>
   </div>
 
-  <!-- 2. Data collected -->
+  <!-- 2. EU Representative (GDPR Art. 27) -->
   <div class="bg-white border border-slate-200 rounded-xl p-6 mb-5">
-    <h2 class="text-lg font-bold text-slate-800 mb-3">2. What data we collect, why, and on what legal basis</h2>
+    <h2 class="text-lg font-bold text-slate-800 mb-3">2. EU representative (GDPR Art. 27)</h2>
+    <p class="text-sm text-slate-600 leading-relaxed mb-3">
+      ChemRepro is established in Switzerland and processes personal data of individuals
+      in the EU on an occasional basis in connection with the use of the platform.
+    </p>
+    <p class="text-sm text-slate-600 leading-relaxed mb-3">
+      We have not yet appointed a formal EU representative under GDPR Art. 27. We rely on
+      the "occasional processing" basis under Art. 27(2)(a) at this stage of the platform's
+      development, on the basis that: (a) processing is not systematic or large-scale;
+      (b) it does not involve special category data under Art. 9; and (c) it is unlikely to
+      result in a risk to the rights and freedoms of data subjects in the EU given its
+      limited scope and purpose.
+    </p>
+    <p class="text-sm text-slate-500 text-xs leading-relaxed">
+      Note: whether the "occasional processing" exemption applies at ChemRepro's current scale
+      should be confirmed with legal counsel before this policy is published. An EU representative
+      will be appointed if and when that exemption no longer applies.
+    </p>
+  </div>
+
+  <!-- 3. Data collected -->
+  <div class="bg-white border border-slate-200 rounded-xl p-6 mb-5">
+    <h2 class="text-lg font-bold text-slate-800 mb-3">3. What data we collect, why, and on what legal basis</h2>
     <div class="space-y-5 text-sm text-slate-600">
 
       <div class="border-b border-slate-100 pb-4">
@@ -42,10 +64,10 @@
           When you log in with ORCID, we receive your <strong>ORCID iD</strong>
           (e.g. 0000-0002-1234-5678) and your <strong>public name</strong> as registered
           with ORCID. We do not receive your email address, publication list, or institutional
-          affiliation – we do not request those scopes.
+          affiliation — we do not request those scopes.
         </p>
         <p class="text-slate-500 mb-1">
-          <strong>Legal basis:</strong> Art. 6(1)(a) GDPR (consent – you actively choose to
+          <strong>Legal basis:</strong> Art. 6(1)(a) GDPR (consent — you actively choose to
           authenticate via ORCID); nDSG Art. 31(2)(a).
         </p>
         <p class="text-slate-500">
@@ -62,11 +84,11 @@
           No email address is collected.
         </p>
         <p class="text-slate-500 mb-1">
-          <strong>Legal basis:</strong> Art. 6(1)(a) GDPR (consent – you actively choose
+          <strong>Legal basis:</strong> Art. 6(1)(a) GDPR (consent — you actively choose
           this login method); nDSG Art. 31(2)(a).
         </p>
         <p class="text-slate-500">
-          <strong>Mandatory?</strong> Not mandatory – it is an alternative to ORCID login.
+          <strong>Mandatory?</strong> Not mandatory — it is an alternative to ORCID login.
           Without any login you can browse but not submit content.
         </p>
       </div>
@@ -78,13 +100,17 @@
           (e.g. PhD student, postdoc, industry chemist). This is shown alongside your
           reviews as context for other readers. It is not linked to your name or email
           on any public page. You may skip this step or select "Prefer not to say."
-          You can update or clear your career stage by emailing us at any time.
+          Career stage is recorded at the time each review is submitted and is not
+          retroactively updated if you change your career stage later (see also
+          section 3a on career stage immutability).
         </p>
         <p class="text-slate-500 mb-1">
-          <strong>Legal basis:</strong> Art. 6(1)(f) GDPR – legitimate interest in
+          <strong>Legal basis:</strong> Art. 6(1)(f) GDPR — legitimate interest in
           providing contextual credibility signals that help other researchers assess
           the relevance of a review, balanced against the minimal privacy impact of
-          an optional, non-identifying category; nDSG Art. 31(2)(c).
+          an optional, non-identifying category; nDSG Art. 31(2)(c). A Legitimate
+          Interest Assessment (LIA) supporting this basis is maintained internally
+          and is available to supervisory authorities on request.
         </p>
         <p class="text-slate-500">
           <strong>Mandatory?</strong> Entirely optional. Skipping has no effect on
@@ -92,7 +118,7 @@
         </p>
       </div>
 
-      <div class="border-b border-slate-100 pb-4">
+      <div class="border-b border-slate-100 pb-4" id="review-content-processing">
         <p class="font-semibold text-slate-700 mb-1">Review content</p>
         <p class="leading-relaxed mb-1">
           When you submit a reproducibility rating we store: the paper DOI, your star
@@ -102,14 +128,41 @@
           to enforce the one-rating-per-paper rule and to allow you to edit or delete
           your own content.
         </p>
+        <p class="leading-relaxed mb-1">
+          Where a review is subject to a formal dispute under sections 4b or 4c of our
+          Terms of Service, we may also process substantiation documentation provided
+          by the reviewer for the limited purpose of resolving that dispute. Such
+          documentation is treated as confidential and deleted once the dispute is closed.
+          See also section 7 (retention) for how long dispute-related data is kept.
+        </p>
         <p class="text-slate-500 mb-1">
-          <strong>Legal basis:</strong> Art. 6(1)(f) GDPR – legitimate interest in
+          <strong>Legal basis:</strong> Art. 6(1)(f) GDPR — legitimate interest in
           maintaining an accurate, non-duplicated scientific reproducibility record
-          for the benefit of the chemistry community; nDSG Art. 31(2)(c).
+          for the benefit of the chemistry community; nDSG Art. 31(2)(c). An LIA
+          for this processing is maintained internally and available to supervisory
+          authorities on request.
         </p>
         <p class="text-slate-500">
-          <strong>Mandatory?</strong> Not mandatory – submitting a review is always voluntary.
+          <strong>Mandatory?</strong> Not mandatory — submitting a review is always voluntary.
           You may delete your reviews at any time directly on the site.
+        </p>
+      </div>
+
+      <div class="border-b border-slate-100 pb-4" id="author-reply-processing">
+        <p class="font-semibold text-slate-700 mb-1">Author right-of-reply responses</p>
+        <p class="leading-relaxed mb-1">
+          If you are an author of a reviewed paper and choose to post a right-of-reply
+          response using the mechanism provided in the platform, your response is stored
+          and displayed alongside the relevant review. The reply is linked to your ORCID
+          iD as author verification evidence.
+        </p>
+        <p class="text-slate-500 mb-1">
+          <strong>Legal basis:</strong> Art. 6(1)(a) GDPR (consent — posting a reply is
+          voluntary and requires an affirmative action); nDSG Art. 31(2)(a).
+        </p>
+        <p class="text-slate-500">
+          <strong>Mandatory?</strong> Entirely optional. You may request removal of your
+          reply by contacting us.
         </p>
       </div>
 
@@ -120,9 +173,9 @@
           to your internal account identifier.
         </p>
         <p class="text-slate-500 mb-1">
-          <strong>Legal basis:</strong> Art. 6(1)(f) GDPR – legitimate interest in
+          <strong>Legal basis:</strong> Art. 6(1)(f) GDPR — legitimate interest in
           enabling community discussion and engagement around reproducibility reports;
-          nDSG Art. 31(2)(c).
+          nDSG Art. 31(2)(c). An LIA is maintained internally.
         </p>
         <p class="text-slate-500">
           <strong>Mandatory?</strong> Entirely optional. You may delete your comments
@@ -138,7 +191,7 @@
           account identifier but not displayed publicly.
         </p>
         <p class="text-slate-500 mb-1">
-          <strong>Legal basis:</strong> Art. 6(1)(a) GDPR (consent – you choose to submit
+          <strong>Legal basis:</strong> Art. 6(1)(a) GDPR (consent — you choose to submit
           this form); nDSG Art. 31(2)(a).
         </p>
         <p class="text-slate-500">
@@ -150,14 +203,14 @@
         <p class="font-semibold text-slate-700 mb-1">Session cookie</p>
         <p class="leading-relaxed mb-1">
           We set one first-party session cookie:
-          <code class="text-xs bg-slate-100 px-1 rounded">chemrepro_session</code> –
+          <code class="text-xs bg-slate-100 px-1 rounded">chemrepro_session</code> —
           a signed, encrypted token that keeps you logged in for up to 7 days (or until you
           sign out). No third-party cookies are set. No advertising or tracking cookies are
           used. Under ePrivacy rules, strictly necessary cookies do not require a consent
           banner, but we disclose this fully for transparency.
         </p>
         <p class="text-slate-500">
-          <strong>Mandatory?</strong> Yes – the session cookie is required for login to function.
+          <strong>Mandatory?</strong> Yes — the session cookie is required for login to function.
           You can block it but you will not be able to sign in.
         </p>
       </div>
@@ -170,7 +223,7 @@
           own policy and are not stored in our application database.
         </p>
         <p class="text-slate-500">
-          <strong>Legal basis:</strong> Art. 6(1)(f) GDPR – legitimate interest in
+          <strong>Legal basis:</strong> Art. 6(1)(f) GDPR — legitimate interest in
           maintaining service security and diagnosing technical failures.
         </p>
       </div>
@@ -178,22 +231,35 @@
     </div>
   </div>
 
-  <!-- 2b. Paper metadata note -->
+  <!-- 3a. Career stage immutability note -->
   <div class="bg-white border border-slate-200 rounded-xl p-6 mb-5">
-    <h2 class="text-lg font-bold text-slate-800 mb-3">3. Paper author metadata</h2>
+    <h2 class="text-lg font-bold text-slate-800 mb-3">3a. Career stage shown on reviews</h2>
+    <p class="text-sm text-slate-600 leading-relaxed">
+      Your career stage as selected at the time a review is submitted is recorded with
+      that review and is not retrospectively updated if you later change your career
+      stage in your profile settings. This ensures that the contextual information
+      visible alongside a review accurately reflects who you were when you performed
+      the work, not who you are now. You may update your current career stage in profile
+      settings at any time; this affects only future submissions.
+    </p>
+  </div>
+
+  <!-- 4. Paper metadata -->
+  <div class="bg-white border border-slate-200 rounded-xl p-6 mb-5">
+    <h2 class="text-lg font-bold text-slate-800 mb-3">4. Paper author metadata</h2>
     <p class="text-sm text-slate-600 leading-relaxed">
       When a DOI is looked up, we fetch and store the paper's title, author list, journal,
       year, and abstract from CrossRef and Europe PMC. Author names appear in paper listings
       as part of the bibliographic record of published works. We treat this data as publicly
-      available bibliographic metadata – it is the same information visible in any literature
-      database – rather than personal data requiring consent. If you are an author and wish
+      available bibliographic metadata — the same information visible in any literature
+      database — rather than personal data requiring consent. If you are an author and wish
       for your name to be removed from a paper listing, contact us at the address in section 1.
     </p>
   </div>
 
-  <!-- 3. Third parties -->
+  <!-- 5. Third parties -->
   <div class="bg-white border border-slate-200 rounded-xl p-6 mb-5">
-    <h2 class="text-lg font-bold text-slate-800 mb-3">4. Third-party services and processors</h2>
+    <h2 class="text-lg font-bold text-slate-800 mb-3">5. Third-party services and processors</h2>
     <div class="space-y-3 text-sm text-slate-600">
       <div class="flex gap-3">
         <span class="font-semibold text-slate-700 w-28 flex-shrink-0">Railway</span>
@@ -212,11 +278,11 @@
       </div>
       <div class="flex gap-3">
         <span class="font-semibold text-slate-700 w-28 flex-shrink-0">CrossRef</span>
-        <span>Public bibliographic API. Only the paper DOI is sent – no user data is shared.</span>
+        <span>Public bibliographic API. Only the paper DOI is sent — no user data is shared.</span>
       </div>
       <div class="flex gap-3">
         <span class="font-semibold text-slate-700 w-28 flex-shrink-0">Europe PMC</span>
-        <span>Fallback abstract source. Only the paper DOI is sent – no user data is shared.</span>
+        <span>Fallback abstract source. Only the paper DOI is sent — no user data is shared.</span>
       </div>
     </div>
     <p class="text-sm text-slate-500 mt-3">
@@ -225,31 +291,31 @@
     </p>
   </div>
 
-  <!-- 4. International transfers -->
+  <!-- 6. International transfers -->
   <div class="bg-white border border-slate-200 rounded-xl p-6 mb-5">
-    <h2 class="text-lg font-bold text-slate-800 mb-3">5. International data transfers</h2>
+    <h2 class="text-lg font-bold text-slate-800 mb-3">6. International data transfers</h2>
     <p class="text-sm text-slate-600 leading-relaxed">
       Our database is hosted by Railway in the United States. For EU users, we rely on
       Railway's participation in the EU–US Data Privacy Framework (adequacy decision of
       10 July 2023, Commission Implementing Decision (EU) 2023/1795). For Swiss users,
       we rely on the Swiss–US Data Privacy Framework as recognised by the Swiss Federal
       Council (September 2023), provided Railway maintains certification under that
-      framework – which we verify periodically. If Railway's certification lapses, we will
+      framework — which we verify periodically. If Railway's certification lapses, we will
       rely on Standard Contractual Clauses as a fallback transfer mechanism and update
       this policy accordingly.
     </p>
   </div>
 
-  <!-- 5. Retention -->
+  <!-- 7. Retention -->
   <div class="bg-white border border-slate-200 rounded-xl p-6 mb-5">
-    <h2 class="text-lg font-bold text-slate-800 mb-3">6. Retention periods</h2>
+    <h2 class="text-lg font-bold text-slate-800 mb-3">7. Retention periods</h2>
     <div class="space-y-2 text-sm text-slate-600">
       <div class="flex gap-3">
-        <span class="font-semibold text-slate-700 w-36 flex-shrink-0">Account data</span>
+        <span class="font-semibold text-slate-700 w-40 flex-shrink-0">Account data</span>
         <span>Kept until you request deletion.</span>
       </div>
       <div class="flex gap-3">
-        <span class="font-semibold text-slate-700 w-36 flex-shrink-0">Review content</span>
+        <span class="font-semibold text-slate-700 w-40 flex-shrink-0">Review content</span>
         <span>Retained as part of a community scientific reproducibility record. We invoke
         the archiving / scientific research exemption under GDPR Art. 89(1) and Art. 5(1)(e).
         Safeguards include pseudonymisation (reviews are not labelled with your name), the
@@ -258,27 +324,38 @@
         data is genuinely necessary for the scientific record and adequate safeguards apply.</span>
       </div>
       <div class="flex gap-3">
-        <span class="font-semibold text-slate-700 w-36 flex-shrink-0">Comments / likes</span>
+        <span class="font-semibold text-slate-700 w-40 flex-shrink-0">Author replies</span>
+        <span>Retained alongside the relevant review for as long as the review exists.
+        Removed on request or when the associated review is deleted.</span>
+      </div>
+      <div class="flex gap-3">
+        <span class="font-semibold text-slate-700 w-40 flex-shrink-0">Dispute records</span>
+        <span>Substantiation documents shared during a formal dispute are deleted within
+        30 days of the dispute being closed. Dispute metadata (outcome, dates) is retained
+        for up to 3 years for legal and compliance purposes.</span>
+      </div>
+      <div class="flex gap-3">
+        <span class="font-semibold text-slate-700 w-40 flex-shrink-0">Comments / likes</span>
         <span>Kept until you remove them or request erasure.</span>
       </div>
       <div class="flex gap-3">
-        <span class="font-semibold text-slate-700 w-36 flex-shrink-0">Feedback responses</span>
+        <span class="font-semibold text-slate-700 w-40 flex-shrink-0">Feedback responses</span>
         <span>Kept for up to 2 years for product improvement, then deleted.</span>
       </div>
       <div class="flex gap-3">
-        <span class="font-semibold text-slate-700 w-36 flex-shrink-0">Session cookie</span>
+        <span class="font-semibold text-slate-700 w-40 flex-shrink-0">Session cookie</span>
         <span>Expires after 7 days or on sign-out.</span>
       </div>
       <div class="flex gap-3">
-        <span class="font-semibold text-slate-700 w-36 flex-shrink-0">Server logs</span>
+        <span class="font-semibold text-slate-700 w-40 flex-shrink-0">Server logs</span>
         <span>Retained per Railway's infrastructure policy (typically 30 days).</span>
       </div>
     </div>
   </div>
 
-  <!-- 6. Security -->
+  <!-- 8. Security -->
   <div class="bg-white border border-slate-200 rounded-xl p-6 mb-5">
-    <h2 class="text-lg font-bold text-slate-800 mb-3">7. Security measures</h2>
+    <h2 class="text-lg font-bold text-slate-800 mb-3">8. Security measures</h2>
     <p class="text-sm text-slate-600 leading-relaxed mb-3">
       We implement appropriate technical and organisational measures in accordance with
       GDPR Art. 32 and Swiss nDSG Art. 27, including:
@@ -312,34 +389,34 @@
     </p>
   </div>
 
-  <!-- 7. Your rights -->
+  <!-- 9. Your rights -->
   <div class="bg-white border border-slate-200 rounded-xl p-6 mb-5">
-    <h2 class="text-lg font-bold text-slate-800 mb-3">8. Your rights</h2>
+    <h2 class="text-lg font-bold text-slate-800 mb-3">9. Your rights</h2>
     <p class="text-sm text-slate-600 leading-relaxed mb-3">
       Under the GDPR and the Swiss Federal Act on Data Protection (nDSG) you have the
       following rights:
     </p>
     <div class="space-y-2 text-sm text-slate-600">
       <div class="flex gap-2"><span class="text-green-500 mt-0.5 flex-shrink-0">✓</span>
-        <span><strong>Access</strong> – request a copy of the personal data we hold about you.</span>
+        <span><strong>Access</strong> — request a copy of the personal data we hold about you.</span>
       </div>
       <div class="flex gap-2"><span class="text-green-500 mt-0.5 flex-shrink-0">✓</span>
-        <span><strong>Rectification</strong> – ask us to correct inaccurate data.</span>
+        <span><strong>Rectification</strong> — ask us to correct inaccurate data.</span>
       </div>
       <div class="flex gap-2"><span class="text-green-500 mt-0.5 flex-shrink-0">✓</span>
-        <span><strong>Erasure</strong> – request deletion of your account and associated data.
+        <span><strong>Erasure</strong> — request deletion of your account and associated data.
         You may also delete individual reviews directly on the site using the delete button
         on each review card.</span>
       </div>
       <div class="flex gap-2"><span class="text-green-500 mt-0.5 flex-shrink-0">✓</span>
-        <span><strong>Restriction</strong> – ask us to pause processing while a dispute is resolved.</span>
+        <span><strong>Restriction</strong> — ask us to pause processing while a dispute is resolved.</span>
       </div>
       <div class="flex gap-2"><span class="text-green-500 mt-0.5 flex-shrink-0">✓</span>
-        <span><strong>Portability</strong> – receive your review content in a structured,
+        <span><strong>Portability</strong> — receive your review content in a structured,
         machine-readable format (JSON or CSV on request).</span>
       </div>
       <div class="flex gap-2"><span class="text-green-500 mt-0.5 flex-shrink-0">✓</span>
-        <span><strong>Objection</strong> – object to processing based on legitimate interest.
+        <span><strong>Objection</strong> — object to processing based on legitimate interest.
         We will stop unless we can demonstrate compelling legitimate grounds that override
         your interests, rights and freedoms.</span>
       </div>
@@ -353,20 +430,53 @@
     </p>
     <p class="text-sm text-slate-600 leading-relaxed mt-2">
       You also have the right to lodge a complaint with a supervisory authority
-      (see section 9).
+      (see section 10).
     </p>
   </div>
 
-  <!-- 8. Supervisory authority -->
+  <!-- 10. DSA notice-and-action -->
   <div class="bg-white border border-slate-200 rounded-xl p-6 mb-5">
-    <h2 class="text-lg font-bold text-slate-800 mb-3">9. Right to lodge a complaint</h2>
+    <h2 class="text-lg font-bold text-slate-800 mb-3">10. EU Digital Services Act — notice and action</h2>
+    <p class="text-sm text-slate-600 leading-relaxed mb-3">
+      Where the EU Digital Services Act (Regulation (EU) 2022/2065) applies to ChemRepro,
+      the following applies to the handling of notices about potentially illegal content:
+    </p>
+    <p class="text-sm text-slate-600 leading-relaxed mb-2">
+      <strong>How to submit a notice:</strong> Send an email to
+      <a href="mailto:chemrepro@gmail.com" class="text-brand hover:underline">chemrepro@gmail.com</a>
+      with the subject line "DSA Notice". Your notice should include: (a) the URL of the content;
+      (b) an explanation of why you consider it illegal or contrary to these terms; (c) your
+      contact information; and (d) a statement that you believe in good faith the information
+      in the notice is accurate.
+    </p>
+    <p class="text-sm text-slate-600 leading-relaxed mb-2">
+      <strong>Statement of reasons:</strong> When content is removed or restricted in response
+      to a notice, or on ChemRepro's own initiative, we will provide a statement of reasons to
+      the content submitter explaining the decision, the legal or policy basis, and the available
+      redress options (DSA Art. 17).
+    </p>
+    <p class="text-sm text-slate-600 leading-relaxed">
+      <strong>Redress:</strong> You may challenge a content moderation decision by contacting
+      us at the address above. We will review the challenge and communicate an outcome within
+      14 days.
+    </p>
+    <p class="text-sm text-slate-500 text-xs leading-relaxed mt-3">
+      Note: whether ChemRepro falls within the scope of the DSA (as a hosting service provider
+      with users established in the EU) should be confirmed with legal counsel before this
+      section is published.
+    </p>
+  </div>
+
+  <!-- 11. Supervisory authority -->
+  <div class="bg-white border border-slate-200 rounded-xl p-6 mb-5">
+    <h2 class="text-lg font-bold text-slate-800 mb-3">11. Right to lodge a complaint</h2>
     <p class="text-sm text-slate-600 leading-relaxed mb-2">
       If you believe we have processed your data unlawfully, you have the right to lodge a
-      complaint with a supervisory authority – without prejudice to any other remedy.
+      complaint with a supervisory authority — without prejudice to any other remedy.
     </p>
     <ul class="text-sm text-slate-600 space-y-1">
       <li>
-        <strong>Switzerland:</strong> Federal Data Protection and Information Commissioner (FDPIC) –
+        <strong>Switzerland:</strong> Federal Data Protection and Information Commissioner (FDPIC) —
         <a href="https://www.edoeb.admin.ch" target="_blank" class="text-brand hover:underline">www.edoeb.admin.ch</a>
       </li>
       <li>
@@ -375,13 +485,13 @@
       </li>
     </ul>
     <p class="text-sm text-slate-500 mt-3">
-      We would always prefer to resolve any concern directly – please contact us first.
+      We would always prefer to resolve any concern directly — please contact us first.
     </p>
   </div>
 
-  <!-- 9. Changes -->
+  <!-- 12. Changes -->
   <div class="bg-white border border-slate-200 rounded-xl p-6 mb-5">
-    <h2 class="text-lg font-bold text-slate-800 mb-3">10. Changes to this policy</h2>
+    <h2 class="text-lg font-bold text-slate-800 mb-3">12. Changes to this policy</h2>
     <p class="text-sm text-slate-600 leading-relaxed">
       We may update this policy as the platform evolves. The "last updated" date at the top
       of this page reflects the most recent version. If changes are material and affect how we

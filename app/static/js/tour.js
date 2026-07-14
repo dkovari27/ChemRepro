@@ -153,7 +153,7 @@
         '<button id="cr-tour-next">Next</button>' +
         '</div>';
       document.body.appendChild(_tip);
-      document.getElementById('cr-tour-skip').addEventListener('click', function () { markDone(); hide(); });
+      document.getElementById('cr-tour-skip').addEventListener('click', function () { markDone(); hide(); window.location.href = '/'; });
       document.getElementById('cr-tour-next').addEventListener('click', onNext);
     }
   }
@@ -262,7 +262,7 @@
     var step = STEPS[idx];
     if (!step) return;
 
-    if (step.nextAction === 'finish') { markDone(); hide(); return; }
+    if (step.nextAction === 'finish') { markDone(); hide(); window.location.href = '/'; return; }
 
     if (step.nextAction === 'dismiss') {
       setStep(idx + 1);

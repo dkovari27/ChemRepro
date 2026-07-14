@@ -216,7 +216,7 @@
   </footer>
 
   <script src="/static/js/moderation.js"></script>
-  <script src="/static/js/tour.js"></script>
+  <script src="/static/js/tour.js?v=2"></script>
   {% if request.session.get('tour_pending') and request.url.path in ['/', '/nd/', '/nd'] %}
   <script>localStorage.removeItem('crTourDone'); localStorage.setItem('crTourStep', '0');</script>
   {% set _ = request.session.pop('tour_pending', None) %}

@@ -1,5 +1,5 @@
 # ChemRepro — Task Tracker
-_Last updated: 8 July 2026_
+_Last updated: 14 July 2026_
 
 ---
 
@@ -15,6 +15,20 @@ _Last updated: 8 July 2026_
   - **Outcome-to-star mapping**: the import script will translate scraper outcomes (`reproduced`, `adapted`, `failed`, `partially_reproduced`) into `nd_star` 1-5 values for display.
   - **Quality thresholds for import**: confidence >= 0.75, sentence 30-500 chars, `target_doi` must resolve.
   - **Output format**: JSONL (newline-delimited JSON), with separate `rejected/` file for below-threshold rows and a `scrape_log` file per run.
+
+- [x] **B18** — Career stage immutability: `career_stage_snapshot` column added to `ratings` table; snapshotted at submission time in `nd_submit_rating`; template shows snapshot (falls back to live user stage for old reviews). Nickname field in `profile_settings.html` is read-only once set; server-side lock in `profile.py` prevents bypass. Nickname changes require contacting chemrepro@gmail.com.
+
+- [x] **B19** — "Report a bug" link below the "Submit rating" button on every paper page (`paper_nd.html`). Always visible (for logged-in and logged-out users). Routes to `/feedback?doi={doi}`; feedback page detects `doi` param and shows "Report a bug" heading with the DOI highlighted in amber, textarea pre-filled with `[DOI: ...]`.
+
+- [x] **B20** — Thank-you toast: after review submission, redirect goes to `/paper/{doi}?submitted=1`; `nd_paper_page` passes `show_thanks=True`; paper template shows a green fixed-position toast with "Thank you for your contribution to open science!" that auto-dismisses after 4.5 s or on click.
+
+- [ ] **B21** — Manual pre-publication review queue for misconduct/fraud allegations (referenced in ToS §3c): reviews flagged as misconduct allegations must be held pending admin approval before appearing publicly. Add a `pending_review` state to the rating, an admin queue page, and an approval/rejection flow with email notification to the submitter.
+
+- [ ] **B22** — Escalated report path for defamatory content (ToS §4b): a distinct "report as defamatory" option separate from the general report button, routing to a 48–72 hour interim-hide queue. Admin receives high-priority alert; content submitter is notified and invited to substantiate.
+
+- [ ] **B23** — Right-of-reply UI (ToS §4d, Privacy §3): an "Author response" field on the paper page, visible only to verified authors (ORCID iD matched against the paper's author list from CrossRef). Response displayed as a distinct card alongside the review it replies to.
+
+- [ ] **B24** — Admin substantiation request tool (ToS §4c): admin can send a substantiation request to a reviewer from the review's admin page, with a configurable countdown (default 21 days). If no response is received, the review is automatically hidden and the admin is notified to make a final decision.
 
 - [ ] **B11** — Activate author email notification (`AUTHOR_NOTIFY_ENABLED=true` in Railway `.env`) — disabled pending test that CrossRef/PMC/PubMed lookup works on real chemistry DOIs
 - [ ] **B12** — Wire `notification_email` to SMTP sender — field is saved in Settings but never read; when a followed paper gets a new review/comment, send an email to `notification_email` if set
@@ -32,6 +46,8 @@ _Last updated: 8 July 2026_
 ### 🔵 POST-LAUNCH
 
 - [ ] **D16** — Resubscription: if a user who globally unsubscribed from ChemRepro emails later registers or logs in, offer a one-click opt back in (clear `global_opted_out` flag on their email hash). UI: show a dismissible banner on first login after opt-out, or a toggle in Profile Settings.
+
+- [ ] **D18** — Granular email subscription preferences in Profile Settings. When a user enters their notification email, let them choose which types of emails they want to receive rather than all-or-nothing. Proposed categories: (1) new review on a paper I follow, (2) new comment on my review, (3) reply to my comment, (4) someone follows me, (5) author notification (paper I authored got reviewed), (6) ChemRepro platform announcements. Store as a JSON or bitmask field on the User model. UI: a checklist shown directly below the notification email field in settings, each category with a short label and a toggle/checkbox. Default: all on.
 
 - [ ] **D17** — MCP server for ChemRepro API: wrap `/api/v1/` as an MCP server (separate Railway service or same app at `/mcp`) exposing named tools: `get_paper_score(doi)`, `list_recent_ratings(limit)`, `get_paper_ratings(doi)`. Requires: `fastapi-mcp` or custom MCP JSON-RPC handler, API key forwarding from the MCP client config, OpenAPI spec integration. Makes the dataset natively callable from Claude Desktop, Claude Code, and any MCP-compatible AI agent without the user writing HTTP calls.
 
@@ -139,3 +155,30 @@ _Last updated: 8 July 2026_
 - **v1 templates** are read-only snapshots. Do not edit.
 - **ADMIN_SECRET_TOKEN**: Set a real secret in Railway `.env` before public launch.
 - **LinkedIn**: Connection count not available via LinkedIn API. For fake-account mitigation, gate review submission behind ORCID; LinkedIn for comments/follows only.
+
+---
+
+## AFTER TESTING PHASE: Clean up demo data
+
+All seeded demo reviews, comments, and users are tagged with `is_demo = true` in the database.
+Run these 5 SQL statements against the Railway PostgreSQL database (in order) to wipe them cleanly:
+
+```sql
+DELETE FROM comment_likes
+  WHERE comment_id IN (
+    SELECT id FROM comments
+    WHERE orcid_id IN (SELECT orcid_id FROM users WHERE is_demo = true)
+  );
+
+DELETE FROM comments
+  WHERE orcid_id IN (SELECT orcid_id FROM users WHERE is_demo = true);
+
+DELETE FROM likes
+  WHERE rating_id IN (SELECT id FROM ratings WHERE is_demo = true);
+
+DELETE FROM ratings WHERE is_demo = true;
+
+DELETE FROM users WHERE is_demo = true;
+```
+
+You can run these via the Railway database console, or via psql with the public DATABASE_URL.

@@ -80,6 +80,7 @@ async def feedback_page(request: Request, db: Session = Depends(get_db)):
         "user_name": request.session.get("user_name"),
         "orcid_id": request.session.get("orcid_id"),
         "submitted": request.query_params.get("submitted") == "1",
+        "bug_doi": request.query_params.get("doi", ""),
         "suggestions": _get_suggestions(db, voter_id),
         "site_version": "new_design",
         "switch_urls": {"standard": "/design-archive/standard/", "classic": "/classic/", "new_design": "/nd/"},

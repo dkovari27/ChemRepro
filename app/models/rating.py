@@ -72,6 +72,7 @@ class Rating(Base):
     # ChemRepro rating columns (scoring_mode == "new_design")
     nd_star: Mapped[int | None] = mapped_column(Integer, nullable=True)
     nd_failure_context: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    career_stage_snapshot: Mapped[str | None] = mapped_column(String(60), nullable=True)
 
     # "standard" = single outcome-based score | "classic" = repro stars + outcome | "new_design" = 1-5 star
     scoring_mode: Mapped[str] = mapped_column(String(10), default="standard", server_default="standard")

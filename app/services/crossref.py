@@ -133,7 +133,13 @@ async def fetch_paper_metadata(doi: str) -> dict | None:
     data = resp.json().get("message", {})
 
     title_parts = data.get("title", [])
-    title = title_parts[0] if title_parts else "Unknown title"
+    title_raw = title_parts[0] if title_parts else "Unknown title"
+    # Strip JATS/HTML tags from title (CrossRef embeds <sub>, <sup> etc.)
+    title = re.sub(r"<[^>]+>", "", title_raw).strip()
+    # Remove "Electronic supplementary information" suffix (RSC papers concatenate ESI text)
+    title = re.sub(
+        r"\s*Electronic supplementary information.*$", "", title, flags=re.IGNORECASE
+    ).strip() or title_raw
 
     authors_raw = data.get("author", [])
     authors_list = [

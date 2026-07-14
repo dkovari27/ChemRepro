@@ -1650,13 +1650,17 @@ async def nd_paper_page(doi: str, request: Request, db: Session = Depends(get_db
         db.add(paper)
         db.commit()
         db.refresh(paper)
-    elif paper.abstract is None:
+    elif paper.abstract is None or "<" in (paper.title or "") or "Electronic supplementary" in (paper.title or ""):
         meta = await fetch_paper_metadata(doi)
-        if meta and meta.get("abstract"):
-            paper.abstract = meta["abstract"]
+        if meta:
+            if meta.get("abstract") and paper.abstract is None:
+                paper.abstract = meta["abstract"]
+            if meta.get("title") and ("<" in (paper.title or "") or "Electronic supplementary" in (paper.title or "")):
+                paper.title = meta["title"]
             db.commit()
 
     nd_scores = _get_nd_paper_scores(doi, db)
+    show_thanks = request.query_params.get("submitted") == "1"
 
     PAGE_SIZE = 25
     active_star = request.query_params.get("star",  "")
@@ -1835,6 +1839,7 @@ async def nd_paper_page(doi: str, request: Request, db: Session = Depends(get_db
         "saved_entry": saved_entry,
         "user_collections_flat": user_collections_flat,
         "papers_by_doi": papers_by_doi,
+        "show_thanks": show_thanks,
         "site_version": "new_design",
         "switch_urls": {"standard": f"/design-archive/standard/paper/{doi}", "classic": f"/classic/paper/{doi}", "new_design": f"/paper/{doi}"},
         **_nd_scoring_context(),
@@ -2019,14 +2024,17 @@ async def nd_submit_rating(
         raise HTTPException(
             status_code=409, detail="You have already rated this paper")
 
+    user = db.query(User).filter(User.orcid_id == orcid_id).first()
+    career_stage_snapshot = user.career_stage if user else None
+
     rating = Rating(
         doi=doi,
         orcid_id=orcid_id,
         scoring_mode="new_design",
         nd_star=star_int,
         nd_failure_context=ctx,
-        reproducibility_observation=reproducibility_observation.strip()[
-            :1000] or None,
+        reproducibility_observation=reproducibility_observation.strip() or None,
+        career_stage_snapshot=career_stage_snapshot,
     )
     db.add(rating)
     db.flush()
@@ -2040,7 +2048,7 @@ async def nd_submit_rating(
     background_tasks.add_task(
         notify_author_if_possible, doi, paper.title or "", rating.id, db, base_url)
     background_tasks.add_task(moderate_rating_bg, rating.id)
-    return RedirectResponse(f"/paper/{doi}", status_code=303)
+    return RedirectResponse(f"/paper/{doi}?submitted=1", status_code=303)
 
 
 @router.post("/paper/{doi:path}/ratings/{rating_id}/delete")

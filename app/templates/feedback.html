@@ -4,9 +4,6 @@
 {% block content %}
 <div class="max-w-xl mx-auto">
 
-  <!-- ── Name suggestions always on top ───────────────────────────── -->
-  {% include "_name_suggestions.html" %}
-
   <div class="mt-6">
 
   {% if submitted %}
@@ -21,18 +18,32 @@
 
   <!-- ── Main feedback form ────────────────────────────────────────── -->
   <div class="bg-white border border-slate-200 rounded-xl p-6">
+    {% if bug_doi %}
+    <h1 class="text-lg font-bold text-slate-800 mb-1">Report a bug</h1>
+    <div class="mb-4 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800">
+      Reporting an issue for DOI: <span class="font-mono font-semibold">{{ bug_doi }}</span>
+    </div>
+    <p class="text-sm text-slate-500 mb-4">
+      Describe the problem you encountered: wrong title, missing abstract, incorrect authors, or anything else that looked off.
+    </p>
+    {% else %}
     <h1 class="text-lg font-bold text-slate-800 mb-1">Feedback</h1>
     <p class="text-sm text-slate-500 mb-6">
       You've been trying ChemRepro as a beta tester. Share any thoughts, suggestions, or issues you encountered.
     </p>
+    {% endif %}
 
     <form action="/feedback" method="post">
+
+      {% if bug_doi %}
+      <input type="hidden" name="bug_doi" value="{{ bug_doi }}" />
+      {% endif %}
 
       <!-- Free-text comment -->
       <div class="mb-6">
         <textarea name="comment" rows="6" maxlength="2000"
-          placeholder="What worked well? What was confusing? Any missing features or suggestions?" spellcheck="true"
-          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
+          placeholder="{{ 'Describe the issue with this paper...' if bug_doi else 'What worked well? What was confusing? Any missing features or suggestions?' }}" spellcheck="true"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y">{{ ('[DOI: ' ~ bug_doi ~ '] ') if bug_doi else '' }}</textarea>
         <p class="text-xs text-slate-400 mt-1">Max 2000 characters.</p>
       </div>
 
