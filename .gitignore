@@ -10,6 +10,10 @@ env/
 # Environment — never commit real secrets
 .env
 
+# Google Drive backup credentials
+Backup/token.json
+Backup/*.json
+
 # Database
 *.db
 *.sqlite3
