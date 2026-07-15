@@ -16,6 +16,12 @@
 
   {% else %}
 
+  {% if not bug_doi %}
+  <!-- Name suggestions panel -->
+  {% include "_name_suggestions.html" %}
+  <div class="mt-6"></div>
+  {% endif %}
+
   <!-- ── Main feedback form ────────────────────────────────────────── -->
   <div class="bg-white border border-slate-200 rounded-xl p-6">
     {% if bug_doi %}
