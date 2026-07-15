@@ -1,9 +1,13 @@
 # ChemRepro — Task Tracker
-_Last updated: 8 July 2026_
+_Last updated: 15 July 2026_
 
 ---
 
 ## ACTIVE — by priority
+
+### 🔴 CRITICAL
+
+- [x] **A6** — Automated daily backup to Google Drive. Script: `scripts/backup_to_gdrive.py`. Runs via GitHub Actions (`.github/workflows/backup.yml`) at 03:00 UTC daily. Keeps last 14 backups, prunes older ones automatically. Drive folder: `ChemRepro - Backup` (chemrepro@gmail.com). **Before pushing: add two GitHub secrets** — `DATABASE_URL` (Railway public URL) and `GDRIVE_TOKEN_JSON` (contents of `Backup/token.json`). Local credentials in `Backup/` are gitignored and must not be committed.
 
 ### 🟠 HIGH
 
