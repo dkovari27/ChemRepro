@@ -94,6 +94,7 @@ def _migrate():
             conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS career_stage_snapshot VARCHAR(60)"))
             conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT FALSE"))
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT FALSE"))
+            conn.execute(text("ALTER TABLE ratings ALTER COLUMN reproducibility_observation TYPE TEXT"))
         conn.commit()
 
 _migrate()

@@ -892,6 +892,34 @@
   </div>
 </div>
 
+<!-- Report review/comment modal -->
+<div id="report-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+  <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4">
+    <h3 id="report-modal-label" class="text-base font-semibold text-slate-800 mb-3">Report this content</h3>
+    <input type="hidden" id="report-target-type" />
+    <input type="hidden" id="report-target-id" />
+    <textarea id="report-reason" rows="3" maxlength="500"
+      placeholder="Briefly describe the issue (optional)…"
+      class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm resize-none placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand mb-4"></textarea>
+    <div class="flex gap-2">
+      <button onclick="submitReport()"
+        class="flex-1 bg-red-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-red-700 transition-colors">
+        Submit report
+      </button>
+      <button onclick="document.getElementById('report-modal').classList.add('hidden')"
+        class="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 transition-colors">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Report toast -->
+<div id="report-toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50
+     bg-slate-800 text-white text-sm px-5 py-3 rounded-full shadow-lg pointer-events-none">
+  Report submitted. Thanks for helping keep ChemRepro clean.
+</div>
+
 <!-- Private message modal -->
 <div id="msg-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
   <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6">
@@ -1079,6 +1107,21 @@
     document.getElementById('report-modal-label').textContent = `Report this ${label}`;
     document.getElementById('report-reason').value = '';
     document.getElementById('report-modal').classList.remove('hidden');
+  }
+  async function submitReport() {
+    const type = document.getElementById('report-target-type').value;
+    const id = document.getElementById('report-target-id').value;
+    const reason = document.getElementById('report-reason').value;
+    try {
+      const fd = new FormData();
+      fd.append('target_type', type);
+      fd.append('target_id', id);
+      fd.append('reason', reason);
+      await fetch('/report', { method: 'POST', body: fd });
+    } catch (_) {}
+    document.getElementById('report-modal').classList.add('hidden');
+    const toast = document.getElementById('report-toast');
+    if (toast) { toast.classList.remove('hidden'); setTimeout(() => toast.classList.add('hidden'), 3500); }
   }
 
   // ── Bug report modal ──────────────────────────────────────────────────
