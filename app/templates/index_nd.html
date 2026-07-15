@@ -1,0 +1,137 @@
+{% extends design_base(request) %}
+{% block title %}ChemRepro – Peer Ratings for Chemistry Papers{% endblock %}
+
+{% block content %}
+
+<!-- Dev login banner -->
+{% if dev_mode and not orcid_id %}
+<div class="max-w-2xl mx-auto mb-8 bg-amber-50 border border-amber-200 rounded-xl p-4">
+  <p class="text-xs font-semibold text-amber-700 uppercase tracking-widest mb-2">Dev mode – fake login</p>
+  <div class="flex gap-2 flex-wrap">
+    {% for i, name in dev_users %}
+    <a href="/auth/dev-login/{{ i }}"
+      class="text-sm bg-white border border-amber-300 text-amber-800 rounded-lg px-3 py-1.5 hover:bg-amber-50 transition-colors">
+      {{ name }}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Hero ─────────────────────────────────────────────────────── -->
+<div class="text-center mb-10 pt-4">
+  <h1 class="text-[2.5rem] font-bold tracking-[-0.025em] text-[#111c17] mb-4 leading-[1.2]">
+    Did that synthesis actually work?<br />Tell us more!
+  </h1>
+  <p class="text-slate-500 text-base max-w-xl mx-auto leading-relaxed">
+    Peer ratings from verified synthetic chemists.<br /> Look up a DOI to see what others experienced in the lab.
+  </p>
+</div>
+
+{% if error %}
+<div class="max-w-2xl mx-auto mb-6 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+  {{ error }}
+</div>
+{% endif %}
+
+<!-- ── Search ────────────────────────────────────────────────────── -->
+<form action="/search" method="get" class="flex gap-2 max-w-2xl mx-auto mb-10">
+  <input type="text" name="doi" placeholder="Paste a DOI – e.g. 10.1021/jacs.2c00001"
+    class="flex-1 bg-[#f2f7f5] border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/25 focus:border-brand/50 transition-colors placeholder:text-slate-400"
+    autofocus />
+  <button type="submit"
+    class="bg-brand text-white rounded-xl px-5 py-3 text-sm font-medium hover:bg-brand-dark transition-colors whitespace-nowrap shadow-sm">
+    Look up paper
+  </button>
+</form>
+
+<!-- ── Paper card macro ──────────────────────────────────────────── -->
+{% macro paper_card(entry) %}
+{% set p = entry.paper %}
+<a href="/paper/{{ p.doi }}"
+  class="paper-card block bg-white border border-slate-200 rounded-xl p-5 group">
+  <div class="flex items-center gap-5">
+
+    <!-- Text column -->
+    <div class="flex-1 min-w-0">
+      <p
+        class="font-semibold text-[#111c17] text-sm leading-snug line-clamp-2 mb-1 group-hover:text-brand transition-colors">
+        {{ p.title }}</p>
+      <p class="text-xs text-slate-500 truncate mb-0.5">{{ entry.display_authors }}</p>
+      <p class="text-[11px] text-slate-400 truncate">
+        {{ p.journal or "–" }}{% if p.year %} · {{ p.year }}{% endif %}
+        <span class="font-mono ml-1">{{ p.doi }}</span>
+      </p>
+    </div>
+
+    <!-- ND score column -->
+    <div class="shrink-0 text-center w-20 group/score relative cursor-default" onclick="return false;">
+      {% if entry.nd_rating_count > 0 and entry.nd_avg_star %}
+      <p class="text-xl font-bold text-[#111c17] leading-none">★ {{ entry.nd_avg_star }}</p>
+      <p class="text-[10px] text-slate-400 mt-0.5 font-medium uppercase tracking-widest">{{ entry.nd_rating_count }}
+        rating{{ 's' if entry.nd_rating_count != 1 }}</p>
+
+      <!-- Breakdown tooltip -->
+      <div class="absolute right-0 bottom-full mb-2 hidden group-hover/score:block
+                    bg-white border border-slate-200 rounded-xl shadow-lg p-4 w-[22rem] z-20 text-left pointer-events-none">
+        <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3 text-center">Rating breakdown</p>
+        <div class="space-y-2">
+          {% for star in nd_star_order %}
+          {% set count = entry.nd_star_dist.get(star, 0) %}
+          {% set bar_cls = nd_star_colors[star][0] %}
+          {% set txt_cls = nd_star_colors[star][1] %}
+          <div>
+            <div class="flex justify-between text-xs mb-0.5">
+              <span class="{{ txt_cls }} font-medium leading-tight">
+                <span class="font-bold">{{ star }}</span>
+                <span class="mx-0.5 opacity-60">–</span>{{ nd_star_labels[star] }}
+              </span>
+              <span
+                class="font-semibold shrink-0 ml-3 {% if count > 0 %}text-slate-600{% else %}text-slate-300{% endif %}">
+                {% if count > 0 %}×{{ count }}{% else %}–{% endif %}
+              </span>
+            </div>
+            <div class="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
+              <div class="h-full rounded-full {{ bar_cls }} {% if count == 0 %}opacity-0{% endif %}"
+                style="width: {{ (count / entry.nd_rating_count * 100) | int }}%"></div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% else %}
+      <p class="text-[11px] text-slate-400 italic leading-tight">No<br>ratings</p>
+      {% endif %}
+    </div>
+
+  </div>
+</a>
+{% endmacro %}
+
+<!-- ── My reviewed papers ─────────────────────────────────────────── -->
+{% if my_papers %}
+<div class="mb-3 flex items-center justify-between">
+  <h2 class="text-sm font-semibold uppercase tracking-widest text-slate-400">My reviewed papers</h2>
+</div>
+<div class="space-y-2 mb-10">
+  {% for entry in my_papers %}{{ paper_card(entry) }}{% endfor %}
+</div>
+{% endif %}
+
+<!-- ── Community feed ─────────────────────────────────────────────── -->
+{% if community_papers %}
+<div class="mb-3 flex items-center justify-between">
+  <h2 class="text-sm font-semibold uppercase tracking-widest text-slate-400">
+    {% if my_papers %}Recently rated by the community{% else %}Recently rated papers{% endif %}
+  </h2>
+</div>
+<div class="space-y-2">
+  {% for entry in community_papers %}{{ paper_card(entry) }}{% endfor %}
+</div>
+{% elif not my_papers %}
+<div class="text-center text-slate-400 mt-16 text-sm">
+  No papers rated yet. Be the first – look up a DOI above.
+</div>
+{% endif %}
+
+{% endblock %}

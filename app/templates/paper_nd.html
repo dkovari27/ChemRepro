@@ -1,0 +1,1233 @@
+{% extends design_base(request) %}
+{% block title %}{{ paper.title | truncate(60, true, '…') }} – ChemRepro{% endblock %}
+
+{% block content %}
+
+{% if show_thanks %}
+<div id="thanks-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 text-center">
+    <div class="flex justify-center mb-4">
+      <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+        <svg class="w-6 h-6 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </div>
+    </div>
+    <h2 class="text-base font-semibold text-slate-800 mb-1">Thank you for your contribution!</h2>
+    <p class="text-sm text-slate-500 mb-5">Your review supports open science in chemistry.</p>
+    <button onclick="document.getElementById('thanks-modal').classList.add('hidden')"
+      class="px-6 py-2 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 transition-colors">
+      Close
+    </button>
+  </div>
+</div>
+<script>
+  setTimeout(function() {
+    var m = document.getElementById('thanks-modal');
+    if (m) m.classList.add('hidden');
+  }, 4500);
+</script>
+{% endif %}
+
+<!-- Paper header -->
+<div class="bg-white border border-slate-200 rounded-xl p-6 mb-6">
+  <div class="flex items-start justify-between gap-4 flex-wrap">
+    <div class="flex-1 min-w-0">
+      <h1 class="text-xl font-bold text-slate-800 leading-snug mb-2">{{ paper.title }}</h1>
+      <p class="text-sm text-slate-500 mb-1">{{ authors | join(', ') }}</p>
+      <p class="text-sm text-slate-400">
+        {% if paper.journal %}{{ paper.journal }}{% endif %}
+        {% if paper.year %}&middot; {{ paper.year }}{% endif %}
+        &middot;
+        <a href="https://doi.org/{{ paper.doi }}" target="_blank"
+           class="text-brand hover:underline font-mono text-xs">{{ paper.doi }}</a>
+      </p>
+    </div>
+    <div class="flex flex-col gap-1.5 shrink-0 w-36">
+      {% if orcid_id %}
+      <!-- Save to Collection button -->
+      <div class="w-full" id="save-wrap">
+        <button id="save-btn" type="button" onclick="toggleSavePanel()"
+          class="w-full text-xs border rounded-md px-3 py-1.5 transition-colors flex items-center gap-1.5
+                 {% if saved_entry %}border-brand text-brand bg-blue-50{% else %}border-slate-200 text-slate-500 hover:border-brand hover:text-brand{% endif %}">
+          <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="{% if saved_entry %}currentColor{% else %}none{% endif %}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+          </svg>
+          {% if saved_entry %}
+            Saved{% if saved_entry.collection %} &middot; {{ saved_entry.collection.name | truncate(10, true, '…') }}{% endif %}
+          {% else %}
+            Save
+          {% endif %}
+        </button>
+      </div>
+      {% endif %}
+      <a href="https://doi.org/{{ paper.doi }}" target="_blank"
+         class="w-full text-xs border border-slate-200 rounded-md px-3 py-1.5 text-slate-500 hover:border-brand hover:text-brand transition-colors flex items-center gap-1.5">
+        <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+          <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+        </svg>
+        View paper
+      </a>
+      <button type="button" onclick="openBugModal('{{ paper.doi | e }}')"
+         class="w-full text-xs border border-slate-200 rounded-md px-3 py-1.5 text-slate-500 hover:border-brand hover:text-brand transition-colors flex items-center gap-1.5">
+        <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        Report a bug
+      </button>
+    </div>
+  </div>
+  {% if paper.abstract %}
+  <div class="mt-4 pt-4 border-t border-slate-100">
+    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Abstract</p>
+    <p class="text-sm text-slate-600 leading-relaxed">{{ paper.abstract }}</p>
+  </div>
+  {% endif %}
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-6">
+
+  <!-- ═══════════════ LEFT COLUMN ═══════════════ -->
+  <div>
+  <div class="sticky top-4 self-start max-h-[calc(100vh-2rem)] overflow-y-auto flex flex-col gap-4">
+
+    <!-- Score card -->
+    <div class="bg-white border border-slate-200 rounded-xl p-5">
+      <div class="flex items-baseline gap-3 mb-4">
+        <span class="text-4xl font-bold text-slate-800">
+          {% if nd_scores.nd_avg_star %}★ {{ nd_scores.nd_avg_star }}{% else %}–{% endif %}
+        </span>
+        <span class="text-sm text-slate-400">{{ nd_scores.nd_rating_count }} rating{{ 's' if nd_scores.nd_rating_count != 1 }}</span>
+      </div>
+
+      {% if nd_scores.nd_rating_count > 0 %}
+      <div class="space-y-1.5">
+        {% for star in nd_star_order %}
+        {% set count = nd_scores.nd_star_dist.get(star, 0) %}
+        {% set bar_cls = nd_star_colors[star][0] %}
+        {% set txt_cls = nd_star_colors[star][1] %}
+        {% set is_active = active_star == star | string %}
+        <div class="cursor-pointer rounded-md px-1 py-0.5 -mx-1 transition-colors
+                    {% if is_active %}bg-slate-100 ring-1 ring-slate-300{% else %}hover:bg-slate-50{% endif %}"
+             onclick="applyFilter('star', '{{ '' if is_active else star }}')"
+             title="{% if is_active %}Clear filter{% else %}Show only: {{ nd_star_labels[star] }}{% endif %}">
+          <div class="flex justify-between text-xs mb-0.5">
+            <span class="{{ txt_cls }} font-medium">
+              <span class="font-bold">{{ star }}</span>
+              <span class="mx-0.5 opacity-60">–</span>{{ nd_star_labels[star] }}
+            </span>
+            <span class="font-semibold shrink-0 ml-2 {% if count > 0 %}text-slate-600{% else %}text-slate-300{% endif %}">
+              {% if count > 0 %}×{{ count }}{% else %}–{% endif %}
+            </span>
+          </div>
+          <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+            <div class="{{ bar_cls }} h-full rounded-full {% if count == 0 %}opacity-0{% endif %}"
+                 style="width: {{ (count / nd_scores.nd_rating_count * 100) | int }}%"></div>
+          </div>
+        </div>
+        {% endfor %}
+        {% if active_star %}
+        <button onclick="applyFilter('star', '')"
+          class="text-xs text-slate-400 hover:text-brand mt-1 transition-colors">✕ Clear star filter</button>
+        {% endif %}
+      </div>
+      {% else %}
+      <p class="text-sm text-slate-400 italic">No ratings yet.</p>
+      {% endif %}
+    </div>
+
+    <!-- Rating form -->
+    <div class="bg-white border border-slate-200 rounded-xl p-5">
+      <h2 class="font-semibold text-slate-700 mb-4">Rate this paper</h2>
+
+      {% if not orcid_id %}
+        <p class="text-sm text-slate-500 mb-3">Sign in to submit a rating.</p>
+        <div class="flex flex-col gap-2">
+          <a href="/auth/guest-setup?next=/paper/{{ paper.doi }}"
+             class="block text-center border border-slate-300 text-slate-700 rounded-lg px-4 py-2 text-sm hover:border-brand transition-colors">
+            Continue as guest
+          </a>
+          <a href="/auth/login"
+             class="flex items-center justify-center gap-2 border border-[#A6CE39] text-slate-700 rounded-lg px-4 py-2 text-sm font-medium hover:bg-[#A6CE39] hover:text-white transition-colors">
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg"><path fill="#A6CE39" d="M128 0C57.3 0 0 57.3 0 128s57.3 128 128 128 128-57.3 128-128S198.7 0 128 0z"/><path fill="#fff" d="M86.3 186.2H70.9V79.1h15.4v107.1zm2.4-129.4c0 5.5-4.5 10.1-10.1 10.1-5.6 0-10.1-4.6-10.1-10.1 0-5.6 4.5-10.1 10.1-10.1 5.6 0 10.1 4.5 10.1 10.1zM108.9 79.1h41.6c39.6 0 57 28.3 57 53.6 0 27.5-21.5 53.6-56.8 53.6h-41.8V79.1zm15.4 93.3h24.5c34.9 0 42.9-26.5 42.9-39.7 0-21.5-13.7-39.7-43.7-39.7h-23.7v79.4z"/></svg>
+            Sign in with ORCID
+          </a>
+          <span class="flex items-center gap-2 border border-slate-200 text-slate-400 rounded-lg px-4 py-2 text-sm font-medium cursor-not-allowed select-none">
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+            Sign in with LinkedIn
+            <span class="ml-auto text-xs bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded">Coming soon</span>
+          </span>
+        </div>
+
+      {% elif user_already_rated %}
+        <div class="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-3">
+          You have already submitted a rating for this paper.
+        </div>
+
+      {% else %}
+        <form action="/paper/{{ paper.doi }}/rate" method="post" id="nd-rating-form" data-moderate>
+
+          <!-- ══ STEP 1: STAR RATING ════════════════════════════════════ -->
+          <div class="mb-5">
+            <label class="block text-xs font-medium text-slate-600 mb-2">
+              What was the outcome? <span class="text-red-500">*</span>
+            </label>
+            <div class="flex flex-col gap-2">
+              {% for star in nd_star_order %}
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="nd_star" value="{{ star }}" class="accent-brand w-4 h-4"
+                       onchange="ndStarChanged({{ star }})" />
+                <span class="text-sm text-slate-800">
+                  <span class="font-bold">{{ star }}</span>
+                  <span class="text-slate-400 mx-0.5">–</span>{{ nd_star_labels[star] }}
+                </span>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- ══ STEP 2: FAILURE CONTEXT (shown only for star=1) ══════ -->
+          <div id="nd-failure-context-section" class="hidden border-t border-slate-100 pt-4 mb-4">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">What did you test?</p>
+            <div class="flex flex-col gap-2">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="nd_failure_context" value="original_tested"
+                       class="accent-brand w-4 h-4" onchange="checkNdReady()" />
+                <span class="text-sm text-slate-800">Tested original procedure</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="nd_failure_context" value="extension_only"
+                       class="accent-brand w-4 h-4" onchange="checkNdReady()" />
+                <span class="text-sm text-slate-800">Extension only – did not test the original</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- ══ STEP 3: OBSERVATION ════════════════════════════════════ -->
+          <div id="nd-obs-section" class="hidden border-t border-slate-100 pt-4 mb-4">
+            <label class="block text-xs font-medium text-slate-600 mb-1">Observation</label>
+            <textarea name="reproducibility_observation" rows="6" maxlength="1000" spellcheck="true" data-img-paste
+              placeholder="Describe what you observed in the lab: conditions, yield, deviations from the published procedure…"
+              class="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
+          </div>
+
+          <!-- Conflict of interest declaration -->
+          <label class="flex items-start gap-2.5 cursor-pointer border border-slate-200 rounded-lg p-3 hover:border-brand transition-colors">
+            <input type="checkbox" id="nd-coi-checkbox" name="coi_confirmed" value="on"
+              onchange="checkNdReady()"
+              class="accent-brand mt-0.5 w-4 h-4 shrink-0" />
+            <span class="text-xs text-slate-600 leading-relaxed">
+              I confirm I am <strong>not an author</strong> on this paper and have
+              no direct affiliation with the research group.
+            </span>
+          </label>
+
+          <button type="submit" id="nd-submit-btn" disabled
+            class="w-full bg-brand text-white rounded-lg px-4 py-2.5 text-sm font-medium
+                   hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed mt-3">
+            Submit rating
+          </button>
+        </form>
+      {% endif %}
+    </div>
+
+  </div><!-- end sticky wrapper -->
+  </div><!-- end left column -->
+
+  <!-- ═══════════════ RIGHT COLUMN ═══════════════ -->
+  <div id="reviews-section">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-semibold text-slate-700">
+        Community reviews
+        <span class="text-slate-400 font-normal text-sm">
+          ({{ total_count }}{% if active_star or active_ctx %} filtered{% endif %})
+        </span>
+      </h2>
+    </div>
+
+    <!-- Filter / sort bar -->
+    <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4 space-y-2.5 text-xs">
+
+      <!-- Sort row -->
+      <div class="flex items-center gap-3 flex-wrap">
+        <span class="font-medium text-slate-500 shrink-0">Sort</span>
+        <select onchange="applyFilter('sort', this.value)"
+          class="border border-slate-200 rounded-md px-2 py-1 bg-white text-slate-700 text-xs">
+          <option value="newest"    {% if active_sort == 'newest'    %}selected{% endif %}>Newest</option>
+          <option value="oldest"    {% if active_sort == 'oldest'    %}selected{% endif %}>Oldest</option>
+          <option value="highest"   {% if active_sort == 'highest'   %}selected{% endif %}>Highest rated</option>
+          <option value="lowest"    {% if active_sort == 'lowest'    %}selected{% endif %}>Lowest rated</option>
+          <option value="most_liked"{% if active_sort == 'most_liked'%}selected{% endif %}>Most liked</option>
+        </select>
+        {% if active_star or active_ctx %}
+        <a onclick="clearNdFilters()" class="text-slate-400 hover:text-red-500 cursor-pointer ml-auto transition-colors">
+          ✕ Clear all filters
+        </a>
+        {% endif %}
+      </div>
+
+      <!-- Star filter -->
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="font-medium text-slate-500 shrink-0">Stars</span>
+        <button onclick="applyFilter('star', '')"
+          class="px-2.5 py-0.5 rounded-full border transition-colors
+                 {% if not active_star %}bg-brand text-white border-brand{% else %}bg-white border-slate-200 text-slate-600 hover:border-brand{% endif %}">
+          All
+        </button>
+        {% for star in nd_star_order %}
+        <button onclick="applyFilter('star', '{{ star }}')"
+          class="px-2.5 py-0.5 rounded-full border transition-colors
+                 {% if active_star == star | string %}bg-brand text-white border-brand{% else %}bg-white border-slate-200 text-slate-600 hover:border-brand{% endif %}">
+          {{ star }} ★
+        </button>
+        {% endfor %}
+      </div>
+
+      <!-- Failure context filter (only useful when star=1 reviews exist) -->
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="font-medium text-slate-500 shrink-0">Context</span>
+        <button onclick="applyFilter('ctx', '')"
+          class="px-2.5 py-0.5 rounded-full border transition-colors
+                 {% if not active_ctx %}bg-brand text-white border-brand{% else %}bg-white border-slate-200 text-slate-600 hover:border-brand{% endif %}">
+          All
+        </button>
+        <button onclick="applyFilter('ctx', 'original_tested')"
+          class="px-2.5 py-0.5 rounded-full border transition-colors
+                 {% if active_ctx == 'original_tested' %}bg-slate-600 text-white border-slate-600{% else %}bg-white border-slate-200 text-slate-600 hover:border-slate-500{% endif %}">
+          Tested original
+        </button>
+        <button onclick="applyFilter('ctx', 'extension_only')"
+          class="px-2.5 py-0.5 rounded-full border transition-colors
+                 {% if active_ctx == 'extension_only' %}bg-amber-500 text-white border-amber-500{% else %}bg-white border-slate-200 text-slate-600 hover:border-amber-400{% endif %}">
+          Extension only
+        </button>
+      </div>
+
+    </div>
+
+    {% if reviews %}
+    <div class="space-y-4">
+      {% for r in reviews %}
+      {% set star_bar_cls = nd_star_colors.get(r.nd_star, ('bg-slate-300', 'text-slate-500'))[0] %}
+      {% set star_txt_cls = nd_star_colors.get(r.nd_star, ('bg-slate-300', 'text-slate-500'))[1] %}
+      {% set is_liked = r.id in user_likes %}
+      {% set like_count = like_counts.get(r.id, 0) %}
+      <div id="review-{{ r.id }}" class="bg-white border border-slate-200 rounded-xl p-4">
+
+        <!-- Review header: name | career stage | date -->
+        {% set rv_name = (r.user.nickname or r.user.name or "Verified chemist") if r.user else "Verified chemist" %}
+        <div class="grid grid-cols-3 items-center gap-1 mb-2 text-xs">
+          <div class="relative min-w-0">
+            <button type="button" onclick="toggleCommenterMenu(event,'rv-{{ r.id }}')"
+              class="font-semibold text-slate-700 hover:text-brand transition-colors cursor-pointer truncate block max-w-full text-left">
+              {{ rv_name }}
+            </button>
+            {% if r.user %}
+            <div id="rv-{{ r.id }}" class="commenter-menu hidden absolute left-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-xl shadow-lg z-30 py-1 overflow-hidden">
+              {% if orcid_id and r.user.orcid_id != orcid_id %}
+              <button type="button" data-orcid="{{ r.user.orcid_id }}"
+                onclick="toggleFollowUser(this.dataset.orcid,this);document.getElementById('rv-{{ r.id }}').classList.add('hidden')"
+                class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">Follow</button>
+              <button type="button" data-orcid="{{ r.user.orcid_id }}" data-name="{{ rv_name | e }}"
+                onclick="openMessageModal(this.dataset.orcid,this.dataset.name);document.getElementById('rv-{{ r.id }}').classList.add('hidden')"
+                class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">Message</button>
+              {% endif %}
+              <button type="button"
+                onclick="openReportModal('review','{{ r.id }}','rv-{{ r.id }}')"
+                class="w-full text-left px-3 py-2 text-xs text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors">Report</button>
+            </div>
+            {% endif %}
+          </div>
+          <div class="flex justify-center">
+            {% set shown_stage = r.career_stage_snapshot or (r.user.career_stage if r.user else None) %}
+            {% if shown_stage and shown_stage != 'Prefer not to say' %}
+            <span class="font-medium text-slate-600">{{ shown_stage }}</span>
+            {% endif %}
+          </div>
+          <div class="text-right text-slate-400">
+            {{ r.created_at.strftime('%d %b %Y') }}{% if r.updated_at %} · <em>edited</em>{% endif %}
+          </div>
+        </div>
+
+        <!-- Badges: ND star + failure_context -->
+        <div class="flex gap-2 flex-wrap mb-3">
+          {% if r.nd_star %}
+          <span class="text-xs font-semibold {{ star_txt_cls }} bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1">
+            ★ {{ r.nd_star }} – {{ nd_star_labels.get(r.nd_star, '') }}
+          </span>
+          {% endif %}
+          {% if r.nd_star == 1 and r.nd_failure_context %}
+          <span class="text-xs font-semibold rounded-full px-2.5 py-1
+            {% if r.nd_failure_context == 'extension_only' %}bg-amber-100 text-amber-700
+            {% else %}bg-slate-100 text-slate-600{% endif %}">
+            {{ nd_failure_context_labels.get(r.nd_failure_context, r.nd_failure_context) }}
+          </span>
+          {% endif %}
+        </div>
+
+        <!-- Colour accent strip -->
+        <div class="h-1 w-full {{ star_bar_cls }} rounded-full mb-3 opacity-60"></div>
+
+        <!-- Observation text -->
+        {% if r.reproducibility_observation %}
+        <div class="text-sm text-slate-700 mb-2">
+          <div class="mt-1 md-content">{{ r.reproducibility_observation | render_md_refs(papers_by_doi) | safe }}</div>
+        </div>
+        {% endif %}
+
+        <!-- Top-level comments -->
+        {% set top_comments = comment_map.get(r.id, []) %}
+        {% if top_comments %}
+        <div class="mt-3 border-t border-slate-100 pt-3 space-y-4">
+          {% for c in top_comments %}
+          {% set c_liked = c.id in user_comment_likes %}
+          {% set c_likes = comment_like_counts.get(c.id, 0) %}
+          {% set c_replies = reply_map.get(c.id, []) %}
+          <div id="comment-{{ c.id }}" class="border border-slate-200 rounded-xl p-3">
+            <div class="flex gap-3">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-2 mb-0.5">
+                  <div class="flex items-center gap-2">
+                    {% if c.user %}
+                    <span class="relative inline-block">
+                      <button type="button" onclick="toggleCommenterMenu(event,'cm-{{ c.id }}')"
+                        class="text-xs font-medium text-slate-600 hover:text-brand transition-colors cursor-pointer">
+                        {{ c.user.name or "Verified chemist" }}
+                      </button>
+                      <div id="cm-{{ c.id }}" class="commenter-menu hidden absolute left-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-xl shadow-lg z-30 py-1 overflow-hidden">
+                        {% if orcid_id and c.user.orcid_id != orcid_id %}
+                        <button type="button" data-orcid="{{ c.user.orcid_id }}"
+                          onclick="toggleFollowUser(this.dataset.orcid,this);document.getElementById('cm-{{ c.id }}').classList.add('hidden')"
+                          class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">Follow</button>
+                        <button type="button" data-orcid="{{ c.user.orcid_id }}" data-name="{{ c.user.name or 'Verified chemist' }}"
+                          onclick="openMessageModal(this.dataset.orcid,this.dataset.name);document.getElementById('cm-{{ c.id }}').classList.add('hidden')"
+                          class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">Message</button>
+                        {% endif %}
+                        <button type="button"
+                          onclick="openReportModal('comment','{{ c.id }}','cm-{{ c.id }}')"
+                          class="w-full text-left px-3 py-2 text-xs text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors">Report</button>
+                      </div>
+                    </span>
+                    {% else %}
+                    <span class="text-xs font-medium text-slate-600">Verified chemist</span>
+                    {% endif %}
+                  </div>
+                  <span class="text-xs text-slate-400 shrink-0">{{ c.created_at.strftime('%d %b %Y') }}</span>
+                </div>
+                <div id="ctext-{{ c.id }}" class="text-sm text-slate-700 leading-relaxed md-content">{{ c.content | render_md_refs(papers_by_doi) | safe }}</div>
+                <div id="cedit-{{ c.id }}" class="hidden mt-1">
+                  <textarea id="cedit-ta-{{ c.id }}" rows="3" maxlength="2000" data-img-paste
+                    class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y">{{ c.content }}</textarea>
+                  <div class="flex items-center gap-2 mt-1.5">
+                    <button type="button" onclick="saveEditComment('{{ paper.doi }}', {{ c.id }})"
+                      class="text-xs bg-brand text-white rounded-lg px-3 py-1.5 hover:bg-blue-700 transition-colors font-medium">Save</button>
+                    <button type="button" onclick="cancelEditComment({{ c.id }})"
+                      class="text-xs text-slate-500 hover:text-slate-700 transition-colors">Cancel</button>
+                  </div>
+                </div>
+                {% if orcid_id %}
+                <div class="flex items-center gap-3 mt-1.5">
+                  <button type="button" onclick="toggleCommentLike({{ c.id }}, '{{ paper.doi }}')"
+                    id="clike-btn-{{ c.id }}"
+                    class="flex items-center gap-1 text-xs transition-colors {% if c_liked %}text-amber-500{% else %}text-slate-300 hover:text-amber-400{% endif %}">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="9" y1="3" x2="15" y2="3"/>
+                      <path d="M9 3V10L3 22H21L15 10V3Z"/>
+                      <path class="flask-liquid" d="M7.5 13L16.5 13L21 22H3Z" fill="{% if c_liked %}currentColor{% else %}none{% endif %}" stroke="none"/>
+                    </svg>
+                    <span id="clike-count-{{ c.id }}" class="{% if c_likes == 0 %}hidden{% endif %}">{{ c_likes }}</span>
+                  </button>
+                  <button type="button" onclick="toggleCommentReply({{ c.id }})"
+                    class="text-xs text-slate-300 hover:text-brand transition-colors">
+                    Reply{% if c_replies %} ({{ c_replies | length }}){% endif %}
+                  </button>
+                  {% if c.user and c.user.orcid_id == orcid_id %}
+                  <button type="button" onclick="editComment({{ c.id }})"
+                    class="text-xs text-slate-300 hover:text-brand transition-colors">Edit</button>
+                  {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- Nested replies -->
+                {% if c_replies %}
+                <div class="mt-2 space-y-2 pl-3 border-l border-slate-100">
+                  {% for rep in c_replies %}
+                  {% set rep_liked = rep.id in user_comment_likes %}
+                  {% set rep_likes = comment_like_counts.get(rep.id, 0) %}
+                  <div id="comment-{{ rep.id }}" class="border border-slate-200 rounded-lg p-2.5">
+                    <div class="flex items-center justify-between gap-2 mb-0.5">
+                      <div class="flex items-center gap-2">
+                        {% if rep.user %}
+                        <span class="relative inline-block">
+                          <button type="button" onclick="toggleCommenterMenu(event,'cmr-{{ rep.id }}')"
+                            class="text-xs font-medium text-slate-600 hover:text-brand transition-colors cursor-pointer">
+                            {{ rep.user.name or "Verified chemist" }}
+                          </button>
+                          <div id="cmr-{{ rep.id }}" class="commenter-menu hidden absolute left-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-xl shadow-lg z-30 py-1 overflow-hidden">
+                            {% if orcid_id and rep.user.orcid_id != orcid_id %}
+                            <button type="button" data-orcid="{{ rep.user.orcid_id }}"
+                              onclick="toggleFollowUser(this.dataset.orcid,this);document.getElementById('cmr-{{ rep.id }}').classList.add('hidden')"
+                              class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">Follow</button>
+                            <button type="button" data-orcid="{{ rep.user.orcid_id }}" data-name="{{ rep.user.name or 'Verified chemist' }}"
+                              onclick="openMessageModal(this.dataset.orcid,this.dataset.name);document.getElementById('cmr-{{ rep.id }}').classList.add('hidden')"
+                              class="w-full text-left px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">Message</button>
+                            {% endif %}
+                            <button type="button"
+                              onclick="openReportModal('comment','{{ rep.id }}','cmr-{{ rep.id }}')"
+                              class="w-full text-left px-3 py-2 text-xs text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors">Report</button>
+                          </div>
+                        </span>
+                        {% else %}
+                        <span class="text-xs font-medium text-slate-600">Verified chemist</span>
+                        {% endif %}
+                      </div>
+                      <span class="text-xs text-slate-400 shrink-0">{{ rep.created_at.strftime('%d %b %Y') }}</span>
+                    </div>
+                    <div id="ctext-{{ rep.id }}" class="text-sm text-slate-700 leading-relaxed md-content">{{ rep.content | render_md_refs(papers_by_doi) | safe }}</div>
+                    <div id="cedit-{{ rep.id }}" class="hidden mt-1">
+                      <textarea id="cedit-ta-{{ rep.id }}" rows="2" maxlength="2000" data-img-paste
+                        class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y">{{ rep.content }}</textarea>
+                      <div class="flex items-center gap-2 mt-1.5">
+                        <button type="button" onclick="saveEditComment('{{ paper.doi }}', {{ rep.id }})"
+                          class="text-xs bg-brand text-white rounded-lg px-3 py-1.5 hover:bg-blue-700 transition-colors font-medium">Save</button>
+                        <button type="button" onclick="cancelEditComment({{ rep.id }})"
+                          class="text-xs text-slate-500 hover:text-slate-700 transition-colors">Cancel</button>
+                      </div>
+                    </div>
+                    {% if orcid_id %}
+                    <div class="flex items-center gap-3 mt-1">
+                      <button type="button" onclick="toggleCommentLike({{ rep.id }}, '{{ paper.doi }}')"
+                        id="clike-btn-{{ rep.id }}"
+                        class="flex items-center gap-1 text-xs transition-colors {% if rep_liked %}text-amber-500{% else %}text-slate-300 hover:text-amber-400{% endif %}">
+                        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                          <line x1="9" y1="3" x2="15" y2="3"/>
+                          <path d="M9 3V10L3 22H21L15 10V3Z"/>
+                          <path class="flask-liquid" d="M7.5 13L16.5 13L21 22H3Z" fill="{% if rep_liked %}currentColor{% else %}none{% endif %}" stroke="none"/>
+                        </svg>
+                        <span id="clike-count-{{ rep.id }}" class="{% if rep_likes == 0 %}hidden{% endif %}">{{ rep_likes }}</span>
+                      </button>
+                      {% if rep.user and rep.user.orcid_id == orcid_id %}
+                      <button type="button" onclick="editComment({{ rep.id }})"
+                        class="text-xs text-slate-300 hover:text-brand transition-colors">Edit</button>
+                      {% endif %}
+                    </div>
+                    {% endif %}
+                  </div>
+                  {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- Reply-to-comment form -->
+                {% if orcid_id %}
+                <div id="comment-reply-{{ c.id }}" class="hidden mt-2 pt-2">
+                  <form action="/paper/{{ paper.doi }}/comment/{{ c.id }}/reply" method="post" data-moderate>
+                    <textarea name="content" rows="2" maxlength="2000" required spellcheck="true" data-img-paste
+                      placeholder="Reply to {{ c.user.name or 'this comment' }}..."
+                      class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none"></textarea>
+                    <p class="text-[11px] text-slate-300 mt-0.5 mb-1">Markdown supported</p>
+                    <div class="flex gap-2">
+                      <button type="submit" class="bg-slate-700 hover:bg-slate-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">Post reply</button>
+                      <button type="button" onclick="toggleCommentReply({{ c.id }})" class="text-xs text-slate-400 hover:text-slate-600 px-3 py-1.5">Cancel</button>
+                    </div>
+                  </form>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Action row -->
+        <div class="mt-3 border-t border-slate-100 pt-2 flex items-center gap-5">
+
+          {% if orcid_id %}
+          <button type="button" title="Like"
+            id="like-btn-{{ r.id }}"
+            onclick="toggleLike({{ r.id }}, '{{ paper.doi }}')"
+            class="flex items-center gap-1 text-xs transition-colors
+                   {% if is_liked %}text-amber-500{% else %}text-slate-400 hover:text-amber-400{% endif %}">
+            <svg id="like-svg-{{ r.id }}" class="w-4 h-4" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="9" y1="3" x2="15" y2="3"/>
+              <path d="M9 3V10L3 22H21L15 10V3Z"/>
+              <path class="flask-liquid" d="M7.5 13L16.5 13L21 22H3Z"
+                    fill="{% if is_liked %}currentColor{% else %}none{% endif %}" stroke="none"/>
+            </svg>
+            <span id="like-count-{{ r.id }}" class="font-medium {% if like_count == 0 %}hidden{% endif %}">{{ like_count }}</span>
+          </button>
+          {% else %}
+          <span class="flex items-center gap-1 text-xs text-slate-200 cursor-default">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="9" y1="3" x2="15" y2="3"/>
+              <path d="M9 3V10L3 22H21L15 10V3Z"/>
+            </svg>
+            {% if like_count > 0 %}<span>{{ like_count }}</span>{% endif %}
+          </span>
+          {% endif %}
+
+          {% if orcid_id %}
+          <button type="button" title="Comment" onclick="toggleReply({{ r.id }})"
+            class="flex items-center gap-1 text-xs text-slate-400 hover:text-brand transition-colors">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            {% set top = comment_map.get(r.id, []) %}
+            {% if top %}<span class="font-medium">{{ top | length }}</span>{% endif %}
+          </button>
+          {% else %}
+          <span class="flex items-center gap-1 text-xs text-slate-200 cursor-default">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </span>
+          {% endif %}
+
+          <!-- Edit / Delete -->
+          {% if orcid_id and r.orcid_id == orcid_id %}
+          <div class="ml-auto flex items-center gap-3">
+            <a href="/paper/{{ paper.doi }}/ratings/{{ r.id }}/edit"
+              class="flex items-center gap-1 text-xs text-slate-400 hover:text-brand transition-colors" title="Edit">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </a>
+            <form action="/paper/{{ paper.doi }}/ratings/{{ r.id }}/delete" method="post"
+                  onsubmit="return confirm('Delete this review? This cannot be undone.')">
+              <button type="submit" title="Delete"
+                class="flex items-center gap-1 text-xs text-slate-400 hover:text-red-500 transition-colors">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                  <path d="M10 11v6M14 11v6"/>
+                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                </svg>
+              </button>
+            </form>
+          </div>
+          {% endif %}
+
+        </div>
+
+        <!-- Reply form -->
+        {% if orcid_id %}
+        <div id="reply-{{ r.id }}" class="hidden mt-3 pt-3 border-t border-slate-100">
+          <form action="/paper/{{ paper.doi }}/comment" method="post" data-moderate>
+            <input type="hidden" name="rating_id" value="{{ r.id }}" />
+            <textarea id="reply-ta-{{ r.id }}" name="content" rows="4" maxlength="2000" required spellcheck="true" data-img-paste
+              placeholder="Add a comment on this review…"
+              class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y"></textarea>
+            <p class="text-[11px] text-slate-300 mt-0.5 mb-1.5">Markdown supported: **bold**, _italic_, `code`, - lists</p>
+            <div class="flex gap-2">
+              <button type="submit"
+                class="bg-slate-700 hover:bg-slate-900 text-white text-xs font-medium px-4 py-1.5 rounded-lg transition-colors">
+                Post reply
+              </button>
+              <button type="button" onclick="toggleReply({{ r.id }})"
+                class="text-xs text-slate-400 hover:text-slate-600 px-3 py-1.5">
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+        {% endif %}
+
+      </div>
+      {% endfor %}
+    </div>
+
+    {% else %}
+    <div class="text-slate-400 text-sm italic mt-4">No reviews yet – be the first!</div>
+    {% endif %}
+
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+    <div class="flex items-center justify-center gap-2 mt-6 text-sm">
+      {% if active_page > 1 %}
+      <button onclick="applyFilter('page', '{{ active_page - 1 }}')"
+        class="px-3 py-1.5 border border-slate-200 rounded-lg text-slate-600 hover:border-brand transition-colors">
+        &lt; Previous
+      </button>
+      {% endif %}
+      <span class="text-slate-400 text-xs">Page {{ active_page }} of {{ total_pages }}</span>
+      {% if active_page < total_pages %}
+      <button onclick="applyFilter('page', '{{ active_page + 1 }}')"
+        class="px-3 py-1.5 border border-slate-200 rounded-lg text-slate-600 hover:border-brand transition-colors">
+        Next &gt;
+      </button>
+      {% endif %}
+    </div>
+    {% endif %}
+
+
+    <!-- ══ STANDARD (LEGACY) REVIEWS ══════════════════════════════════════ -->
+    {% if standard_reviews %}
+    <div class="mt-10 border-t border-slate-100 pt-6">
+      <h2 class="font-semibold text-slate-500 text-sm uppercase tracking-widest mb-4">
+        Previous reviews (standard format)
+      </h2>
+      <p class="text-xs text-slate-400 mb-4">
+        These reviews were submitted before the current ChemRepro rating format.
+        Reviews marked with <span class="bg-amber-100 text-amber-700 rounded px-1.5 py-0.5 font-medium">Needs review</span>
+        contain data that does not map directly to the current 5-star scale.
+      </p>
+      <div class="space-y-4">
+      {% for r in standard_reviews %}
+      {% set is_liked = r.id in user_likes %}
+      {% set like_count = like_counts.get(r.id, 0) %}
+      {# Flag reviews where the outcome or extra data differs from ND format #}
+      {% set has_scope_data = r.scope_level or r.scope_observation or r.modification_details %}
+      {% set is_flagged = r.outcome in ('no_extension', 'repro_extension_failed') or has_scope_data %}
+      <div id="review-{{ r.id }}" class="bg-white border {% if is_flagged %}border-amber-300{% else %}border-slate-200{% endif %} rounded-xl p-4">
+
+        <!-- Header: name | career stage | date -->
+        {% set rv_name = (r.user.nickname or r.user.name or "Verified chemist") if r.user else "Verified chemist" %}
+        <div class="grid grid-cols-3 items-center gap-1 mb-2 text-xs">
+          <span class="font-semibold text-slate-700 truncate">{{ rv_name }}</span>
+          <div class="flex justify-center">
+            {% if r.user and r.user.career_stage and r.user.career_stage != 'Prefer not to say' %}
+            <span class="font-medium text-slate-500">{{ r.user.career_stage }}</span>
+            {% endif %}
+          </div>
+          <div class="text-right text-slate-400">{{ r.created_at.strftime('%d %b %Y') }}</div>
+        </div>
+
+        <!-- Badges -->
+        <div class="flex gap-2 flex-wrap mb-3">
+          {# "Standard review" label #}
+          <span class="text-xs font-semibold text-slate-500 bg-slate-100 border border-slate-200 rounded-full px-2.5 py-1">
+            Standard format
+          </span>
+          {# Outcome badge #}
+          {% if r.outcome %}
+          {% set oc = r.outcome %}
+          <span class="text-xs font-semibold rounded-full px-2.5 py-1
+            {% if oc == 'extended' %}text-blue-700 bg-blue-50 border border-blue-200
+            {% elif oc == 'reproduced' %}text-green-700 bg-green-50 border border-green-200
+            {% elif oc == 'repro_extension_failed' %}text-teal-700 bg-teal-50 border border-teal-200
+            {% elif oc == 'no_extension' %}text-orange-700 bg-orange-50 border border-orange-200
+            {% else %}text-red-700 bg-red-50 border border-red-200{% endif %}">
+            {% if r.reproducibility_score %}★ {{ r.reproducibility_score }} – {% endif %}{{ outcome_labels.get(r.outcome, r.outcome) }}
+          </span>
+          {% endif %}
+          {# Scope level badge #}
+          {% if r.scope_level %}
+          <span class="text-xs font-semibold text-slate-500 bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1">
+            {{ r.scope_level | title }} extension
+          </span>
+          {% endif %}
+          {# Flag badge for ambiguous/extra data #}
+          {% if is_flagged %}
+          <span class="text-xs font-semibold text-amber-700 bg-amber-100 border border-amber-300 rounded-full px-2.5 py-1" title="This review has data that does not map directly to the current 5-star format. Review manually before deciding whether to keep.">
+            ⚑ Needs review
+          </span>
+          {% endif %}
+        </div>
+
+        <!-- Observation -->
+        {% if r.reproducibility_observation %}
+        <div class="text-sm text-slate-700 mb-2">
+          <div class="mt-1 md-content">{{ r.reproducibility_observation | render_md_refs(papers_by_doi) | safe }}</div>
+        </div>
+        {% endif %}
+
+        <!-- Extra standard-only fields (shown in a muted box if present) -->
+        {% if has_scope_data %}
+        <div class="mt-2 bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-slate-600">
+          <p class="font-semibold text-amber-700 mb-1.5 uppercase tracking-wide text-[10px]">Standard-format extra data (not shown in ChemRepro format)</p>
+          {% if r.scope_observation %}
+          <p class="mb-1"><span class="font-medium">Scope observation:</span> {{ r.scope_observation }}</p>
+          {% endif %}
+          {% if r.modification_details %}
+          <p><span class="font-medium">Modification details:</span> {{ r.modification_details }}</p>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Like button -->
+        <div class="mt-3 border-t border-slate-100 pt-2 flex items-center gap-5">
+          {% if orcid_id %}
+          <button type="button" title="Like"
+            id="like-btn-{{ r.id }}"
+            onclick="toggleLike({{ r.id }}, '{{ paper.doi }}')"
+            class="flex items-center gap-1 text-xs transition-colors
+                   {% if is_liked %}text-amber-500{% else %}text-slate-400 hover:text-amber-400{% endif %}">
+            <svg id="like-svg-{{ r.id }}" class="w-4 h-4" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="9" y1="3" x2="15" y2="3"/>
+              <path d="M9 3V10L3 22H21L15 10V3Z"/>
+              <path class="flask-liquid" d="M7.5 13L16.5 13L21 22H3Z"
+                    fill="{% if is_liked %}currentColor{% else %}none{% endif %}" stroke="none"/>
+            </svg>
+            <span id="like-count-{{ r.id }}" class="font-medium {% if like_count == 0 %}hidden{% endif %}">{{ like_count }}</span>
+          </button>
+          {% endif %}
+          {# Edit/delete for own reviews (links to standard archive) #}
+          {% if orcid_id and r.orcid_id == orcid_id %}
+          <div class="ml-auto flex items-center gap-3">
+            <a href="/design-archive/standard/paper/{{ paper.doi }}/ratings/{{ r.id }}/edit"
+              class="flex items-center gap-1 text-xs text-slate-400 hover:text-brand transition-colors" title="Edit">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </a>
+            <form action="/design-archive/standard/paper/{{ paper.doi }}/ratings/{{ r.id }}/delete" method="post"
+                  onsubmit="return confirm('Delete this review? This cannot be undone.')">
+              <button type="submit" title="Delete"
+                class="flex items-center gap-1 text-xs text-slate-400 hover:text-red-500 transition-colors">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                  <path d="M10 11v6M14 11v6"/>
+                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                </svg>
+              </button>
+            </form>
+          </div>
+          {% endif %}
+        </div>
+
+      </div>
+      {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+  </div><!-- end right column -->
+
+</div>
+
+<!-- Save to Library modal -->
+<div id="save-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-base font-semibold text-slate-800">Save to Library</h2>
+      <button type="button" onclick="closeSavePanel()" class="text-slate-400 hover:text-slate-600 transition-colors">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <label class="block text-xs text-slate-600 mb-1">Collection (optional)</label>
+    <select id="save-col-select"
+            class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm mb-1 focus:outline-none focus:ring-2 focus:ring-brand">
+      <option value="">Unsorted</option>
+      {% for col, depth in user_collections_flat %}
+      <option value="{{ col.id }}" {% if saved_entry and saved_entry.collection_id == col.id %}selected{% endif %}>
+        {{ '    ' * depth }}{{ col.name }}
+      </option>
+      {% endfor %}
+    </select>
+    <div id="new-col-inline" class="hidden mb-1 mt-1 flex gap-1.5">
+      <input type="text" id="new-col-name-inline" maxlength="200" placeholder="Collection name"
+             class="flex-1 border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-brand">
+      <button type="button" onclick="createColInline()"
+              class="text-xs bg-brand text-white rounded-lg px-2 py-1 hover:bg-blue-700 transition-colors">Add</button>
+      <button type="button" onclick="cancelColInline()"
+              class="text-xs text-slate-400 hover:text-slate-600 transition-colors px-1">&times;</button>
+    </div>
+    <button type="button" onclick="toggleNewColInline()" id="new-col-toggle"
+            class="text-[11px] text-brand hover:text-blue-700 transition-colors mb-3 mt-1 flex items-center gap-1">
+      <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+      New collection
+    </button>
+    <label class="block text-xs text-slate-600 mb-1">Private note (optional)</label>
+    <textarea id="save-notes" rows="3" data-img-paste
+              class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs resize-y mb-4 focus:outline-none focus:ring-2 focus:ring-brand"
+              placeholder="Notes for yourself…">{{ saved_entry.notes if saved_entry and saved_entry.notes else '' }}</textarea>
+    <div class="flex gap-2">
+      <button onclick="doSave('{{ paper.doi }}')"
+              class="flex-1 bg-brand text-white rounded-lg py-2 text-sm font-medium hover:bg-blue-700 transition-colors">
+        {% if saved_entry %}Update{% else %}Save{% endif %}
+      </button>
+      {% if saved_entry %}
+      <button onclick="doUnsave('{{ paper.doi }}')"
+              class="text-sm border border-red-200 text-red-500 rounded-lg px-3 py-2 hover:bg-red-50 transition-colors">
+        Remove
+      </button>
+      {% endif %}
+      <button onclick="closeSavePanel()"
+              class="text-sm text-slate-400 hover:text-slate-600 px-3 transition-colors">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bug report modal -->
+<div id="bug-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-base font-semibold text-slate-800">Report a bug</h2>
+      <button type="button" onclick="closeBugModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="mb-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800">
+      Reporting an issue for DOI: <span id="bug-modal-doi" class="font-mono font-semibold"></span>
+    </div>
+    <p class="text-sm text-slate-500 mb-3">Describe the problem: wrong title, missing abstract, incorrect authors, or anything else that looks off.</p>
+    <div id="bug-modal-form">
+      <textarea id="bug-modal-comment" rows="5" maxlength="2000" spellcheck="true"
+        placeholder="Describe the issue…"
+        class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y mb-3"></textarea>
+      <div class="flex justify-end gap-2">
+        <button type="button" onclick="closeBugModal()"
+          class="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 transition-colors">Cancel</button>
+        <button type="button" onclick="submitBugReport()"
+          class="px-4 py-2 text-sm font-medium bg-brand text-white rounded-xl hover:bg-blue-700 transition-colors">Submit</button>
+      </div>
+    </div>
+    <div id="bug-modal-success" class="hidden">
+      <div class="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-3 mb-3">
+        Thank you for your report! We will look into it.
+      </div>
+      <div class="flex justify-end">
+        <button type="button" onclick="closeBugModal()"
+          class="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 transition-colors">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Report review/comment modal -->
+<div id="report-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+  <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4">
+    <h3 id="report-modal-label" class="text-base font-semibold text-slate-800 mb-3">Report this content</h3>
+    <input type="hidden" id="report-target-type" />
+    <input type="hidden" id="report-target-id" />
+    <textarea id="report-reason" rows="3" maxlength="500"
+      placeholder="Briefly describe the issue (optional)…"
+      class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm resize-none placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand mb-4"></textarea>
+    <div class="flex gap-2">
+      <button onclick="submitReport()"
+        class="flex-1 bg-red-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-red-700 transition-colors">
+        Submit report
+      </button>
+      <button onclick="document.getElementById('report-modal').classList.add('hidden')"
+        class="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 transition-colors">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Report toast -->
+<div id="report-toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50
+     bg-slate-800 text-white text-sm px-5 py-3 rounded-full shadow-lg pointer-events-none">
+  Report submitted. Thanks for helping keep ChemRepro clean.
+</div>
+
+<!-- Private message modal -->
+<div id="msg-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-base font-semibold text-slate-800">Message <span id="msg-modal-name" class="text-brand"></span></h2>
+      <button type="button" onclick="closeMessageModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <form action="/profile/messages/new" method="post">
+      <input type="hidden" name="recipient_orcid_id" id="msg-modal-recipient" />
+      <input type="hidden" name="source_doi" value="{{ paper.doi }}" />
+      <textarea name="content" rows="5" maxlength="5000" required spellcheck="true" data-img-paste
+        placeholder="Write your message…"
+        class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-y mb-3"></textarea>
+      <div class="flex justify-end gap-2">
+        <button type="button" onclick="closeMessageModal()"
+          class="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 transition-colors">Cancel</button>
+        <button type="submit"
+          class="px-4 py-2 text-sm font-medium bg-brand text-white rounded-xl hover:bg-blue-700 transition-colors">Send</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // ── ND rating form logic ──────────────────────────────────────────────
+  function ndStarChanged(star) {
+    const ctxSection = document.getElementById('nd-failure-context-section');
+    const obsSection = document.getElementById('nd-obs-section');
+    if (star === 1) {
+      ctxSection.classList.remove('hidden');
+    } else {
+      ctxSection.classList.add('hidden');
+      document.querySelectorAll('input[name="nd_failure_context"]').forEach(r => r.checked = false);
+    }
+    obsSection.classList.remove('hidden');
+    checkNdReady();
+  }
+
+  function checkNdReady() {
+    const starVal = document.querySelector('input[name="nd_star"]:checked')?.value;
+    const coi = document.getElementById('nd-coi-checkbox')?.checked;
+    const ctxRequired = starVal === '1';
+    const ctxOk = !ctxRequired || document.querySelector('input[name="nd_failure_context"]:checked');
+    const btn = document.getElementById('nd-submit-btn');
+    if (btn) btn.disabled = !(starVal && coi && ctxOk);
+  }
+
+  // ── Filter helpers ────────────────────────────────────────────────────
+  function applyFilter(key, value) {
+    const params = new URLSearchParams(window.location.search);
+    if (value === '' || value === null) {
+      params.delete(key);
+    } else {
+      params.set(key, value);
+    }
+    params.delete('page');
+    window.location.search = params.toString();
+  }
+  function clearNdFilters() {
+    const params = new URLSearchParams(window.location.search);
+    params.delete('star');
+    params.delete('ctx');
+    params.delete('page');
+    window.location.search = params.toString();
+  }
+
+  // ── ND-specific Like toggle (overrides base path) ─────────────────────
+  async function toggleLike(reviewId, doi) {
+    const btn     = document.getElementById('like-btn-'   + reviewId);
+    const svg     = document.getElementById('like-svg-'   + reviewId);
+    const countEl = document.getElementById('like-count-' + reviewId);
+    try {
+      const resp = await fetch(`/paper/${doi}/ratings/${reviewId}/like`, {
+        method: 'POST', headers: { 'Accept': 'application/json' },
+      });
+      if (!resp.ok) { window.location.reload(); return; }
+      const { liked, count } = await resp.json();
+      const liq = svg?.querySelector('.flask-liquid');
+      if (liq) liq.setAttribute('fill', liked ? 'currentColor' : 'none');
+      if (liked) {
+        btn?.classList.remove('text-slate-400', 'hover:text-amber-400');
+        btn?.classList.add('text-amber-500');
+      } else {
+        btn?.classList.remove('text-amber-500');
+        btn?.classList.add('text-slate-400', 'hover:text-amber-400');
+      }
+      if (countEl) { countEl.textContent = count; countEl.classList.toggle('hidden', count === 0); }
+    } catch (_) {}
+  }
+
+  // ── ND-specific Comment like toggle ──────────────────────────────────
+  async function toggleCommentLike(commentId, doi) {
+    const btn     = document.getElementById('clike-btn-'   + commentId);
+    const liq     = btn?.querySelector('.flask-liquid');
+    const countEl = document.getElementById('clike-count-' + commentId);
+    try {
+      const resp = await fetch(`/paper/${doi}/comment/${commentId}/like`, {
+        method: 'POST', headers: { 'Accept': 'application/json' },
+      });
+      if (!resp.ok) return;
+      const { liked, count } = await resp.json();
+      if (liq) liq.setAttribute('fill', liked ? 'currentColor' : 'none');
+      if (liked) {
+        btn?.classList.remove('text-slate-300', 'hover:text-amber-400');
+        btn?.classList.add('text-amber-500');
+      } else {
+        btn?.classList.remove('text-amber-500');
+        btn?.classList.add('text-slate-300', 'hover:text-amber-400');
+      }
+      if (countEl) { countEl.textContent = count; countEl.classList.toggle('hidden', count === 0); }
+    } catch (_) {}
+  }
+
+  // ── Common comment helpers ────────────────────────────────────────────
+  function toggleReply(ratingId) {
+    const el = document.getElementById('reply-' + ratingId);
+    if (!el) return;
+    el.classList.toggle('hidden');
+    if (!el.classList.contains('hidden')) {
+      el.querySelector('textarea')?.focus();
+    }
+  }
+  function toggleCommentReply(commentId) {
+    const el = document.getElementById('comment-reply-' + commentId);
+    if (!el) return;
+    el.classList.toggle('hidden');
+    if (!el.classList.contains('hidden')) el.querySelector('textarea')?.focus();
+  }
+  function editComment(commentId) {
+    document.getElementById('ctext-' + commentId)?.classList.add('hidden');
+    document.getElementById('cedit-' + commentId)?.classList.remove('hidden');
+    document.getElementById('cedit-ta-' + commentId)?.focus();
+  }
+  function cancelEditComment(commentId) {
+    document.getElementById('ctext-' + commentId)?.classList.remove('hidden');
+    document.getElementById('cedit-' + commentId)?.classList.add('hidden');
+  }
+  async function saveEditComment(doi, commentId) {
+    const ta = document.getElementById('cedit-ta-' + commentId);
+    if (!ta) return;
+    try {
+      const fd = new FormData();
+      fd.append('content', ta.value);
+      const resp = await fetch(`/paper/${doi}/comment/${commentId}/edit`, { method: 'POST', body: fd });
+      if (!resp.ok) return;
+      const { rendered_html } = await resp.json();
+      const textEl = document.getElementById('ctext-' + commentId);
+      if (textEl) textEl.innerHTML = rendered_html;
+      cancelEditComment(commentId);
+    } catch (_) {}
+  }
+
+  // ── Commenter dropdown ────────────────────────────────────────────────
+  function toggleCommenterMenu(e, id) {
+    e.stopPropagation();
+    document.querySelectorAll('.commenter-menu').forEach(el => {
+      if (el.id !== id) el.classList.add('hidden');
+    });
+    document.getElementById(id)?.classList.toggle('hidden');
+  }
+  document.addEventListener('click', function() {
+    document.querySelectorAll('.commenter-menu').forEach(el => el.classList.add('hidden'));
+  });
+  async function toggleFollowUser(orcidId, btn) {
+    try {
+      const resp = await fetch(`/follow/toggle/${encodeURIComponent(orcidId)}`, {
+        method: 'POST', headers: { 'Accept': 'application/json' },
+      });
+      if (!resp.ok) return;
+      const { following } = await resp.json();
+      btn.textContent = following ? 'Following ✓' : 'Follow';
+    } catch (_) {}
+  }
+
+  // ── Report modal ──────────────────────────────────────────────────────
+  function openReportModal(type, id, menuId) {
+    if (menuId) document.getElementById(menuId)?.classList.add('hidden');
+    document.getElementById('report-target-type').value = type;
+    document.getElementById('report-target-id').value = id;
+    const label = type === 'review' ? 'review' : 'comment';
+    document.getElementById('report-modal-label').textContent = `Report this ${label}`;
+    document.getElementById('report-reason').value = '';
+    document.getElementById('report-modal').classList.remove('hidden');
+  }
+  async function submitReport() {
+    const type = document.getElementById('report-target-type').value;
+    const id = document.getElementById('report-target-id').value;
+    const reason = document.getElementById('report-reason').value;
+    try {
+      const fd = new FormData();
+      fd.append('target_type', type);
+      fd.append('target_id', id);
+      fd.append('reason', reason);
+      await fetch('/report', { method: 'POST', body: fd });
+    } catch (_) {}
+    document.getElementById('report-modal').classList.add('hidden');
+    const toast = document.getElementById('report-toast');
+    if (toast) { toast.classList.remove('hidden'); setTimeout(() => toast.classList.add('hidden'), 3500); }
+  }
+
+  // ── Bug report modal ──────────────────────────────────────────────────
+  function openBugModal(doi) {
+    document.getElementById('bug-modal-doi').textContent = doi;
+    document.getElementById('bug-modal-comment').value = '[DOI: ' + doi + '] ';
+    document.getElementById('bug-modal-form').classList.remove('hidden');
+    document.getElementById('bug-modal-success').classList.add('hidden');
+    document.getElementById('bug-modal').classList.remove('hidden');
+    setTimeout(function() { document.getElementById('bug-modal-comment').focus(); }, 50);
+  }
+  function closeBugModal() {
+    document.getElementById('bug-modal').classList.add('hidden');
+    document.getElementById('bug-modal-comment').value = '';
+    document.getElementById('bug-modal-form').classList.remove('hidden');
+    document.getElementById('bug-modal-success').classList.add('hidden');
+  }
+  async function submitBugReport() {
+    const comment = document.getElementById('bug-modal-comment').value.trim();
+    if (!comment) return;
+    const fd = new FormData();
+    fd.append('comment', comment);
+    try {
+      await fetch('/feedback', { method: 'POST', body: fd, redirect: 'follow' });
+    } catch (_) {}
+    document.getElementById('bug-modal-form').classList.add('hidden');
+    document.getElementById('bug-modal-success').classList.remove('hidden');
+  }
+  document.getElementById('bug-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeBugModal();
+  });
+
+  // ── Message modal ─────────────────────────────────────────────────────
+  function openMessageModal(recipientId, recipientName) {
+    document.getElementById('msg-modal-recipient').value = recipientId;
+    document.getElementById('msg-modal-name').textContent = recipientName;
+    document.getElementById('msg-modal').classList.remove('hidden');
+  }
+  function closeMessageModal() {
+    document.getElementById('msg-modal').classList.add('hidden');
+  }
+  document.getElementById('msg-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeMessageModal();
+  });
+
+  // ── Save to Library ───────────────────────────────────────────────────
+  function toggleSavePanel() { document.getElementById('save-modal').classList.toggle('hidden'); }
+  function closeSavePanel() { document.getElementById('save-modal').classList.add('hidden'); }
+  document.getElementById('save-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeSavePanel();
+  });
+  function toggleNewColInline() {
+    const box = document.getElementById('new-col-inline');
+    const visible = !box.classList.contains('hidden');
+    box.classList.toggle('hidden', visible);
+    if (!visible) setTimeout(() => document.getElementById('new-col-name-inline').focus(), 30);
+  }
+  function cancelColInline() {
+    document.getElementById('new-col-inline').classList.add('hidden');
+    document.getElementById('new-col-name-inline').value = '';
+  }
+  async function createColInline() {
+    const name = document.getElementById('new-col-name-inline').value.trim();
+    if (!name) return;
+    const fd = new FormData();
+    fd.append('name', name);
+    try {
+      const resp = await fetch('/library/collections/new-json', { method: 'POST', body: fd });
+      if (!resp.ok) return;
+      const { id, name: colName } = await resp.json();
+      const sel = document.getElementById('save-col-select');
+      const opt = document.createElement('option');
+      opt.value = id; opt.textContent = colName; opt.selected = true;
+      sel.appendChild(opt);
+      cancelColInline();
+    } catch (_) {}
+  }
+  async function doSave(doi) {
+    const col = document.getElementById('save-col-select').value;
+    const notes = document.getElementById('save-notes').value;
+    const fd = new FormData();
+    fd.append('doi', doi); fd.append('collection_id', col); fd.append('notes', notes);
+    try {
+      const resp = await fetch('/library/save', { method: 'POST', body: fd });
+      if (!resp.ok) return;
+      const data = await resp.json();
+      const btn = document.getElementById('save-btn');
+      let label = 'Saved';
+      if (data.collection_name) label += ' \xb7 ' + data.collection_name.substring(0, 14);
+      btn.innerHTML = `<svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg> ${label}`;
+      btn.classList.add('border-brand', 'text-brand', 'bg-blue-50');
+      btn.classList.remove('border-slate-200', 'text-slate-500');
+      closeSavePanel();
+    } catch (_) {}
+  }
+  async function doUnsave(doi) {
+    const fd = new FormData();
+    fd.append('doi', doi);
+    try {
+      await fetch('/library/unsave', { method: 'POST', body: fd });
+      const btn = document.getElementById('save-btn');
+      btn.innerHTML = `<svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg> Save`;
+      btn.classList.remove('border-brand', 'text-brand', 'bg-blue-50');
+      btn.classList.add('border-slate-200', 'text-slate-500');
+      closeSavePanel();
+    } catch (_) {}
+  }
+</script>
+{% endblock %}

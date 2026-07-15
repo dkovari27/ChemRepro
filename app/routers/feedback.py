@@ -80,9 +80,10 @@ async def feedback_page(request: Request, db: Session = Depends(get_db)):
         "user_name": request.session.get("user_name"),
         "orcid_id": request.session.get("orcid_id"),
         "submitted": request.query_params.get("submitted") == "1",
+        "bug_doi": request.query_params.get("doi", ""),
         "suggestions": _get_suggestions(db, voter_id),
-        "site_version": "standard",
-        "switch_urls": {"standard": "/", "classic": "/classic/"},
+        "site_version": "new_design",
+        "switch_urls": {"standard": "/design-archive/standard/", "classic": "/classic/", "new_design": "/nd/"},
     })
 
 
@@ -94,18 +95,15 @@ async def submit_feedback(
     preference: str = Form(""),
     comment: str = Form(""),
 ):
-    if preference not in VALID_PREFS:
-        return RedirectResponse("/feedback", status_code=303)
-
     orcid_id = request.session.get("orcid_id")
     trimmed_comment = comment.strip()[:2000] or None
     db.add(Feedback(
-        preference=preference,
+        preference="",
         comment=trimmed_comment,
         orcid_id=orcid_id,
     ))
     db.commit()
-    background_tasks.add_task(send_feedback_notification, preference, trimmed_comment, orcid_id)
+    background_tasks.add_task(send_feedback_notification, "", trimmed_comment, orcid_id)
     return RedirectResponse("/feedback?submitted=1", status_code=303)
 
 

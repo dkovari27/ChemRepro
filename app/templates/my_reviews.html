@@ -13,7 +13,7 @@
   <div class="space-y-4">
     {% for r in ratings %}
     {% set paper = papers_map.get(r.doi) %}
-    {% set review_url = ('/classic/paper/' if r.scoring_mode == 'classic' else '/paper/') ~ r.doi ~ '#review-' ~ r.id %}
+    {% set review_url = ('/classic/paper/' if r.scoring_mode == 'classic' else ('/design-archive/standard/paper/' if r.scoring_mode == 'standard' else '/paper/')) ~ r.doi ~ '#review-' ~ r.id %}
     <div class="bg-white border border-slate-200 rounded-xl p-4">
 
       <!-- Paper title + DOI -->
@@ -30,7 +30,11 @@
 
       <!-- Score badges — each links directly to the review -->
       <div class="flex flex-wrap gap-2 mb-3">
-        {% if r.outcome and r.scoring_mode != 'classic' %}
+        {% if r.scoring_mode == 'new_design' and r.nd_star %}
+        <a href="{{ review_url }}" class="text-xs font-semibold {{ nd_star_colors[r.nd_star][1] }} bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1 hover:border-brand transition-colors">
+          ★{{ r.nd_star }} – {{ nd_star_labels[r.nd_star] }}
+        </a>
+        {% elif r.outcome and r.scoring_mode != 'classic' %}
         <a href="{{ review_url }}" class="text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 rounded-full px-2.5 py-1 hover:border-brand hover:text-brand transition-colors">
           {{ outcome_scores.get(r.outcome, '') }} – {{ outcome_labels.get(r.outcome, r.outcome) }}
         </a>
@@ -98,8 +102,11 @@
           {% if r.scoring_mode == 'classic' %}
           <a href="/classic/paper/{{ r.doi }}/ratings/{{ r.id }}/edit"
              class="flex items-center gap-1 text-xs text-slate-400 hover:text-brand transition-colors" title="Edit">
-          {% else %}
+          {% elif r.scoring_mode == 'new_design' %}
           <a href="/paper/{{ r.doi }}/ratings/{{ r.id }}/edit"
+             class="flex items-center gap-1 text-xs text-slate-400 hover:text-brand transition-colors" title="Edit">
+          {% else %}
+          <a href="/design-archive/standard/paper/{{ r.doi }}/ratings/{{ r.id }}/edit"
              class="flex items-center gap-1 text-xs text-slate-400 hover:text-brand transition-colors" title="Edit">
           {% endif %}
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
@@ -112,8 +119,11 @@
           {% if r.scoring_mode == 'classic' %}
           <form action="/classic/paper/{{ r.doi }}/ratings/{{ r.id }}/delete" method="post"
                 onsubmit="return confirm('Delete this review? This cannot be undone.')">
-          {% else %}
+          {% elif r.scoring_mode == 'new_design' %}
           <form action="/paper/{{ r.doi }}/ratings/{{ r.id }}/delete" method="post"
+                onsubmit="return confirm('Delete this review? This cannot be undone.')">
+          {% else %}
+          <form action="/design-archive/standard/paper/{{ r.doi }}/ratings/{{ r.id }}/delete" method="post"
                 onsubmit="return confirm('Delete this review? This cannot be undone.')">
           {% endif %}
             <button type="submit" title="Delete"

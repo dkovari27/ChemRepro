@@ -29,14 +29,22 @@
 
       <!-- Nickname -->
       <div class="mb-4">
-        <label for="nickname" class="block text-xs font-medium text-slate-500 mb-1">
+        <label class="block text-xs font-medium text-slate-500 mb-1">
           Display nickname <span class="text-slate-400 font-normal">(optional)</span>
         </label>
+        {% if user and user.nickname %}
+        <p class="text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">{{ user.nickname }}</p>
+        <p class="text-xs text-slate-400 mt-1">
+          Nickname cannot be changed after it is set.
+          To request a change, email <a href="mailto:chemrepro@gmail.com" class="text-brand hover:underline">chemrepro@gmail.com</a>.
+        </p>
+        {% else %}
         <input id="nickname" name="nickname" type="text" maxlength="60"
-          value="{{ user.nickname or '' }}"
+          value=""
           placeholder="Leave blank to use your ORCID name"
           class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/25 focus:border-brand/50 transition-colors" />
-        <p class="text-xs text-slate-400 mt-1">If set, this appears instead of your ORCID name on your reviews and comments.</p>
+        <p class="text-xs text-slate-400 mt-1">Once set, your nickname cannot be changed without contacting us.</p>
+        {% endif %}
       </div>
 
       <!-- Career stage -->

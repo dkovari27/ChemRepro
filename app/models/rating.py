@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Boolean, String, Integer, ForeignKey, DateTime, CheckConstraint, UniqueConstraint
+from sqlalchemy import Boolean, String, Integer, ForeignKey, DateTime, CheckConstraint, UniqueConstraint, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -46,6 +46,10 @@ class Rating(Base):
             "generalisability_score IS NULL OR generalisability_score BETWEEN 1 AND 5",
             name="ck_gen_score",
         ),
+        CheckConstraint(
+            "nd_star IS NULL OR nd_star BETWEEN 1 AND 5",
+            name="ck_nd_star",
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -56,7 +60,7 @@ class Rating(Base):
 
     # Reproducibility section (shown when OUTCOME_SHOWS_REPRO)
     reproducibility_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    reproducibility_observation: Mapped[str | None] = mapped_column(String(1000))
+    reproducibility_observation: Mapped[str | None] = mapped_column(Text)
 
     # Scope extension section (shown when OUTCOME_SHOWS_SCOPE)
     # generalisability_score kept for future numeric use; scope_level is the active field
@@ -65,10 +69,16 @@ class Rating(Base):
     scope_observation: Mapped[str | None] = mapped_column(String(1000))
     modification_details: Mapped[str | None] = mapped_column(String(1000))
 
-    # "standard" = single outcome-based score | "classic" = repro stars + outcome
+    # ChemRepro rating columns (scoring_mode == "new_design")
+    nd_star: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    nd_failure_context: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    career_stage_snapshot: Mapped[str | None] = mapped_column(String(60), nullable=True)
+
+    # "standard" = single outcome-based score | "classic" = repro stars + outcome | "new_design" = 1-5 star
     scoring_mode: Mapped[str] = mapped_column(String(10), default="standard", server_default="standard")
 
     ai_flagged: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    is_demo: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

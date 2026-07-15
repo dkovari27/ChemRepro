@@ -22,8 +22,8 @@
       title: 'Review cards',
       body: 'Papers you have personally reviewed appear under <strong>My reviewed papers</strong>. '
         + 'Below that, the community feed shows what other chemists have recently rated. '
-        + 'Each card displays a <strong>★ score</strong> and the number of reports. '
-        + 'Hover over the score to see the full breakdown, or click on the card to open the paper.',
+        + 'Each card shows a <strong>★ score (1–5)</strong> and the rating count. '
+        + 'Hover the score to see the full star breakdown, or click the card to open the paper.',
       nextLabel: 'Next →',
       nextAction: 'navigate',
       navigateTo: '/paper/demo',
@@ -33,9 +33,12 @@
       selector: '#tour-score-card',
       stepNum: 'Step 3 of 7',
       title: 'Paper score breakdown',
-      body: 'Here you see the aggregated score for this specific paper. '
-        + 'Each coloured row shows how many reviewers reported that outcome and its share of the total. '
-        + 'On a real paper you can click any row to filter the reviews by that outcome.',
+      body: 'The aggregated star rating for this paper. '
+        + 'Stars run from <strong>1 (Did not work)</strong> through '
+        + '<strong>3 (Reproduced as published)</strong> to '
+        + '<strong>5 (Major extension (new functional group))</strong>. '
+        + 'Each bar shows how many reviewers gave that rating. '
+        + 'Click a bar on a real paper to filter the reviews by that score.',
       nextLabel: 'Next →',
       nextAction: 'advance',
     },
@@ -44,10 +47,10 @@
       selector: '#tour-rate-box',
       stepNum: 'Step 4 of 7',
       title: 'Rate this paper',
-      body: 'If you have tried a procedure of a paper in the lab, record what happened here. '
-        + 'Choose an outcome (did it work? did it fail?, etc.), add your observations, '
-        + 'add a picture or screenshot of a scheme if you want and submit. '
-        + 'Your reviews will appear under your chosen display name.',
+      body: 'Tried a procedure from this paper in the lab? Select a <strong>star rating</strong> '
+        + 'that matches your outcome, add observations or images, and submit. '
+        + 'Star 1 also asks whether you tested the original procedure or only an extension. '
+        + 'Your review appears under your chosen display name.',
       nextLabel: 'Next →',
       nextAction: 'advance',
     },
@@ -95,7 +98,7 @@
   function currentPage() {
     var p = window.location.pathname;
     if (p === '/demo' || p === '/demo/') return 'demo-home';
-    if (p === '/' || p === '/classic' || p === '/classic/') return 'home';
+    if (p === '/nd/' || p === '/nd' || p === '/' || p === '/classic' || p === '/classic/') return 'home';
     if (p.startsWith('/paper/') || p.startsWith('/classic/paper/')) return 'paper';
     return 'other';
   }
@@ -150,7 +153,7 @@
         '<button id="cr-tour-next">Next</button>' +
         '</div>';
       document.body.appendChild(_tip);
-      document.getElementById('cr-tour-skip').addEventListener('click', function () { markDone(); hide(); });
+      document.getElementById('cr-tour-skip').addEventListener('click', function () { markDone(); hide(); window.location.href = '/'; });
       document.getElementById('cr-tour-next').addEventListener('click', onNext);
     }
   }
@@ -259,7 +262,7 @@
     var step = STEPS[idx];
     if (!step) return;
 
-    if (step.nextAction === 'finish') { markDone(); hide(); return; }
+    if (step.nextAction === 'finish') { markDone(); hide(); window.location.href = '/'; return; }
 
     if (step.nextAction === 'dismiss') {
       setStep(idx + 1);
@@ -293,6 +296,9 @@
       window.location.href = '/demo';
     }
   };
+
+  /* expose for nav button re-launch */
+  window._tourReady = true;
 
   function init() {
     if (isDone()) return;
