@@ -96,9 +96,13 @@ def dump_database(db_url: str) -> bytes:
         )
         print("  Used pg_dump binary.")
         return result.stdout
-    except (FileNotFoundError, subprocess.CalledProcessError):
-        print("  pg_dump not found, using Python fallback.")
+    except FileNotFoundError:
+        print("  pg_dump not in PATH, using Python fallback.")
         return _python_dump(db_url)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(
+            f"pg_dump failed (exit {e.returncode}): {e.stderr.decode(errors='replace').strip()}"
+        ) from e
 
 # ── Drive ─────────────────────────────────────────────────────────────────────
 
