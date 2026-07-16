@@ -320,6 +320,18 @@ def _own_rating_or_404(rating_id: int, orcid_id: str, db: Session) -> Rating:
     return r
 
 
+def _editable_rating_or_404(rating_id: int, orcid_id: str, db: Session) -> Rating:
+    """Like _own_rating_or_404, but also allows admin to edit AI-submitted reviews."""
+    r = db.get(Rating, rating_id)
+    if not r:
+        raise HTTPException(status_code=404, detail="Review not found")
+    is_owner = r.orcid_id == orcid_id
+    is_admin_on_ai = orcid_id == "admin:chemrepro" and r.orcid_id.startswith("AI-")
+    if not (is_owner or is_admin_on_ai):
+        raise HTTPException(status_code=403, detail="Not your review")
+    return r
+
+
 def _delete_rating(r: Rating, db: Session) -> None:
     db.query(Like).filter(Like.rating_id == r.id).delete()
     db.query(Comment).filter(Comment.rating_id == r.id).delete()
@@ -1622,7 +1634,7 @@ async def nd_edit_rating_page(doi: str, rating_id: int, request: Request, db: Se
     orcid_id = request.session.get("orcid_id")
     if not orcid_id:
         return RedirectResponse(f"/auth/guest-setup?next=/paper/{doi}", status_code=303)
-    r = _own_rating_or_404(rating_id, orcid_id, db)
+    r = _editable_rating_or_404(rating_id, orcid_id, db)
     paper = db.get(Paper, doi)
     if not paper:
         raise HTTPException(status_code=404)
@@ -2056,7 +2068,7 @@ async def nd_delete_rating(doi: str, rating_id: int, request: Request, db: Sessi
     orcid_id = request.session.get("orcid_id")
     if not orcid_id:
         raise HTTPException(status_code=403, detail="Not authenticated")
-    r = _own_rating_or_404(rating_id, orcid_id, db)
+    r = _editable_rating_or_404(rating_id, orcid_id, db)
     _delete_rating(r, db)
     return RedirectResponse(f"/paper/{doi}", status_code=303)
 
@@ -2072,7 +2084,7 @@ async def nd_edit_rating_submit(
     orcid_id = request.session.get("orcid_id")
     if not orcid_id:
         raise HTTPException(status_code=403)
-    r = _own_rating_or_404(rating_id, orcid_id, db)
+    r = _editable_rating_or_404(rating_id, orcid_id, db)
 
     star_int = int(nd_star) if nd_star else None
     if star_int is None or not (1 <= star_int <= 5):

@@ -249,6 +249,25 @@ async def admin_resolve_report(report_id: int, request: Request, db: Session = D
 
 # ── Ban / unban a user (sets name to [banned]) ────────────────────────────────
 
+@router.post("/users/{orcid_id:path}/edit")
+async def admin_edit_user(orcid_id: str, request: Request, db: Session = Depends(get_db)):
+    _require_admin(request)
+    user = db.get(User, orcid_id)
+    if not user:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    body = await request.json()
+    name = (body.get("name") or "").strip() or None
+    nickname = (body.get("nickname") or "").strip() or None
+    career_stage = (body.get("career_stage") or "").strip() or None
+    user.name = name
+    user.nickname = nickname
+    user.career_stage = career_stage
+    if career_stage:
+        user.career_stage_set = True
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
 @router.post("/users/{orcid_id:path}/ban")
 async def admin_ban_user(orcid_id: str, request: Request, db: Session = Depends(get_db)):
     _require_admin(request)

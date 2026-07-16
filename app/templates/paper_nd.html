@@ -586,7 +586,7 @@
           {% endif %}
 
           <!-- Edit / Delete -->
-          {% if orcid_id and r.orcid_id == orcid_id %}
+          {% if orcid_id and (r.orcid_id == orcid_id or (orcid_id == 'admin:chemrepro' and r.orcid_id.startswith('AI-'))) %}
           <div class="ml-auto flex items-center gap-3">
             <a href="/paper/{{ paper.doi }}/ratings/{{ r.id }}/edit"
               class="flex items-center gap-1 text-xs text-slate-400 hover:text-brand transition-colors" title="Edit">

@@ -1,0 +1,23 @@
+[
+  {
+    "doi": "10.1039/B108323F",
+    "nd_star": 3,
+    "nd_failure_context": null,
+    "reproducibility_observation": "Reproduced the Suzuki coupling in 72% yield (lit. 78%). Used Pd(PPh3)4 as specified. Slight yield drop likely due to moisture sensitivity during workup.",
+    "career_stage_snapshot": "PhD student"
+  },
+  {
+    "doi": "10.1021/acs.orglett.8b01800",
+    "nd_star": 1,
+    "nd_failure_context": "original_tested",
+    "reproducibility_observation": "Could not reproduce the reported cyclisation. Reaction gave only starting material after 24 h at reflux in toluene. Tried twice with freshly dried solvent.",
+    "career_stage_snapshot": "PhD student"
+  },
+  {
+    "doi": "10.1080/00397918008080054",
+    "nd_star": 5,
+    "nd_failure_context": null,
+    "reproducibility_observation": "Reproduced and extended to electron-poor arenes. New substrates gave 60-75% yield. Protocol is robust and scalable.",
+    "career_stage_snapshot": "PhD student"
+  }
+]

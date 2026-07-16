@@ -199,10 +199,18 @@
             <td class="px-4 py-2 text-xs text-slate-500">{{ r.outcome or '-' }}</td>
             <td class="px-4 py-2 text-xs text-slate-400">{{ r.created_at.strftime('%d %b %Y') }}</td>
             <td class="px-4 py-2">
-              <button onclick="adminAction('/admin/reviews/{{ r.id }}/delete','review-row-{{ r.id }}')"
-                class="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
-                Delete
-              </button>
+              <div class="flex gap-1">
+                {% if r.orcid_id.startswith('AI-') %}
+                <a href="/paper/{{ r.doi }}/ratings/{{ r.id }}/edit"
+                  class="text-xs px-2 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
+                  Edit
+                </a>
+                {% endif %}
+                <button onclick="adminAction('/admin/reviews/{{ r.id }}/delete','review-row-{{ r.id }}')"
+                  class="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
+                  Delete
+                </button>
+              </div>
             </td>
           </tr>
           {% endfor %}
@@ -266,7 +274,12 @@
         <tbody class="divide-y divide-slate-100">
           {% for u in all_users %}
           <tr id="user-row-{{ loop.index }}" class="hover:bg-slate-50">
-            <td class="px-4 py-2 font-mono text-xs text-slate-400">{{ u.orcid_id[:20] }}</td>
+            <td class="px-4 py-2 font-mono text-xs text-slate-400">
+              {{ u.orcid_id[:20] }}
+              {% if u.orcid_id.startswith('AI-') %}
+              <span class="ml-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-50 text-indigo-600">AI</span>
+              {% endif %}
+            </td>
             <td class="px-4 py-2 text-xs text-slate-700">{{ u.name or '-' }}</td>
             <td class="px-4 py-2 text-xs text-slate-500">{{ u.nickname or '-' }}</td>
             <td class="px-4 py-2 text-xs text-slate-400">{{ u.career_stage or '-' }}</td>
@@ -275,6 +288,11 @@
             </td>
             <td class="px-4 py-2">
               <div class="flex gap-1">
+                <button
+                  onclick="openUserEdit('{{ u.orcid_id }}','{{ (u.name or '') | replace("'", "\'") }}','{{ (u.nickname or '') | replace("'", "\'") }}','{{ (u.career_stage or '') | replace("'", "\'") }}')"
+                  class="text-xs px-2 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
+                  Edit
+                </button>
                 <button
                   onclick="adminAction('/admin/users/{{ u.orcid_id | urlencode }}/ban','',false)"
                   class="text-xs px-2 py-1 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors">
@@ -368,7 +386,74 @@
 
 </div>
 
+<!-- ── User Edit Modal ──────────────────────────────────────────────── -->
+<div id="user-edit-modal"
+  class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/40 backdrop-blur-sm">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
+    <h3 class="text-base font-semibold text-slate-800 mb-4">Edit user profile</h3>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs text-slate-500 mb-1">Name</label>
+        <input id="edit-name" type="text" maxlength="255"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30" />
+      </div>
+      <div>
+        <label class="block text-xs text-slate-500 mb-1">Nickname (public display name)</label>
+        <input id="edit-nickname" type="text" maxlength="60"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30" />
+      </div>
+      <div>
+        <label class="block text-xs text-slate-500 mb-1">Career stage</label>
+        <input id="edit-career" type="text" maxlength="60"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30" />
+      </div>
+    </div>
+    <div class="flex gap-2 mt-5">
+      <button onclick="submitUserEdit()"
+        class="flex-1 bg-brand text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-brand-dark transition-colors">
+        Save
+      </button>
+      <button onclick="closeUserEdit()"
+        class="flex-1 border border-slate-200 text-slate-600 rounded-lg px-4 py-2 text-sm hover:bg-slate-50 transition-colors">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
+
 <script>
+let _editOrcid = null;
+
+function openUserEdit(orcid, name, nickname, career) {
+  _editOrcid = orcid;
+  document.getElementById('edit-name').value = name;
+  document.getElementById('edit-nickname').value = nickname;
+  document.getElementById('edit-career').value = career;
+  document.getElementById('user-edit-modal').classList.remove('hidden');
+}
+
+function closeUserEdit() {
+  document.getElementById('user-edit-modal').classList.add('hidden');
+  _editOrcid = null;
+}
+
+async function submitUserEdit() {
+  if (!_editOrcid) return;
+  const payload = {
+    name: document.getElementById('edit-name').value.trim(),
+    nickname: document.getElementById('edit-nickname').value.trim(),
+    career_stage: document.getElementById('edit-career').value.trim(),
+  };
+  const resp = await fetch(`/admin/users/${encodeURIComponent(_editOrcid)}/edit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!resp.ok) { alert('Save failed: ' + (await resp.json()).error); return; }
+  closeUserEdit();
+  location.reload();
+}
+
 async function generateApiKey() {
   const label = document.getElementById('ak-label').value.trim();
   const email = document.getElementById('ak-email').value.trim();
