@@ -88,21 +88,35 @@ def _python_dump(db_url: str) -> bytes:
     conn.close()
     return out.getvalue().encode("utf-8")
 
+def _find_pg_dump() -> str:
+    """Return the highest-version pg_dump installed, or plain 'pg_dump' as fallback."""
+    import glob
+    candidates = sorted(
+        glob.glob("/usr/lib/postgresql/*/bin/pg_dump"),
+        key=lambda p: int(p.split("/")[4]),
+        reverse=True,
+    )
+    return candidates[0] if candidates else "pg_dump"
+
+
 def dump_database(db_url: str) -> bytes:
+    pg_dump_bin = _find_pg_dump()
     try:
         result = subprocess.run(
-            ["pg_dump", "--no-owner", "--no-acl", db_url],
+            [pg_dump_bin, "--no-owner", "--no-acl", db_url],
             capture_output=True, check=True, timeout=120
         )
-        print("  Used pg_dump binary.")
+        print(f"  Used pg_dump: {pg_dump_bin}")
         return result.stdout
     except FileNotFoundError:
-        print("  pg_dump not in PATH, using Python fallback.")
+        print(f"  pg_dump not found ({pg_dump_bin}), using Python fallback.")
         return _python_dump(db_url)
     except subprocess.CalledProcessError as e:
-        raise RuntimeError(
-            f"pg_dump failed (exit {e.returncode}): {e.stderr.decode(errors='replace').strip()}"
-        ) from e
+        err = e.stderr.decode(errors="replace").strip()
+        if "version mismatch" in err:
+            print(f"  pg_dump version mismatch, using Python fallback.\n  ({err.splitlines()[0]})")
+            return _python_dump(db_url)
+        raise RuntimeError(f"pg_dump failed (exit {e.returncode}): {err}") from e
 
 # ── Drive ─────────────────────────────────────────────────────────────────────
 
@@ -129,10 +143,9 @@ def prune(service) -> int:
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
-    db_url = os.environ.get(
-        "DATABASE_URL",
-        "postgresql://postgres:mahVhyDhPSttXRhTLJpQQQUUNVefUgwU@acela.proxy.rlwy.net:17700/railway"
-    )
+    db_url = os.environ.get("DATABASE_URL")
+    if not db_url:
+        raise RuntimeError("DATABASE_URL environment variable is not set")
 
     print("[1/4] Authenticating with Google Drive...")
     service = get_drive_service()
