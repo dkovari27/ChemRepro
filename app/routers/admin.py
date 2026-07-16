@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.models.api_key import ApiKey
+from app.models.author_reply import AuthorReply
 from app.models.comment import Comment, CommentLike
 from app.models.like import Like
 from app.models.message import Message
@@ -132,9 +133,83 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
         .all()
     )
 
+    pending_reviews = (
+        db.query(Rating)
+        .filter(Rating.pending_admin_review == True)  # noqa: E712
+        .order_by(Rating.created_at.desc())
+        .all()
+    )
+
+    pending_author_replies = (
+        db.query(AuthorReply)
+        .filter(AuthorReply.approved == False)  # noqa: E712
+        .order_by(AuthorReply.created_at.desc())
+        .all()
+    )
+
+    # Send one-time reminder when substantiation deadline has passed.
+    # deadline is nulled out after the reminder fires to prevent repeated emails.
+    from datetime import datetime, timezone as tz
+    now = datetime.now(tz.utc)
+    overdue_substantiation = (
+        db.query(Rating)
+        .filter(
+            Rating.substantiation_deadline.isnot(None),
+            Rating.substantiation_deadline < now,
+        )
+        .all()
+    )
+    if overdue_substantiation:
+        from app.utils.email import notify_admin
+        for r in overdue_substantiation:
+            if not r.ai_flagged:
+                r.ai_flagged = True  # reviewer edited but never got re-approved
+            r.substantiation_deadline = None  # prevents this email firing again
+            notify_admin(
+                f"Substantiation deadline passed: review {r.id}",
+                f"Rating ID: {r.id}\nDOI: {r.doi}\nUser: {r.orcid_id}\n\nThe 14-day deadline has passed. The review is currently hidden. Make a final decision (Restore or Delete) at /admin/",
+            )
+        db.commit()
+
     papers_map = {p.doi: p for p in db.query(Paper).all()}
     users_map = {u.orcid_id: u for u in db.query(User).all()}
     api_keys = db.query(ApiKey).order_by(ApiKey.created_at.desc()).all()
+
+    # Pre-fetch full content for each open report (used by View modal)
+    report_targets = {}
+    for _rep in open_reports:
+        try:
+            if _rep.target_type == "review":
+                _r = db.get(Rating, int(_rep.target_id))
+                if _r:
+                    _u = users_map.get(_r.orcid_id)
+                    report_targets[_rep.id] = {
+                        "content": (
+                            _r.reproducibility_observation
+                            or _r.scope_observation
+                            or _r.modification_details
+                            or ""
+                        ),
+                        "doi": _r.doi,
+                        "author": (_u.nickname or _u.name) if _u else _r.orcid_id[:14],
+                        "star": _r.nd_star,
+                        "item_type": "rating",
+                        "flagged": _r.ai_flagged,
+                    }
+            elif _rep.target_type == "comment":
+                _c = db.get(Comment, int(_rep.target_id))
+                if _c:
+                    _u = users_map.get(_c.orcid_id)
+                    report_targets[_rep.id] = {
+                        "content": _c.content or "",
+                        "doi": _c.doi,
+                        "author": (_u.nickname or _u.name) if _u else _c.orcid_id[:14],
+                        "star": None,
+                        "item_type": "comment",
+                        "flagged": _c.ai_flagged,
+                    }
+        except (ValueError, TypeError):
+            pass
 
     return templates.TemplateResponse("admin_dashboard.html", {
         **_base(request),
@@ -144,11 +219,14 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
         "recent_comments": recent_comments,
         "ai_flagged_comments": ai_flagged_comments,
         "ai_flagged_ratings": ai_flagged_ratings,
+        "pending_reviews": pending_reviews,
+        "pending_author_replies": pending_author_replies,
         "recent_users": recent_users,
         "all_users": all_users,
         "papers_map": papers_map,
         "users_map": users_map,
         "api_keys": api_keys,
+        "report_targets": report_targets,
     })
 
 
@@ -355,3 +433,153 @@ async def admin_revoke_api_key(key_id: int, request: Request, db: Session = Depe
     key.is_active = False
     db.commit()
     return JSONResponse({"ok": True})
+
+
+# ── B21: approve or reject a pending-review rating ───────────────────────────
+
+@router.post("/reviews/{rating_id}/approve")
+async def admin_approve_review(rating_id: int, request: Request, db: Session = Depends(get_db)):
+    _require_admin(request)
+    r = db.get(Rating, rating_id)
+    if not r:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    r.pending_admin_review = False
+    db.commit()
+    user = db.get(User, r.orcid_id)
+    db.add(Message(
+        thread_id=Message.new_thread_id(),
+        sender_orcid_id=ADMIN_ORCID,
+        recipient_orcid_id=r.orcid_id,
+        content=(
+            "Your review has been manually reviewed and approved. "
+            "It is now publicly visible on the paper page."
+        ),
+    ))
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
+@router.post("/reviews/{rating_id}/reject")
+async def admin_reject_review(rating_id: int, request: Request, db: Session = Depends(get_db)):
+    _require_admin(request)
+    r = db.get(Rating, rating_id)
+    if not r:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    orcid = r.orcid_id
+    doi = r.doi
+    db.query(Like).filter(Like.rating_id == rating_id).delete()
+    db.query(Comment).filter(Comment.rating_id == rating_id).delete()
+    db.query(Notification).filter(Notification.rating_id == rating_id).delete()
+    db.delete(r)
+    db.commit()
+    db.add(Message(
+        thread_id=Message.new_thread_id(),
+        sender_orcid_id=ADMIN_ORCID,
+        recipient_orcid_id=orcid,
+        content=(
+            f"Your review for paper {doi} was found to contain language that constitutes "
+            "a serious allegation that could not be substantiated. It has been permanently removed. "
+            "If you have documented evidence supporting your claims, please contact "
+            "chemrepro@gmail.com with the relevant documents."
+        ),
+    ))
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
+# ── B22: restore a content hidden by defamatory report ───────────────────────
+
+@router.post("/ratings/{rating_id}/restore-defamatory")
+async def admin_restore_defamatory_rating(rating_id: int, request: Request, db: Session = Depends(get_db)):
+    _require_admin(request)
+    r = db.get(Rating, rating_id)
+    if not r:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    r.ai_flagged = False
+    db.commit()
+    db.add(Message(
+        thread_id=Message.new_thread_id(),
+        sender_orcid_id=ADMIN_ORCID,
+        recipient_orcid_id=r.orcid_id,
+        content=(
+            "The defamatory report filed against your review has been reviewed and dismissed. "
+            "Your review has been restored and is publicly visible again."
+        ),
+    ))
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
+# ── B23: approve or reject an author reply ────────────────────────────────────
+
+@router.post("/author-replies/{reply_id}/approve")
+async def admin_approve_author_reply(reply_id: int, request: Request, db: Session = Depends(get_db)):
+    _require_admin(request)
+    reply = db.get(AuthorReply, reply_id)
+    if not reply:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    reply.approved = True
+    db.commit()
+    db.add(Message(
+        thread_id=Message.new_thread_id(),
+        sender_orcid_id=ADMIN_ORCID,
+        recipient_orcid_id=reply.author_orcid_id,
+        content="Your author response has been approved and is now publicly visible on the paper page.",
+    ))
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
+@router.post("/author-replies/{reply_id}/reject")
+async def admin_reject_author_reply(reply_id: int, request: Request, db: Session = Depends(get_db)):
+    _require_admin(request)
+    reply = db.get(AuthorReply, reply_id)
+    if not reply:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    db.delete(reply)
+    db.commit()
+    return JSONResponse({"ok": True})
+
+
+# ── B24: send substantiation request ─────────────────────────────────────────
+
+@router.post("/reviews/{rating_id}/request-substantiation")
+async def admin_request_substantiation(rating_id: int, request: Request, db: Session = Depends(get_db)):
+    _require_admin(request)
+    r = db.get(Rating, rating_id)
+    if not r:
+        return JSONResponse({"error": "not found"}, status_code=404)
+
+    from datetime import datetime, timedelta, timezone as tz
+    from app.config import settings
+    now = datetime.now(tz.utc)
+    deadline = now + timedelta(days=14)
+
+    r.ai_flagged = True
+    r.substantiation_sent_at = now
+    r.substantiation_deadline = deadline
+    db.commit()
+
+    paper = db.get(Paper, r.doi)
+    paper_title = paper.title[:120] if paper and paper.title else r.doi
+    base = settings.SITE_URL.rstrip("/")
+    edit_link = f"{base}/paper/{r.doi}/ratings/{r.id}/edit"
+
+    db.add(Message(
+        thread_id=Message.new_thread_id(),
+        sender_orcid_id=ADMIN_ORCID,
+        recipient_orcid_id=r.orcid_id,
+        content=(
+            f"Your review of \"{paper_title}\" has been temporarily hidden pending "
+            "substantiation of the claims it contains.\n\n"
+            f"You have 14 calendar days (until {deadline.strftime('%d %b %Y')}) to either:\n"
+            "1. Edit your review to add supporting evidence (paper references, raw data, etc.)\n"
+            "2. Reply to this message with a detailed explanation of your basis for the claim.\n\n"
+            f"Edit your review: {edit_link}\n\n"
+            "If no response is received by the deadline, the review will remain hidden and "
+            "may be permanently removed. If you believe this request was issued in error, "
+            "please reply to this message."
+        ),
+    ))
+    db.commit()
+    return JSONResponse({"ok": True, "deadline": deadline.isoformat()})

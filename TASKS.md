@@ -1,144 +1,142 @@
 # ChemRepro — Task Tracker
-_Last updated: 15 July 2026_
+_Last updated: 16 July 2026_
 
 ---
 
 ## ACTIVE — by priority
 
-### 🔴 CRITICAL
-
-- [x] **A6** — Automated daily backup to Google Drive. Script: `scripts/backup_to_gdrive.py`. Runs via GitHub Actions (`.github/workflows/backup.yml`) at 03:00 UTC daily. Keeps last 14 backups, prunes older ones automatically. Drive folder: `ChemRepro - Backup` (chemrepro@gmail.com). **Before pushing: add two GitHub secrets** — `DATABASE_URL` (Railway public URL) and `GDRIVE_TOKEN_JSON` (contents of `Backup/token.json`). Local credentials in `Backup/` are gitignored and must not be committed.
-
-### 🟠 HIGH
-
-- [x] **B16** — Literature scraper for implicit reproducibility data: crawl open-access chemistry papers (PubMed Central, Europe PMC, ChemRxiv, RSC Gold open-access) and detect sentences that follow patterns like "according to the procedure of X et al.", "following the method reported by", "adapted from", "as described in ref. X" — i.e. cases where an author explicitly states they replicated or adapted a published reaction. Scraper is built and running (as of 8 July 2026).
+### HIGH
 
 - [ ] **B17** — Wire scraped literature data into ChemRepro review cards. Full spec written to `SCRAPER_DATA_SPEC.md`. Key design decisions:
-  - **Schema conflict**: `ratings` table has UNIQUE on `(doi, orcid_id, scoring_mode)` so a single system user can only produce one mined entry per paper. Recommendation: add a separate `literature_citations` table (no uniqueness constraint) and render as a distinct section on the paper page.
-  - **Required scraper output fields**: `target_doi`, `citing_doi`, `citing_sentence`, `inferred_outcome`, `confidence_score`, `sentence_id` (dedup key), plus recommended metadata (`citing_authors`, journal, year, context sentence).
-  - **Outcome-to-star mapping**: the import script will translate scraper outcomes (`reproduced`, `adapted`, `failed`, `partially_reproduced`) into `nd_star` 1-5 values for display.
-  - **Quality thresholds for import**: confidence >= 0.75, sentence 30-500 chars, `target_doi` must resolve.
-  - **Output format**: JSONL (newline-delimited JSON), with separate `rejected/` file for below-threshold rows and a `scrape_log` file per run.
+  - **Schema**: add a separate `literature_citations` table (no uniqueness constraint), render as distinct section on paper page
+  - **Required fields**: `target_doi`, `citing_doi`, `citing_sentence`, `inferred_outcome`, `confidence_score`, `sentence_id` (dedup key)
+  - **Outcome mapping**: `reproduced` / `adapted` / `failed` / `partially_reproduced` → `nd_star` 1-5
+  - **Import thresholds**: confidence >= 0.75, sentence 30-500 chars, `target_doi` must resolve
+  - **Output format**: JSONL, with `rejected/` file and `scrape_log` per run
 
-- [x] **B18** — Career stage immutability: `career_stage_snapshot` column added to `ratings` table; snapshotted at submission time in `nd_submit_rating`; template shows snapshot (falls back to live user stage for old reviews). Nickname field in `profile_settings.html` is read-only once set; server-side lock in `profile.py` prevents bypass. Nickname changes require contacting chemrepro@gmail.com.
+- [ ] **B11** — Activate author email notification (`AUTHOR_NOTIFY_ENABLED=true` in Railway `.env`) — disabled pending test that CrossRef/PMC/PubMed lookup works on real chemistry DOIs.
+- [ ] **B12** — Wire `notification_email` to SMTP sender: field is saved in Settings but never read. When a followed paper gets a new review/comment, send email to `notification_email` if set.
+- [ ] **B14** — LinkedIn OAuth: routes + UI built, button shows "Coming soon". Register app at developer.linkedin.com, set credentials in Railway `.env`, restore button.
+- [ ] **C18** — ORCID button colour: revisit once LinkedIn is activated — decide `text-[#A6CE39]` brand green vs neutral grey for both buttons.
 
-- [x] **B19** — "Report a bug" link below the "Submit rating" button on every paper page (`paper_nd.html`). Always visible (for logged-in and logged-out users). Routes to `/feedback?doi={doi}`; feedback page detects `doi` param and shows "Report a bug" heading with the DOI highlighted in amber, textarea pre-filled with `[DOI: ...]`.
+- [ ] **NEW** — Add disclaimer on ChemRepro that open-access OrgSyn papers were used as the seed dataset, and that the community is invited to build on it. Place on About page or as a persistent banner on the homepage.
 
-- [x] **B20** — Thank-you toast: after review submission, redirect goes to `/paper/{doi}?submitted=1`; `nd_paper_page` passes `show_thanks=True`; paper template shows a green fixed-position toast with "Thank you for your contribution to open science!" that auto-dismisses after 4.5 s or on click.
+### MEDIUM
 
-- [ ] **B21** — Manual pre-publication review queue for misconduct/fraud allegations (referenced in ToS §3c): reviews flagged as misconduct allegations must be held pending admin approval before appearing publicly. Add a `pending_review` state to the rating, an admin queue page, and an approval/rejection flow with email notification to the submitter.
+- [ ] **C22** — Tour step review: consider cutting or merging steps 2 and 3; evaluate whether pre-opening the hover tooltip during step 2 would help.
+- [ ] **B4** — Chemistry keyword/condition tags on rating form (Yield discrepancy, Purity issue, Safety concern...) — design not settled.
+- [ ] **C10** — Logo polish (current logo is placeholder).
 
-- [ ] **B22** — Escalated report path for defamatory content (ToS §4b): a distinct "report as defamatory" option separate from the general report button, routing to a 48–72 hour interim-hide queue. Admin receives high-priority alert; content submitter is notified and invited to substantiate.
+### POST-LAUNCH
 
-- [ ] **B23** — Right-of-reply UI (ToS §4d, Privacy §3): an "Author response" field on the paper page, visible only to verified authors (ORCID iD matched against the paper's author list from CrossRef). Response displayed as a distinct card alongside the review it replies to.
-
-- [ ] **B24** — Admin substantiation request tool (ToS §4c): admin can send a substantiation request to a reviewer from the review's admin page, with a configurable countdown (default 21 days). If no response is received, the review is automatically hidden and the admin is notified to make a final decision.
-
-- [ ] **B11** — Activate author email notification (`AUTHOR_NOTIFY_ENABLED=true` in Railway `.env`) — disabled pending test that CrossRef/PMC/PubMed lookup works on real chemistry DOIs
-- [ ] **B12** — Wire `notification_email` to SMTP sender — field is saved in Settings but never read; when a followed paper gets a new review/comment, send an email to `notification_email` if set
-- [ ] **B14** — LinkedIn OAuth: routes + UI fully built, button shows "Coming soon". Before release: register app at developer.linkedin.com, set `LINKEDIN_CLIENT_ID` + `LINKEDIN_CLIENT_SECRET` + `LINKEDIN_REDIRECT_URI` in Railway `.env`, then restore button to active link.
-- [ ] **C18** — ORCID button resting text is `text-slate-700` on all pages; LinkedIn "Coming soon" version is grey. Revisit once LinkedIn is activated: decide whether ORCID should use brand green `text-[#A6CE39]` or both stay neutral.
-
-### 🟡 MEDIUM
-
-- [ ] **C22** — Tour step review: (1) Is step 2 (community feed + rating explanation) necessary, or does it slow the flow? (2) Should step 2 better demonstrate the hover-over breakdown tooltip, e.g. by pre-opening it programmatically during the tour? (3) Is step 3 (score card on the paper page) redundant given step 2 already explains scoring? Consider merging or cutting.
-
-- [ ] **B4/C9/D7** — Chemistry keyword/condition tags on rating form (Yield discrepancy, Purity issue, Safety concern…) — deferred, design not settled
-- [ ] **C10** — Logo polish (current logo is placeholder)
-- [x] **C20** — Migration script `scripts/fix_abstract_prefix.py` strips leading "Abstract" prefix from existing rows. Run locally or against Railway with `DATABASE_URL=... python scripts/fix_abstract_prefix.py`.
-
-### 🔵 POST-LAUNCH
-
-- [ ] **D16** — Resubscription: if a user who globally unsubscribed from ChemRepro emails later registers or logs in, offer a one-click opt back in (clear `global_opted_out` flag on their email hash). UI: show a dismissible banner on first login after opt-out, or a toggle in Profile Settings.
-
-- [ ] **D18** — Granular email subscription preferences in Profile Settings. When a user enters their notification email, let them choose which types of emails they want to receive rather than all-or-nothing. Proposed categories: (1) new review on a paper I follow, (2) new comment on my review, (3) reply to my comment, (4) someone follows me, (5) author notification (paper I authored got reviewed), (6) ChemRepro platform announcements. Store as a JSON or bitmask field on the User model. UI: a checklist shown directly below the notification email field in settings, each category with a short label and a toggle/checkbox. Default: all on.
-
-- [ ] **D17** — MCP server for ChemRepro API: wrap `/api/v1/` as an MCP server (separate Railway service or same app at `/mcp`) exposing named tools: `get_paper_score(doi)`, `list_recent_ratings(limit)`, `get_paper_ratings(doi)`. Requires: `fastapi-mcp` or custom MCP JSON-RPC handler, API key forwarding from the MCP client config, OpenAPI spec integration. Makes the dataset natively callable from Claude Desktop, Claude Code, and any MCP-compatible AI agent without the user writing HTTP calls.
-
+- [ ] **D16** — Resubscription: offer one-click opt-in banner after first login following a global opt-out.
+- [ ] **D18** — Granular email subscription preferences in Profile Settings (per notification category, stored as JSON or bitmask on User).
+- [ ] **D17** — MCP server: wrap `/api/v1/` as MCP server exposing `get_paper_score(doi)`, `list_recent_ratings(limit)`, `get_paper_ratings(doi)`.
 - [ ] **D1** — Browser extension (Chrome + Firefox — parked)
-- [ ] **D2** — Sketchit design review (do when feature set is stable)
-- [ ] **D3** — Partnership outreach
-  - organic-chemistry.org
-  - orgsyn.org — priority: propose database cross-reference partnership
-  - organicchemistrydata.org
+- [ ] **D2** — Design review (do when feature set is stable)
+- [ ] **D3** — Partnership outreach: organic-chemistry.org, orgsyn.org (priority: database cross-reference), organicchemistrydata.org
 - [ ] **D4** — Swiss non-profit legal setup
-- [ ] **D4b** — Once non-profit entity is established and has a company bank account, add donation capability to the site (e.g. Stripe donate button or IBAN on About/Support page)
-- [ ] **D5** — ORCID on production domain (register HTTPS redirect URI on orcid.org)
+- [ ] **D4b** — Donation capability once non-profit bank account exists
+- [ ] **D5** — ORCID OAuth on production domain (register HTTPS redirect URI on orcid.org)
 - [ ] **D6** — Personal reaction collection / "My Library" page
-- [ ] **D8** — Zotero, Mendeley plugin
-- [ ] **D10** — Terms of Service page (required before public launch; see privacy.html as style reference)
-- [ ] **D14** — Review and edit the author notification email (body text, subject, sender name) before activating `AUTHOR_NOTIFY_ENABLED=true` in Railway. Currently placeholder wording. Check tone, legality (GDPR consent wording), and that opt-out links work end-to-end.
-- [ ] **D15** — Review extraction agent: after a paper accumulates several reviews, an AI agent (Claude) reads all reviews, extracts: attempted conditions, substrate photos (if attached), what worked / what failed, and writes a short structured summary displayed on the paper page. Fire as a background task when review count hits a threshold (e.g. 3+).
-- [ ] **D13** — Switch from Gmail SMTP to a transactional email service (Resend, SendGrid, or Brevo) with a custom domain (e.g. noreply@chemrepro.io) — eliminates spam-folder delivery risk. Gmail SMTP works today but new sender accounts have no reputation. Requires: buy domain, set up DNS (SPF/DKIM/DMARC), register with chosen provider, replace `smtp.gmail.com` calls in `app/utils/email.py` with provider SDK or relay config.
-- [ ] **D12** — Registration pledge page: one-time ethics click-through shown after first login, before a user can submit a review. Inspired by Sage Bionetworks Synapse pledge (reference saved at `chemrepro/Sage Bionetworks Sign-in.mhtml`). 6 lab-ethics statements, each requiring individual "I agree" click; stored as `pledge_accepted` bool on User model. See memory `project_chemrepro_pledge.md` for proposed pledge wording.
+- [ ] **D8** — Zotero / Mendeley plugin
+- [ ] **D10** — Terms of Service page (required before public launch)
+- [ ] **D12** — Registration pledge page: one-time ethics click-through after first login. 6 lab-ethics statements with individual "I agree"; stored as `pledge_accepted` on User. Reference: `chemrepro/Sage Bionetworks Sign-in.mhtml`.
+- [ ] **D13** — Switch from Gmail SMTP to transactional email (Resend / SendGrid / Brevo) with custom domain.
+- [ ] **D14** — Review and edit author notification email body before activating `AUTHOR_NOTIFY_ENABLED`.
+- [ ] **D15** — Review extraction agent: after 3+ reviews, Claude summarises conditions, outcomes, and what failed; displayed as structured summary on paper page.
+
+---
+
+## CURRENT STANDING (16 July 2026) — content moderation suite
+
+- **B21 Misconduct queue**: reviews containing fraud/fabrication/plagiarism keywords auto-held as `pending_admin_review=True`. Admin sees dedicated "Pending Review Queue" on dashboard with Approve/Reject buttons. Reviewer receives inbox message while under review. On approve: review published + notification. On reject: review deleted + notification.
+- **B22 Defamatory report path**: "Report as defamatory" checkbox in the report modal. On submit: content immediately hidden (`ai_flagged=True`), URGENT admin email, inbox message to content author. Admin resolves via existing Restore/Delete in the AI Flagged section. Defamatory reports show red DEFAMATORY badge in Open Reports table.
+- **B23 Author right of reply**: backend routes + model built and ready (`/paper/{doi}/ratings/{id}/author-reply`, `AuthorReply` model). UI removed: author identity cannot be verified reliably via CrossRef (ORCID linkage inconsistent). Parked until a better verification strategy is decided.
+- **B24 Admin substantiation tool**: "Subst." button per review row in admin dashboard. On click: review immediately hidden (`ai_flagged=True`), formal inbox message sent to reviewer with 14-day deadline. Admin restores via existing Restore button if satisfied with evidence. Overdue check runs on dashboard load: auto-emails admin when deadline passes with no action.
+- **B25 Railway env vars**: `SITE_URL` and `ANTHROPIC_API_KEY` must be set in Railway Variables tab before deploying.
+- **B26 Admin notification emails**: `notify_admin()` utility sends `[ChemRepro]`-prefixed email to `chemrepro@gmail.com` for: new reviews, new comments, AI-flagged content, standard reports, defamatory reports (URGENT), misconduct queue events. Gated by `ADMIN_NOTIFY_ENABLED` env var. Feedback already had its own sender.
+
+## CURRENT STANDING (16 July 2026) — AI moderation
+
+- **AI moderation pipeline** live: Claude Haiku checks every new review in background; client-side blocklist (`moderation.js`) as Layer 1. Flagged reviews: `ai_flagged=True` — hidden from public, excluded from star aggregates, author receives inbox message + notification bell. Author sees their own flagged review with amber warning banner and "Edit and resubmit" button. On edit: flag cleared, review reappears, re-moderation runs automatically.
+- **AI scraper profiles**: `AI-[scraper]` pseudo-accounts (e.g. AI-OrgSyn) auto-created by `scripts/import_reviews.py --ai-name OrgSyn`. Admin can edit their reviews on paper page and admin dashboard.
+- **Bulk review import**: `python scripts/import_reviews.py --file reviews.json --ai-name OrgSyn [--dry-run]`. Schema in `scripts/import_reviews_example.json`.
+- **Admin user edit modal** on admin dashboard: name, nickname, career stage editable for any user; AI badge shown for AI-prefix accounts.
 
 ---
 
 ## CURRENT STANDING (8 July 2026)
 
-- **ChemRepro rating mode** fully implemented: `/` homepage, `/paper/{doi}` paper page, `nd_star` (1–5) + `nd_failure_context` (original_tested / extension_only), star filter + context filter, failure_context badge on 1-star reviews
+- **ChemRepro rating mode** fully implemented: `/` homepage, `/paper/{doi}` paper page, `nd_star` (1-5) + `nd_failure_context` (original_tested / extension_only), star filter + context filter, failure_context badge on 1-star reviews
 - Standard mode filter fixed: `scoring_mode != "classic"` changed to `scoring_mode == "standard"` so ND reviews are isolated from standard averages
-- API key management: all `/api/v1/` routes gated behind `X-API-Key` header; admin can generate/revoke keys; raw key shown once after generation; about page documents API access
+- API key management: all `/api/v1/` routes gated behind `X-API-Key` header; admin can generate/revoke keys; raw key shown once after generation
 
 ---
 
 ## CURRENT STANDING (2 July 2026)
 
-- Image paste / inline contenteditable on all text inputs sitewide (reviews, comments, replies, edit pages, message modal, inbox thread)
+- Image paste / inline contenteditable on all text inputs sitewide
 - Message thread renders markdown; images supported in DMs
 - Classic view comments/replies stay in classic view after posting (A5 fixed)
-- API v1 `avg_reproducibility` returns real outcome-based score 1–5 (F5 fixed)
-- `render_md` filter registered globally via `register_globals()` — available in all routers
-- No em dashes in any user-visible text (templates + author notification email)
+- API v1 `avg_reproducibility` returns real outcome-based score 1-5 (F5 fixed)
+- `render_md` filter registered globally via `register_globals()`
+- No em dashes in any user-visible text
 - LinkedIn button shows "Coming soon" on all pages until credentials configured
-- Admin access: `GET /admin/login/{ADMIN_SECRET_TOKEN}` — set real token in Railway `.env` before launch
+- Admin access: `GET /admin/login/{ADMIN_SECRET_TOKEN}`
 
 ---
 
 ## ARCHIVE
 
 ### Block A — Legal / Infrastructure
-- [x] **A1** — Fix feedback email delivery (switched SMTP 465 → 587 STARTTLS)
+- [x] **A1** — Fix feedback email delivery (switched SMTP 465 to 587 STARTTLS)
 - [x] **A2** — Add full postal address to `privacy.html`
 - [x] **A3** — Railway DPA signed (DocuSign envelope 56122F5D)
 - [x] **A4** — Server-side content moderation (`_is_clean()` regex blocklist; covers comments, ratings, messages)
 - [x] **A5** — Classic view comment/reply routing: added `/classic/paper/{doi}/comment` and `/classic/paper/{doi}/comment/{parent_id}/reply` routes; updated form actions in `paper_classic.html`
+- [x] **A6** — Automated daily backup to Google Drive. Script: `scripts/backup_to_gdrive.py`. Runs via GitHub Actions at 03:00 UTC daily. Keeps last 14 backups. Drive folder: `ChemRepro - Backup` (chemrepro@gmail.com).
 
 ### Block B — New Features
 - [x] **B1** — Markdown comments with live preview
 - [x] **B2** — Article alert subscriptions (Follow a paper; in-app notifications on new review/comment)
-- [x] **B3** — Author email notification on new review (CrossRef → Europe PMC → PubMed; HMAC opt-out)
+- [x] **B3** — Author email notification on new review (CrossRef + Europe PMC + PubMed; HMAC opt-out)
 - [x] **B5** — Comment threading (likes + 1-level replies)
 - [x] **B6** — Private in-mail messaging between users
 - [x] **B7** — About page
 - [x] **B8** — Social sharing popup (WhatsApp, Email, LinkedIn, Copy)
 - [x] **B9** — User follow system; reviewer name dropdowns (Follow / Message / Report)
-- [x] **B10** — v2 design; v1 archived
+- [x] **B10** — New design (ND) rating mode; v1 archived
 - [x] **B13** — Report mechanism with admin resolution
-- [x] **B15** — Image upload/paste in all text inputs. Contenteditable replaces textarea for inline image rendering; `initDivFromMarkdown` loads pre-filled content on edit pages; JS served from `base.html` globally
+- [x] **B15** — Image upload/paste in all text inputs
+- [x] **B16** — Literature scraper for implicit reproducibility data: phrase detection pipeline crawling open-access chemistry papers for "according to the procedure of", "following the method reported by", etc.
+- [x] **B18** — Career stage immutability: `career_stage_snapshot` column snapshotted at submission; nickname locked after first set.
+- [x] **B19** — "Report a bug" link below Submit button on every paper page.
+- [x] **B20** — Thank-you toast after review submission (green, 4.5 s auto-dismiss).
 
 ### Block C — UX Polish
-- [x] **C21** — Onboarding product tour: 5-step spotlight walkthrough shown once after first login, fires via `tour_pending` session flag → demo page. Built with vanilla JS + box-shadow spotlight + click shield.
 - [x] **C1** — Footer cleanup
 - [x] **C2** — Em dash sweep (privacy page, author notification email, all templates)
-- [x] **C3** — Textarea sizing
+- [x] **C3** — Textarea sizing (rows increased to 6)
 - [x] **C4** — Spellcheck on all textareas
-- [x] **C5** — Homepage sort order (by latest rating)
+- [x] **C5** — Homepage sort order (by latest rating date)
 - [x] **C6** — Remove API link from nav
 - [x] **C7** — Scoring explainer via hover tooltip
 - [x] **C8** — Mobile: Classic tooltip overflow fix
 - [x] **C11** — Like notification icon: 3/4-filled flask SVG (amber)
-- [x] **C12** — Like button changed from heart to flask; comment likes same
+- [x] **C12** — Like button changed from heart to flask
 - [x] **C13** — Feedback nav link restored
 - [x] **C14** — Classic view card: "2 ratings" with correct pluralisation
 - [x] **C15** — Standard view card: star before avg_score
 - [x] **C16** — Nickname shown in nav after login
 - [x] **C17** — Nickname field on first-login profile-setup page
-- [x] **C19** — Image paste in message modal (paper.html, paper_classic.html) and inbox thread reply; message content renders via `render_md`
+- [x] **C19** — Image paste in message modal and inbox thread; content renders via `render_md`
+- [x] **C20** — Migration script `scripts/fix_abstract_prefix.py` strips leading "Abstract" prefix from existing rows.
+- [x] **C21** — Onboarding product tour: 5-step spotlight walkthrough, vanilla JS + box-shadow spotlight.
 
 ### Block D — Post-Launch (completed)
-- [x] **D9** — Official website email address: `chemrepro@gmail.com` (sender + inbox); App Password configured in `.env` and Railway
-- [x] **D11** — Admin dashboard at `/admin/` (secret-token login, no public surface)
+- [x] **D9** — Official website email address: `chemrepro@gmail.com`; App Password configured.
+- [x] **D11** — Admin dashboard at `/admin/` (secret-token login, no public surface).
 
 ### Block E — Feedback & Naming
 - [x] **E1** — Tester feedback form
@@ -149,16 +147,37 @@ _Last updated: 15 July 2026_
 - [x] **F2** — Delete unused `search_results.html`
 - [x] **F3** — Gate `/demo/colors` in production
 - [x] **F4** — Extract `_BLOCKED_RE` to `app/utils/moderation.py`
-- [x] **F5** — API v1 scoring: `avg_reproducibility` now uses outcome-based CASE expression (1–5); was always null for standard-mode papers. `render_md` moved to `app/utils/design.py` and registered via `register_globals()`.
-- [x] **F8** — Fix `Rating` model default `"v2"` → `"standard"`
+- [x] **F5** — API v1 `avg_reproducibility` now uses outcome-based CASE expression; `render_md` moved to `app/utils/design.py` and registered via `register_globals()`.
+- [x] **F8** — Fix `Rating` model default `"v2"` to `"standard"`
+
+### Block H — Content Moderation Suite (16 July 2026)
+- [x] **B21** — Manual pre-publication queue for misconduct/fraud allegations: regex detection of fraud/fabrication/plagiarism keywords, `pending_admin_review=True` flag, admin "Pending Review Queue" with Approve/Reject, inbox message to reviewer.
+- [x] **B22** — Defamatory report path: "Report as defamatory" checkbox, immediate content hide, URGENT admin email, inbox notice to content author. DEFAMATORY badge on report row.
+- [ ] **B23** — Author right-of-reply: backend model + routes built; UI removed pending author-identity verification strategy. Decision: CrossRef ORCID check is too unreliable; keep parked until a better approach is decided.
+- [x] **B24** — Admin substantiation request: "Subst." button in admin dashboard hides review immediately, sends 14-day deadline inbox message, overdue check on dashboard load emails admin reminder.
+- [x] **B25** — Railway env vars documented: `SITE_URL` and `ANTHROPIC_API_KEY` in Railway Variables tab.
+- [x] **B26** — Admin notification emails: `notify_admin()` in `app/utils/email.py`, `ADMIN_NOTIFY_ENABLED` config flag, hooked into new reviews, comments, AI flags, reports, misconduct events.
+
+### Block G — AI Moderation + Scraper Integration (July 2026)
+- [x] **G1** — Bulk review import script (`scripts/import_reviews.py`): `--ai-name OrgSyn` flag auto-creates an `AI-OrgSyn` pseudo-user (career stage "Data curation agent"), imports reviews from JSON. `--dry-run` flag for preview. Schema example in `scripts/import_reviews_example.json`.
+- [x] **G2** — Admin edit of AI-sourced reviews: `_editable_rating_or_404` helper allows admin to edit any `AI-*` review (star, failure context, observation text) on the paper page and admin dashboard. Regular user reviews remain delete-only.
+- [x] **G3** — AI content moderation pipeline: Claude Haiku background task (`moderate_rating_bg`) checks every new review; client-side word blocklist in `app/static/js/moderation.js` (Layer 1). Both run independently — server never relies on client.
+- [x] **G4** — Flagged reviews excluded from star rating aggregates: `_get_nd_paper_scores` and all public review queries filter `ai_flagged == False`.
+- [x] **G5** — Auto inbox message + notification bell on flagging: `_send_flag_message` sends an admin inbox message with direct edit link (`/paper/{doi}/ratings/{id}/edit`) and fires a `type="flagged"` notification (red triangle icon, links to inbox).
+- [x] **G6** — Empty observation popup: intercepts submit when obs text is blank; modal shows "No observation text provided" with "Go back" / "Submit anyway". Uses hidden `<input type="submit">` so COI checkbox and client-side moderation both fire correctly on re-submit.
+- [x] **G7** — Flagged review edit cycle: author sees their own hidden review on paper page in an amber warning banner with "Edit and resubmit" link. On save, flag is cleared, review reappears in the public list, and moderation re-runs in background. If still problematic, re-flags and sends another inbox message.
+- [x] **G8** — Admin user edit modal on admin dashboard: editable name, nickname, career stage for any user. AI accounts show an indigo "AI" chip badge.
 
 ---
 
 ## Notes
-- **B3 author emails**: CrossRef → Europe PMC → PubMed in order. Silently skips preprints and non-indexed papers — expected.
+
+- **SITE_URL**: set `SITE_URL=https://chemrepro-test.up.railway.app` in Railway env vars so flagging inbox messages link to the correct domain.
+- **ANTHROPIC_API_KEY**: must be set in Railway env vars for AI moderation to run on production (currently in local `.env`).
+- **ADMIN_SECRET_TOKEN**: set a real secret in Railway `.env` before public launch.
 - **v1 templates** are read-only snapshots. Do not edit.
-- **ADMIN_SECRET_TOKEN**: Set a real secret in Railway `.env` before public launch.
-- **LinkedIn**: Connection count not available via LinkedIn API. For fake-account mitigation, gate review submission behind ORCID; LinkedIn for comments/follows only.
+- **LinkedIn**: gate review submission behind ORCID; LinkedIn for comments/follows only (connection count not available via API).
+- **B3 author emails**: CrossRef + Europe PMC + PubMed in order. Silently skips preprints and non-indexed papers — expected.
 
 ---
 

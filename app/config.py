@@ -18,7 +18,9 @@ class Settings(BaseSettings):
 
     ANTHROPIC_API_KEY: str = ""
     AUTHOR_NOTIFY_ENABLED: bool = False
+    ADMIN_NOTIFY_ENABLED: bool = True
     ADMIN_SECRET_TOKEN: str = "change-this-before-production"
+    SITE_URL: str = "http://127.0.0.1:8000"
 
     LINKEDIN_CLIENT_ID: str = ""
     LINKEDIN_CLIENT_SECRET: str = ""

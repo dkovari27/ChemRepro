@@ -37,6 +37,22 @@ def send_feedback_notification(
         pass
 
 
+def notify_admin(subject: str, body: str) -> None:
+    """Email chemrepro@gmail.com when a significant site event occurs."""
+    if not settings.ADMIN_NOTIFY_ENABLED:
+        return
+    if not all([settings.GMAIL_ADDRESS, settings.GMAIL_APP_PASSWORD]):
+        return
+    try:
+        msg = MIMEText(body, "plain")
+        msg["Subject"] = f"[ChemRepro] {subject}"
+        msg["From"] = settings.GMAIL_ADDRESS
+        msg["To"] = settings.GMAIL_ADDRESS
+        _smtp_send(msg)
+    except Exception:
+        pass
+
+
 def send_generic_email(to: str, subject: str, body_html: str, body_text: str) -> None:
     """Send a generic email (used for author notifications, subscriber alerts, etc.)."""
     if not all([settings.GMAIL_ADDRESS, settings.GMAIL_APP_PASSWORD]):

@@ -13,6 +13,7 @@ class Report(Base):
     target_type: Mapped[str] = mapped_column(String(20), nullable=False)  # "review" | "comment" | "user"
     target_id: Mapped[str] = mapped_column(String(255), nullable=False)   # rating_id, comment_id, or orcid_id
     reason: Mapped[str | None] = mapped_column(String(500))
+    is_defamatory: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     resolved: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

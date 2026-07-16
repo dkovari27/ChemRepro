@@ -79,6 +79,9 @@ class Rating(Base):
 
     ai_flagged: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    pending_admin_review: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    substantiation_deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    substantiation_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

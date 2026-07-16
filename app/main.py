@@ -21,6 +21,7 @@ from app.models import image as _image_model                 # noqa: F401
 from app.models import collection as _collection_model       # noqa: F401
 from app.models import saved_paper as _saved_paper_model     # noqa: F401
 from app.models import api_key as _api_key_model             # noqa: F401
+from app.models import author_reply as _author_reply_model   # noqa: F401
 from app.models.comment import CommentLike                   # noqa: F401
 from app.routers import auth, papers, api
 from app.routers import feedback as feedback_router
@@ -74,6 +75,16 @@ def _migrate():
                 conn.execute(text("ALTER TABLE ratings ADD COLUMN career_stage_snapshot VARCHAR(60)"))
             if "is_demo" not in rating_cols3:
                 conn.execute(text("ALTER TABLE ratings ADD COLUMN is_demo BOOLEAN NOT NULL DEFAULT 0"))
+            rating_cols4 = [row[1] for row in conn.execute(text("PRAGMA table_info(ratings)"))]
+            if "pending_admin_review" not in rating_cols4:
+                conn.execute(text("ALTER TABLE ratings ADD COLUMN pending_admin_review BOOLEAN NOT NULL DEFAULT 0"))
+            if "substantiation_deadline" not in rating_cols4:
+                conn.execute(text("ALTER TABLE ratings ADD COLUMN substantiation_deadline DATETIME"))
+            if "substantiation_sent_at" not in rating_cols4:
+                conn.execute(text("ALTER TABLE ratings ADD COLUMN substantiation_sent_at DATETIME"))
+            report_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(reports)"))]
+            if "is_defamatory" not in report_cols:
+                conn.execute(text("ALTER TABLE reports ADD COLUMN is_defamatory BOOLEAN NOT NULL DEFAULT 0"))
             user_cols2 = [row[1] for row in conn.execute(text("PRAGMA table_info(users)"))]
             if "is_demo" not in user_cols2:
                 conn.execute(text("ALTER TABLE users ADD COLUMN is_demo BOOLEAN NOT NULL DEFAULT 0"))
@@ -95,6 +106,10 @@ def _migrate():
             conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT FALSE"))
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT FALSE"))
             conn.execute(text("ALTER TABLE ratings ALTER COLUMN reproducibility_observation TYPE TEXT"))
+            conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS pending_admin_review BOOLEAN NOT NULL DEFAULT FALSE"))
+            conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS substantiation_deadline TIMESTAMP WITH TIME ZONE"))
+            conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS substantiation_sent_at TIMESTAMP WITH TIME ZONE"))
+            conn.execute(text("ALTER TABLE reports ADD COLUMN IF NOT EXISTS is_defamatory BOOLEAN NOT NULL DEFAULT FALSE"))
         conn.commit()
 
 _migrate()

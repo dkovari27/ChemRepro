@@ -11,9 +11,11 @@ from sqlalchemy.orm import Session
 from app import prompts
 from app.config import settings
 from app.utils.moderation import is_clean as _is_clean
-from app.utils.ai_moderation import moderate_comment_bg, moderate_rating_bg
+from app.utils.ai_moderation import contains_misconduct_allegation, moderate_comment_bg, moderate_rating_bg
+from app.utils.email import notify_admin
 from app.database import get_db
 from app.models.author_notification import AuthorNotification
+from app.models.author_reply import AuthorReply
 from app.models.comment import Comment, CommentLike
 from app.models.like import Like
 from app.models.notification import Notification
@@ -111,7 +113,7 @@ _SCORE_EXPR = case(
 
 def _get_nd_paper_scores(doi: str, db: Session) -> dict:
     nd_filter = [Rating.doi == doi, Rating.scoring_mode ==
-                 "new_design", Rating.nd_star.isnot(None)]
+                 "new_design", Rating.nd_star.isnot(None), Rating.ai_flagged == False]  # noqa: E712
     row = db.query(
         func.avg(Rating.nd_star).label("avg_star"),
         func.count(Rating.id).label("count"),
@@ -1760,6 +1762,29 @@ async def nd_paper_page(doi: str, request: Request, db: Session = Depends(get_db
         if orcid_id else None
     )
 
+    own_flagged_review = (
+        db.query(Rating).filter(
+            Rating.doi == doi, Rating.orcid_id == orcid_id,
+            Rating.scoring_mode == "new_design", Rating.ai_flagged == True  # noqa: E712
+        ).first()
+        if orcid_id else None
+    )
+
+    own_pending_review = (
+        db.query(Rating).filter(
+            Rating.doi == doi, Rating.orcid_id == orcid_id,
+            Rating.scoring_mode == "new_design", Rating.pending_admin_review == True  # noqa: E712
+        ).first()
+        if orcid_id else None
+    )
+
+    author_replies = {
+        ar.rating_id: ar
+        for ar in db.query(AuthorReply).filter(
+            AuthorReply.doi == doi, AuthorReply.approved == True  # noqa: E712
+        ).all()
+    }
+
     try:
         authors = json.loads(paper.authors)
     except Exception:
@@ -1848,6 +1873,9 @@ async def nd_paper_page(doi: str, request: Request, db: Session = Depends(get_db
         "user_name": request.session.get("user_name"),
         "orcid_id": orcid_id,
         "user_already_rated": user_already_rated,
+        "own_flagged_review": own_flagged_review,
+        "own_pending_review": own_pending_review,
+        "author_replies": author_replies,
         "saved_entry": saved_entry,
         "user_collections_flat": user_collections_flat,
         "papers_by_doi": papers_by_doi,
@@ -1891,6 +1919,11 @@ async def nd_submit_comment(
                               rating_id=rating_id, exclude_orcid=orcid_id)
     db.commit()
     background_tasks.add_task(moderate_comment_bg, comment.id)
+    background_tasks.add_task(
+        notify_admin,
+        f"New comment — {doi}",
+        f"User: {orcid_id}\nDOI: {doi}\nReview ID: {rating_id}\n\nComment:\n{content.strip()[:300]}",
+    )
     return RedirectResponse(f"/paper/{doi}#review-{rating_id}", status_code=303)
 
 
@@ -2039,27 +2072,59 @@ async def nd_submit_rating(
     user = db.query(User).filter(User.orcid_id == orcid_id).first()
     career_stage_snapshot = user.career_stage if user else None
 
+    obs_text = reproducibility_observation.strip()
+    is_misconduct = contains_misconduct_allegation(obs_text)
+
     rating = Rating(
         doi=doi,
         orcid_id=orcid_id,
         scoring_mode="new_design",
         nd_star=star_int,
         nd_failure_context=ctx,
-        reproducibility_observation=reproducibility_observation.strip() or None,
+        reproducibility_observation=obs_text or None,
         career_stage_snapshot=career_stage_snapshot,
+        pending_admin_review=is_misconduct,
     )
     db.add(rating)
     db.flush()
-    _notify_paper_subscribers(
-        db, doi=doi, paper=paper, notif_type="new_review",
-        actor_name=request.session.get("user_name", "Someone"),
-        rating_id=rating.id, exclude_orcid=orcid_id,
-    )
-    db.commit()
-    base_url = str(request.base_url).rstrip("/")
-    background_tasks.add_task(
-        notify_author_if_possible, doi, paper.title or "", rating.id, db, base_url)
-    background_tasks.add_task(moderate_rating_bg, rating.id)
+
+    if is_misconduct:
+        from app.models.message import Message
+        db.add(Message(
+            thread_id=Message.new_thread_id(),
+            sender_orcid_id="admin:chemrepro",
+            recipient_orcid_id=orcid_id,
+            content=(
+                "Your review has been placed in a manual review queue because it appears "
+                "to contain language suggesting a research misconduct allegation. "
+                "An admin will review it within 2 business days.\n\n"
+                "If approved, your review will appear publicly. If not approved, you will "
+                "receive a message explaining the reason. If you believe this was triggered "
+                "in error, please reply to this message."
+            ),
+        ))
+        db.commit()
+        background_tasks.add_task(
+            notify_admin,
+            f"Misconduct allegation in review — {doi}",
+            f"Rating ID: {rating.id}\nDOI: {doi}\nUser: {orcid_id}\nStar: {star_int}\n\nText:\n{obs_text[:500]}",
+        )
+    else:
+        _notify_paper_subscribers(
+            db, doi=doi, paper=paper, notif_type="new_review",
+            actor_name=request.session.get("user_name", "Someone"),
+            rating_id=rating.id, exclude_orcid=orcid_id,
+        )
+        db.commit()
+        base_url = str(request.base_url).rstrip("/")
+        background_tasks.add_task(
+            notify_author_if_possible, doi, paper.title or "", rating.id, db, base_url)
+        background_tasks.add_task(moderate_rating_bg, rating.id)
+        background_tasks.add_task(
+            notify_admin,
+            f"New review — {doi}",
+            f"User: {orcid_id} ({user.name if user else 'unknown'})\nDOI: {doi}\nStar: {star_int}\n\nText:\n{obs_text[:300]}",
+        )
     return RedirectResponse(f"/paper/{doi}?submitted=1", status_code=303)
 
 
@@ -2076,7 +2141,9 @@ async def nd_delete_rating(doi: str, rating_id: int, request: Request, db: Sessi
 
 @router.post("/paper/{doi:path}/ratings/{rating_id}/edit")
 async def nd_edit_rating_submit(
-    doi: str, rating_id: int, request: Request, db: Session = Depends(get_db),
+    doi: str, rating_id: int, request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
     nd_star: str = Form(""),
     nd_failure_context: str = Form(""),
     reproducibility_observation: str = Form(""),
@@ -2098,13 +2165,65 @@ async def nd_edit_rating_submit(
     if star_int != 1:
         ctx = None
 
+    was_flagged = r.ai_flagged
     r.nd_star = star_int
     r.nd_failure_context = ctx
     r.reproducibility_observation = reproducibility_observation.strip()[
         :1000] or None
     r.updated_at = datetime.now(timezone.utc)
+    if was_flagged:
+        r.ai_flagged = False
     db.commit()
+    if was_flagged:
+        background_tasks.add_task(moderate_rating_bg, r.id)
     return RedirectResponse(f"/paper/{doi}#review-{rating_id}", status_code=303)
+
+
+# ── B23: Author right of reply ────────────────────────────────────────────────
+
+@router.post("/paper/{doi:path}/ratings/{rating_id}/author-reply")
+async def nd_submit_author_reply(
+    doi: str, rating_id: int, request: Request,
+    db: Session = Depends(get_db),
+    content: str = Form(""),
+    author_confirmed: str = Form(""),
+):
+    orcid_id = request.session.get("orcid_id")
+    if not orcid_id or orcid_id.startswith("local:") or orcid_id.startswith("AI-"):
+        raise HTTPException(status_code=403, detail="ORCID login required")
+    if author_confirmed != "on":
+        raise HTTPException(status_code=422, detail="You must confirm you are an author on this paper")
+    content = content.strip()[:2000]
+    if not content:
+        raise HTTPException(status_code=422, detail="Reply content is required")
+    if not _is_clean(content):
+        raise HTTPException(status_code=422, detail="Content contains prohibited language.")
+
+    r = db.get(Rating, rating_id)
+    if not r or r.doi != doi:
+        raise HTTPException(status_code=404)
+    if r.orcid_id == orcid_id:
+        raise HTTPException(status_code=422, detail="You cannot reply to your own review as an author")
+
+    existing = db.query(AuthorReply).filter(
+        AuthorReply.rating_id == rating_id,
+        AuthorReply.author_orcid_id == orcid_id,
+    ).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="You have already submitted a reply to this review")
+
+    db.add(AuthorReply(
+        doi=doi,
+        rating_id=rating_id,
+        author_orcid_id=orcid_id,
+        content=content,
+    ))
+    db.commit()
+    notify_admin(
+        f"Author reply pending approval — {doi}",
+        f"Author: {orcid_id}\nDOI: {doi}\nRating ID: {rating_id}\n\nReply:\n{content[:400]}\n\nApprove at /admin/",
+    )
+    return RedirectResponse(f"/paper/{doi}#review-{rating_id}?reply_submitted=1", status_code=303)
 
 
 @router.get("/privacy", response_class=HTMLResponse)

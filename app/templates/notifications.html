@@ -12,7 +12,7 @@
   {% if notifications %}
   <div class="space-y-2">
     {% for n in notifications %}
-    <a href="/paper/{{ n.doi }}#review-{{ n.rating_id }}"
+    <a href="{% if n.type == 'flagged' %}/profile/inbox{% else %}/paper/{{ n.doi }}#review-{{ n.rating_id }}{% endif %}"
        class="flex items-start gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 hover:border-brand transition-colors group">
 
       <!-- Icon -->
@@ -40,6 +40,13 @@
           <polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/>
         </svg>
       </span>
+      {% elif n.type == 'flagged' %}
+      <span class="mt-0.5 flex-shrink-0 w-7 h-7 rounded-full bg-red-50 border border-red-200 flex items-center justify-center">
+        <svg class="w-3.5 h-3.5 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+      </span>
       {% else %}
       <span class="mt-0.5 flex-shrink-0 w-7 h-7 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center">
         <svg class="w-3.5 h-3.5 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -61,6 +68,8 @@
             <span class="font-medium">{{ n.actor_name }}</span> posted a new review on a paper you follow
           {% elif n.type == 'new_comment' %}
             <span class="font-medium">{{ n.actor_name }}</span> commented on a paper you follow
+          {% elif n.type == 'flagged' %}
+            Your review was hidden from public view: check your inbox for details
           {% else %}
             <span class="font-medium">{{ n.actor_name }}</span> commented on your review
           {% endif %}

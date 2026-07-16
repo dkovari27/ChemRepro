@@ -2,7 +2,11 @@
 {% block title %}Admin Dashboard – ChemRepro{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto px-4 py-8">
+<style>
+  .admin-dash table th,
+  .admin-dash table td { text-align: center; }
+</style>
+<div class="admin-dash max-w-6xl mx-auto px-4 py-8">
 
   <!-- Header -->
   <div class="flex items-center justify-between mb-8">
@@ -30,6 +34,81 @@
     {% endfor %}
   </div>
 
+  <!-- ── PENDING REVIEW QUEUE (B21: misconduct allegations) ──────── -->
+  {% if pending_reviews %}
+  <section class="mb-10">
+    <h2 class="text-base font-semibold text-red-700 mb-3 flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-red-600 inline-block animate-pulse"></span>
+      Pending Review Queue — Misconduct Allegations ({{ pending_reviews | length }})
+    </h2>
+    <p class="text-xs text-slate-500 mb-3">
+      These reviews contain misconduct/fraud keywords and are held from the public pending your decision.
+      Approve to publish or Reject to delete with a notification to the reviewer.
+    </p>
+    <div class="bg-white border border-red-200 rounded-xl overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-red-50 text-xs text-slate-500 uppercase">
+          <tr>
+            <th class="px-4 py-2 text-center">ID</th>
+            <th class="px-4 py-2 text-center">Paper</th>
+            <th class="px-4 py-2 text-center">Reviewer</th>
+            <th class="px-4 py-2 text-center">Content</th>
+            <th class="px-4 py-2 text-center">Date</th>
+            <th class="px-4 py-2 text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for r in pending_reviews %}
+          <tr id="pending-row-{{ r.id }}" class="hover:bg-slate-50">
+            <td class="px-4 py-2 text-xs text-slate-400">#{{ r.id }}</td>
+            <td class="px-4 py-2 text-xs text-slate-600 max-w-[160px] truncate">
+              {% set pap = papers_map.get(r.doi) %}
+              <a href="/paper/{{ r.doi }}" target="_blank" class="hover:text-brand transition-colors">
+                {{ (pap.title[:40] + '…') if pap and pap.title and pap.title|length > 40 else (pap.title if pap else r.doi[:20]) }}
+              </a>
+            </td>
+            <td class="px-4 py-2 text-xs text-slate-500">
+              {% set ru = users_map.get(r.orcid_id) %}
+              {{ (ru.nickname or ru.name) if ru else r.orcid_id[:14] }}
+            </td>
+            <td class="px-4 py-2 text-xs text-slate-600 max-w-xs truncate"
+              title="{{ r.reproducibility_observation or '' }}">
+              {{ (r.reproducibility_observation or '')[:100] }}
+            </td>
+            <td class="px-4 py-2 text-xs text-slate-400 whitespace-nowrap">{{ r.created_at.strftime('%d %b %Y %H:%M') }}</td>
+            <td class="px-4 py-2">
+              <div class="flex gap-1 flex-wrap">
+                {% set _pu = users_map.get(r.orcid_id) %}
+                {% set _pnm = (_pu.nickname or _pu.name) if _pu else r.orcid_id[:14] %}
+                {% set _pstar = ' · ★' + r.nd_star|string if r.nd_star else '' %}
+                <button
+                  data-content="{{ (r.reproducibility_observation or '') | e }}"
+                  data-meta="{{ _pnm | e }} · {{ r.created_at.strftime('%d %b %Y %H:%M') }}{{ _pstar }}"
+                  data-doi="{{ r.doi | e }}"
+                  data-id="{{ r.id }}"
+                  data-row="pending-row-{{ r.id }}"
+                  onclick="openViewModal(this,'pending')"
+                  class="text-xs px-2 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors font-medium">
+                  View
+                </button>
+                <button onclick="adminAction('/admin/reviews/{{ r.id }}/approve','pending-row-{{ r.id }}')"
+                  class="text-xs px-2 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-colors">
+                  Approve
+                </button>
+                <button onclick="adminAction('/admin/reviews/{{ r.id }}/reject','pending-row-{{ r.id }}')"
+                  class="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
+                  Reject
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
   <!-- ── OPEN REPORTS ──────────────────────────────────────────────── -->
   <section class="mb-10">
     <h2 class="text-base font-semibold text-slate-700 mb-3 flex items-center gap-2">
@@ -41,49 +120,78 @@
       <table class="w-full text-sm">
         <thead class="bg-slate-50 text-xs text-slate-500 uppercase">
           <tr>
-            <th class="px-4 py-2 text-left">Type</th>
-            <th class="px-4 py-2 text-left">Target ID</th>
-            <th class="px-4 py-2 text-left">Reporter</th>
-            <th class="px-4 py-2 text-left">Reason</th>
-            <th class="px-4 py-2 text-left">Date</th>
-            <th class="px-4 py-2 text-left">Actions</th>
+            <th class="px-4 py-2 text-center">Type</th>
+            <th class="px-4 py-2 text-center">ID</th>
+            <th class="px-4 py-2 text-center">Paper</th>
+            <th class="px-4 py-2 text-center">Author</th>
+            <th class="px-4 py-2 text-center">Reporter</th>
+            <th class="px-4 py-2 text-center">Content</th>
+            <th class="px-4 py-2 text-center">Reason</th>
+            <th class="px-4 py-2 text-center">Date</th>
+            <th class="px-4 py-2 text-center">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
           {% for rep in open_reports %}
+          {% set rt = report_targets.get(rep.id) %}
           <tr id="report-row-{{ rep.id }}" class="hover:bg-slate-50">
             <td class="px-4 py-2">
-              <span class="px-2 py-0.5 rounded-full text-xs font-medium
-                {% if rep.target_type == 'review' %}bg-blue-100 text-blue-700
-                {% elif rep.target_type == 'comment' %}bg-violet-100 text-violet-700
-                {% else %}bg-amber-100 text-amber-700{% endif %}">
-                {{ rep.target_type }}
-              </span>
+              <div class="inline-flex flex-col items-center gap-1">
+                <span class="px-2 py-0.5 rounded-full text-xs font-medium
+                  {% if rep.target_type == 'review' %}bg-blue-100 text-blue-700
+                  {% elif rep.target_type == 'comment' %}bg-violet-100 text-violet-700
+                  {% else %}bg-amber-100 text-amber-700{% endif %}">
+                  {{ rep.target_type }}
+                </span>
+                {% if rep.is_defamatory %}
+                <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700 uppercase tracking-wide">
+                  DEFAMATORY
+                </span>
+                {% endif %}
+              </div>
             </td>
-            <td class="px-4 py-2 font-mono text-xs text-slate-500">{{ rep.target_id }}</td>
+            <td class="px-4 py-2 font-mono text-xs text-slate-500">#{{ rep.target_id }}</td>
+            <td class="px-4 py-2 text-xs text-slate-600 max-w-[160px] truncate">
+              {% if rt %}
+              {% set pap = papers_map.get(rt.doi) %}
+              <a href="/paper/{{ rt.doi }}" target="_blank" class="hover:text-brand transition-colors">
+                {{ (pap.title[:30] + '…') if pap and pap.title and pap.title|length > 30 else (pap.title if pap else rt.doi[:22]) }}
+              </a>
+              {% else %}-{% endif %}
+            </td>
+            <td class="px-4 py-2 text-xs text-slate-500">{{ rt.author if rt else '-' }}</td>
             <td class="px-4 py-2 text-xs text-slate-500">
               {% set ru = users_map.get(rep.reporter_orcid_id) %}
               {{ (ru.nickname or ru.name) if ru else rep.reporter_orcid_id[:12] }}
             </td>
-            <td class="px-4 py-2 text-xs text-slate-600 max-w-xs truncate">{{ rep.reason or '-' }}</td>
-            <td class="px-4 py-2 text-xs text-slate-400">{{ rep.created_at.strftime('%d %b %Y') }}</td>
+            <td class="px-4 py-2 text-xs text-slate-600 max-w-[160px] truncate"
+              title="{{ rt.content if rt else '' }}">
+              {{ (rt.content[:70] if rt and rt.content else '-') }}
+            </td>
+            <td class="px-4 py-2 text-xs text-slate-600 max-w-[120px] truncate">{{ rep.reason or '-' }}</td>
+            <td class="px-4 py-2 text-xs text-slate-400 whitespace-nowrap">{{ rep.created_at.strftime('%d %b %Y %H:%M') }}</td>
             <td class="px-4 py-2">
-              <div class="flex gap-2">
+              <div class="flex gap-1 flex-wrap">
+                {% if rt %}
+                {% set _star_txt = ' · ★' + rt.star|string if rt.star else '' %}
+                <button
+                  data-content="{{ rt.content | e }}"
+                  data-meta="{{ rt.author | e }} · {{ rep.created_at.strftime('%d %b %Y %H:%M') }}{{ _star_txt }}"
+                  data-doi="{{ rt.doi | e }}"
+                  data-id="{{ rep.id }}"
+                  data-target-type="{{ rep.target_type }}"
+                  data-target-id="{{ rep.target_id }}"
+                  data-flagged="{{ rt.flagged | lower }}"
+                  data-row="report-row-{{ rep.id }}"
+                  onclick="openViewModal(this,'report')"
+                  class="text-xs px-2 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors font-medium">
+                  View
+                </button>
+                {% endif %}
                 <button onclick="adminAction('/admin/reports/{{ rep.id }}/resolve','report-row-{{ rep.id }}')"
                   class="text-xs px-2 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-colors">
                   Resolve
                 </button>
-                {% if rep.target_type == 'review' %}
-                <button onclick="adminAction('/admin/reviews/{{ rep.target_id }}/delete','review-row-{{ rep.target_id }}')"
-                  class="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
-                  Del review
-                </button>
-                {% elif rep.target_type == 'comment' %}
-                <button onclick="adminAction('/admin/comments/{{ rep.target_id }}/delete','comment-row-{{ rep.target_id }}')"
-                  class="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
-                  Del comment
-                </button>
-                {% endif %}
               </div>
             </td>
           </tr>
@@ -108,25 +216,41 @@
       <table class="w-full text-sm">
         <thead class="bg-slate-50 text-xs text-slate-500 uppercase">
           <tr>
-            <th class="px-4 py-2 text-left">Type</th>
-            <th class="px-4 py-2 text-left">Author</th>
-            <th class="px-4 py-2 text-left">Content</th>
-            <th class="px-4 py-2 text-left">Date</th>
-            <th class="px-4 py-2 text-left">Actions</th>
+            <th class="px-4 py-2 text-center">Type</th>
+            <th class="px-4 py-2 text-center">ID</th>
+            <th class="px-4 py-2 text-center">Paper</th>
+            <th class="px-4 py-2 text-center">Author</th>
+            <th class="px-4 py-2 text-center">Content</th>
+            <th class="px-4 py-2 text-center">Date</th>
+            <th class="px-4 py-2 text-center">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
           {% for c in ai_flagged_comments %}
           <tr id="aiflag-comment-{{ c.id }}">
             <td class="px-4 py-2"><span class="px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700">comment</span></td>
+            <td class="px-4 py-2 font-mono text-xs text-slate-500">#{{ c.id }}</td>
+            <td class="px-4 py-2 text-xs text-slate-600 max-w-[140px] truncate">
+              <a href="/paper/{{ c.doi }}" target="_blank" class="hover:text-brand transition-colors font-mono">{{ c.doi[:22] }}</a>
+            </td>
             <td class="px-4 py-2 text-xs text-slate-500">
               {% set u = users_map.get(c.orcid_id) %}
               {{ (u.nickname or u.name) if u else c.orcid_id[:12] }}
             </td>
-            <td class="px-4 py-2 text-xs text-slate-600 max-w-xs truncate" title="{{ c.content }}">{{ c.content[:120] }}</td>
-            <td class="px-4 py-2 text-xs text-slate-400">{{ c.created_at.strftime('%d %b %Y') }}</td>
+            <td class="px-4 py-2 text-xs text-slate-600 max-w-[120px] truncate" title="{{ c.content }}">{{ c.content[:40] }}</td>
+            <td class="px-4 py-2 text-xs text-slate-400 whitespace-nowrap">{{ c.created_at.strftime('%d %b %Y %H:%M') }}</td>
             <td class="px-4 py-2">
-              <div class="flex gap-2">
+              <div class="flex gap-2 flex-wrap">
+                {% set _acu = users_map.get(c.orcid_id) %}
+                {% set _acnm = (_acu.nickname or _acu.name) if _acu else c.orcid_id[:14] %}
+                <button
+                  data-content="{{ c.content | e }}"
+                  data-meta="{{ _acnm | e }} · {{ c.created_at.strftime('%d %b %Y %H:%M') }}"
+                  data-doi="{{ c.doi | e }}"
+                  data-id="{{ c.id }}"
+                  data-row="aiflag-comment-{{ c.id }}"
+                  onclick="openViewModal(this,'aiflag-comment')"
+                  class="text-xs px-2 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors font-medium">View</button>
                 <button onclick="adminAction('/admin/comments/{{ c.id }}/restore','aiflag-comment-{{ c.id }}')"
                   class="text-xs px-2 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-colors">Restore</button>
                 <button onclick="adminAction('/admin/comments/{{ c.id }}/delete','aiflag-comment-{{ c.id }}')"
@@ -138,17 +262,35 @@
           {% for r in ai_flagged_ratings %}
           <tr id="aiflag-rating-{{ r.id }}">
             <td class="px-4 py-2"><span class="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">review</span></td>
+            <td class="px-4 py-2 font-mono text-xs text-slate-500">#{{ r.id }}</td>
+            <td class="px-4 py-2 text-xs text-slate-600 max-w-[140px] truncate">
+              {% set pap = papers_map.get(r.doi) %}
+              <a href="/paper/{{ r.doi }}" target="_blank" class="hover:text-brand transition-colors">
+                {{ (pap.title[:25] + '…') if pap and pap.title and pap.title|length > 25 else (pap.title if pap else r.doi[:22]) }}
+              </a>
+            </td>
             <td class="px-4 py-2 text-xs text-slate-500">
               {% set u = users_map.get(r.orcid_id) %}
               {{ (u.nickname or u.name) if u else r.orcid_id[:12] }}
             </td>
-            <td class="px-4 py-2 text-xs text-slate-600 max-w-xs truncate"
+            <td class="px-4 py-2 text-xs text-slate-600 max-w-[120px] truncate"
               title="{{ [r.reproducibility_observation, r.scope_observation, r.modification_details] | select | join(' / ') }}">
-              {{ (r.reproducibility_observation or r.scope_observation or r.modification_details or '')[:120] }}
+              {{ (r.reproducibility_observation or r.scope_observation or r.modification_details or '')[:40] }}
             </td>
-            <td class="px-4 py-2 text-xs text-slate-400">{{ r.created_at.strftime('%d %b %Y') }}</td>
+            <td class="px-4 py-2 text-xs text-slate-400 whitespace-nowrap">{{ r.created_at.strftime('%d %b %Y %H:%M') }}</td>
             <td class="px-4 py-2">
-              <div class="flex gap-2">
+              <div class="flex gap-2 flex-wrap">
+                {% set _aru = users_map.get(r.orcid_id) %}
+                {% set _arnm = (_aru.nickname or _aru.name) if _aru else r.orcid_id[:14] %}
+                {% set _arstar = ' · ★' + r.nd_star|string if r.nd_star else '' %}
+                <button
+                  data-content="{{ (r.reproducibility_observation or r.scope_observation or r.modification_details or '') | e }}"
+                  data-meta="{{ _arnm | e }} · {{ r.created_at.strftime('%d %b %Y %H:%M') }}{{ _arstar }}"
+                  data-doi="{{ r.doi | e }}"
+                  data-id="{{ r.id }}"
+                  data-row="aiflag-rating-{{ r.id }}"
+                  onclick="openViewModal(this,'aiflag-rating')"
+                  class="text-xs px-2 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors font-medium">View</button>
                 <button onclick="adminAction('/admin/ratings/{{ r.id }}/restore','aiflag-rating-{{ r.id }}')"
                   class="text-xs px-2 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-colors">Restore</button>
                 <button onclick="adminAction('/admin/reviews/{{ r.id }}/delete','aiflag-rating-{{ r.id }}')"
@@ -172,13 +314,11 @@
       <table class="w-full text-sm">
         <thead class="bg-slate-50 text-xs text-slate-500 uppercase">
           <tr>
-            <th class="px-4 py-2 text-left">ID</th>
-            <th class="px-4 py-2 text-left">Paper</th>
-            <th class="px-4 py-2 text-left">Author</th>
-            <th class="px-4 py-2 text-left">Mode</th>
-            <th class="px-4 py-2 text-left">Outcome</th>
-            <th class="px-4 py-2 text-left">Date</th>
-            <th class="px-4 py-2 text-left">Actions</th>
+            <th class="px-4 py-2 text-center">ID</th>
+            <th class="px-4 py-2 text-center">Paper</th>
+            <th class="px-4 py-2 text-center">Author</th>
+            <th class="px-4 py-2 text-center">Date</th>
+            <th class="px-4 py-2 text-center">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
@@ -195,16 +335,36 @@
               {% set ru = users_map.get(r.orcid_id) %}
               {{ (ru.nickname or ru.name) if ru else r.orcid_id[:14] }}
             </td>
-            <td class="px-4 py-2 text-xs text-slate-400">{{ r.scoring_mode }}</td>
-            <td class="px-4 py-2 text-xs text-slate-500">{{ r.outcome or '-' }}</td>
-            <td class="px-4 py-2 text-xs text-slate-400">{{ r.created_at.strftime('%d %b %Y') }}</td>
+            <td class="px-4 py-2 text-xs text-slate-400 whitespace-nowrap">{{ r.created_at.strftime('%d %b %Y %H:%M') }}</td>
             <td class="px-4 py-2">
-              <div class="flex gap-1">
+              <div class="flex gap-1 flex-wrap">
+                {% set _rru = users_map.get(r.orcid_id) %}
+                {% set _rrnm = (_rru.nickname or _rru.name) if _rru else r.orcid_id[:14] %}
+                {% set _rrstar = ' · ★' + r.nd_star|string if r.nd_star else '' %}
+                <button
+                  data-content="{{ (r.reproducibility_observation or '') | e }}"
+                  data-meta="{{ _rrnm | e }} · {{ r.created_at.strftime('%d %b %Y %H:%M') }}{{ _rrstar }}"
+                  data-doi="{{ r.doi | e }}"
+                  data-id="{{ r.id }}"
+                  data-flagged="{{ r.ai_flagged | lower }}"
+                  data-ai="{{ r.orcid_id.startswith('AI-') | lower }}"
+                  data-row="review-row-{{ r.id }}"
+                  onclick="openViewModal(this,'recent-review')"
+                  class="text-xs px-2 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors font-medium">
+                  View
+                </button>
                 {% if r.orcid_id.startswith('AI-') %}
                 <a href="/paper/{{ r.doi }}/ratings/{{ r.id }}/edit"
                   class="text-xs px-2 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
                   Edit
                 </a>
+                {% endif %}
+                {% if not r.orcid_id.startswith('AI-') and not r.ai_flagged %}
+                <button onclick="adminAction('/admin/reviews/{{ r.id }}/request-substantiation','review-row-{{ r.id }}')"
+                  class="text-xs px-2 py-1 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors"
+                  title="Immediately hide this review and ask the reviewer for supporting evidence within 14 days">
+                  Subst.
+                </button>
                 {% endif %}
                 <button onclick="adminAction('/admin/reviews/{{ r.id }}/delete','review-row-{{ r.id }}')"
                   class="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
@@ -226,11 +386,11 @@
       <table class="w-full text-sm">
         <thead class="bg-slate-50 text-xs text-slate-500 uppercase">
           <tr>
-            <th class="px-4 py-2 text-left">ID</th>
-            <th class="px-4 py-2 text-left">Content</th>
-            <th class="px-4 py-2 text-left">Author</th>
-            <th class="px-4 py-2 text-left">Date</th>
-            <th class="px-4 py-2 text-left">Actions</th>
+            <th class="px-4 py-2 text-center">ID</th>
+            <th class="px-4 py-2 text-center">Content</th>
+            <th class="px-4 py-2 text-center">Author</th>
+            <th class="px-4 py-2 text-center">Date</th>
+            <th class="px-4 py-2 text-center">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
@@ -244,10 +404,24 @@
             </td>
             <td class="px-4 py-2 text-xs text-slate-400">{{ c.created_at.strftime('%d %b %Y') }}</td>
             <td class="px-4 py-2">
-              <button onclick="adminAction('/admin/comments/{{ c.id }}/delete','comment-row-{{ c.id }}')"
-                class="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
-                Delete
-              </button>
+              <div class="flex gap-1">
+                {% set _ccu = users_map.get(c.orcid_id) %}
+                {% set _ccnm = (_ccu.nickname or _ccu.name) if _ccu else c.orcid_id[:14] %}
+                <button
+                  data-content="{{ c.content | e }}"
+                  data-meta="{{ _ccnm | e }} · {{ c.created_at.strftime('%d %b %Y') }}"
+                  data-doi="{{ c.doi | e }}"
+                  data-id="{{ c.id }}"
+                  data-row="comment-row-{{ c.id }}"
+                  onclick="openViewModal(this,'recent-comment')"
+                  class="text-xs px-2 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors font-medium">
+                  View
+                </button>
+                <button onclick="adminAction('/admin/comments/{{ c.id }}/delete','comment-row-{{ c.id }}')"
+                  class="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
+                  Delete
+                </button>
+              </div>
             </td>
           </tr>
           {% endfor %}
@@ -263,12 +437,12 @@
       <table class="w-full text-sm">
         <thead class="bg-slate-50 text-xs text-slate-500 uppercase">
           <tr>
-            <th class="px-4 py-2 text-left">ORCID / ID</th>
-            <th class="px-4 py-2 text-left">Name</th>
-            <th class="px-4 py-2 text-left">Nickname</th>
-            <th class="px-4 py-2 text-left">Career stage</th>
-            <th class="px-4 py-2 text-left">Joined</th>
-            <th class="px-4 py-2 text-left">Actions</th>
+            <th class="px-4 py-2 text-center">ORCID / ID</th>
+            <th class="px-4 py-2 text-center">Name</th>
+            <th class="px-4 py-2 text-center">Nickname</th>
+            <th class="px-4 py-2 text-center">Career stage</th>
+            <th class="px-4 py-2 text-center">Joined</th>
+            <th class="px-4 py-2 text-center">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
@@ -344,12 +518,12 @@
       <table class="w-full text-sm">
         <thead class="bg-slate-50 text-xs text-slate-500 uppercase">
           <tr>
-            <th class="px-4 py-2 text-left">Label</th>
-            <th class="px-4 py-2 text-left">Owner</th>
-            <th class="px-4 py-2 text-left">Created</th>
-            <th class="px-4 py-2 text-left">Last used</th>
-            <th class="px-4 py-2 text-left">Status</th>
-            <th class="px-4 py-2 text-left">Actions</th>
+            <th class="px-4 py-2 text-center">Label</th>
+            <th class="px-4 py-2 text-center">Owner</th>
+            <th class="px-4 py-2 text-center">Created</th>
+            <th class="px-4 py-2 text-center">Last used</th>
+            <th class="px-4 py-2 text-center">Status</th>
+            <th class="px-4 py-2 text-center">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
@@ -384,6 +558,34 @@
     {% endif %}
   </section>
 
+</div>
+
+<!-- ── View Content Modal ───────────────────────────────────────────── -->
+<div id="view-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 flex flex-col" style="max-height:85vh">
+    <!-- Header -->
+    <div class="flex items-start justify-between px-5 pt-5 pb-3 border-b border-slate-100 flex-shrink-0">
+      <div class="flex-1 min-w-0 pr-4">
+        <p id="vm-meta" class="text-xs font-semibold text-slate-700 mb-0.5"></p>
+        <a id="vm-doi" href="#" target="_blank"
+          class="text-xs text-brand hover:underline font-mono truncate block"></a>
+      </div>
+      <button onclick="closeViewModal()"
+        class="flex-shrink-0 text-slate-400 hover:text-slate-600 transition-colors">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <!-- Content -->
+    <div id="vm-content"
+      class="flex-1 overflow-y-auto px-5 py-4 text-sm text-slate-700 whitespace-pre-wrap leading-relaxed bg-slate-50 m-4 mt-3 mb-3 rounded-xl min-h-[80px]">
+    </div>
+    <!-- Actions -->
+    <div class="px-5 pb-5 pt-2 border-t border-slate-100 flex-shrink-0">
+      <div id="vm-actions" class="flex gap-2 flex-wrap justify-end"></div>
+    </div>
+  </div>
 </div>
 
 <!-- ── User Edit Modal ──────────────────────────────────────────────── -->
@@ -469,6 +671,103 @@ async function generateApiKey() {
   document.getElementById('ak-result').classList.remove('hidden');
   document.getElementById('ak-label').value = '';
   document.getElementById('ak-email').value = '';
+}
+
+
+// ── View Content Modal ────────────────────────────────────────────────────
+function closeViewModal() {
+  document.getElementById('view-modal').classList.add('hidden');
+}
+document.getElementById('view-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeViewModal();
+});
+
+function openViewModal(btn, section) {
+  const content  = btn.dataset.content  || '(no text)';
+  const meta     = btn.dataset.meta     || '';
+  const doi      = btn.dataset.doi      || '';
+  const id       = btn.dataset.id;
+  const targetId = btn.dataset.targetId;
+  const targetType = btn.dataset.targetType;
+  const flagged  = btn.dataset.flagged  === 'true';
+  const isAi     = btn.dataset.ai       === 'true';
+  const rowId    = btn.dataset.row;
+
+  document.getElementById('vm-content').textContent = content;
+  document.getElementById('vm-meta').textContent    = meta;
+  const doiEl = document.getElementById('vm-doi');
+  if (doi) {
+    doiEl.textContent = doi;
+    doiEl.href = '/paper/' + doi;
+    doiEl.style.display = '';
+  } else {
+    doiEl.style.display = 'none';
+  }
+
+  const CLS = {
+    green: 'text-xs px-3 py-1.5 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-colors font-medium cursor-pointer',
+    red:   'text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors font-medium cursor-pointer',
+    amber: 'text-xs px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors font-medium cursor-pointer',
+    slate: 'text-xs px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors font-medium cursor-pointer',
+  };
+
+  const actions = [];
+
+  if (section === 'report') {
+    const delUrl     = targetType === 'review'
+      ? '/admin/reviews/'  + targetId + '/delete'
+      : '/admin/comments/' + targetId + '/delete';
+    const resolveUrl = '/admin/reports/' + id + '/resolve';
+    if (flagged) {
+      const restoreUrl = targetType === 'review'
+        ? '/admin/ratings/'  + targetId + '/restore'
+        : '/admin/comments/' + targetId + '/restore';
+      actions.push({label:'Restore content', url: restoreUrl, extra: resolveUrl, row: rowId, cls: CLS.green});
+    }
+    actions.push({label:'Delete content', url: delUrl,     extra: resolveUrl, row: rowId, cls: CLS.red});
+    actions.push({label:'Resolve only',   url: resolveUrl, row: rowId, cls: CLS.slate});
+
+  } else if (section === 'pending') {
+    actions.push({label:'Approve', url:'/admin/reviews/'+id+'/approve', row:rowId, cls:CLS.green});
+    actions.push({label:'Reject',  url:'/admin/reviews/'+id+'/reject',  row:rowId, cls:CLS.red});
+
+  } else if (section === 'aiflag-rating') {
+    actions.push({label:'Restore', url:'/admin/ratings/'+id+'/restore',  row:rowId, cls:CLS.green});
+    actions.push({label:'Delete',  url:'/admin/reviews/'+id+'/delete',   row:rowId, cls:CLS.red});
+
+  } else if (section === 'aiflag-comment') {
+    actions.push({label:'Restore', url:'/admin/comments/'+id+'/restore', row:rowId, cls:CLS.green});
+    actions.push({label:'Delete',  url:'/admin/comments/'+id+'/delete',  row:rowId, cls:CLS.red});
+
+  } else if (section === 'recent-review') {
+    if (!flagged && !isAi) {
+      actions.push({label:'Request subst.', url:'/admin/reviews/'+id+'/request-substantiation', row:rowId, cls:CLS.amber});
+    }
+    actions.push({label:'Delete', url:'/admin/reviews/'+id+'/delete', row:rowId, cls:CLS.red});
+
+  } else if (section === 'recent-comment') {
+    actions.push({label:'Delete', url:'/admin/comments/'+id+'/delete', row:rowId, cls:CLS.red});
+  }
+
+  const container = document.getElementById('vm-actions');
+  container.innerHTML = '';
+  actions.forEach(function(a) {
+    const b = document.createElement('button');
+    b.textContent = a.label;
+    b.className   = a.cls;
+    b.onclick = async function() {
+      try {
+        await fetch(a.url, {method:'POST'});
+        if (a.extra) await fetch(a.extra, {method:'POST'});
+      } catch(_) {}
+      closeViewModal();
+      const row = document.getElementById(a.row);
+      if (row) { row.style.opacity = '0.3'; }
+    };
+    container.appendChild(b);
+  });
+
+  document.getElementById('view-modal').classList.remove('hidden');
 }
 
 async function adminAction(url, rowId, removeRow = true) {
