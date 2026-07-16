@@ -113,10 +113,9 @@ def dump_database(db_url: str) -> bytes:
         return _python_dump(db_url)
     except subprocess.CalledProcessError as e:
         err = e.stderr.decode(errors="replace").strip()
-        if "version mismatch" in err:
-            print(f"  pg_dump version mismatch, using Python fallback.\n  ({err.splitlines()[0]})")
-            return _python_dump(db_url)
-        raise RuntimeError(f"pg_dump failed (exit {e.returncode}): {err}") from e
+        first_line = err.splitlines()[0] if err else "unknown error"
+        print(f"  pg_dump failed ({first_line}), using Python fallback.")
+        return _python_dump(db_url)
 
 # ── Drive ─────────────────────────────────────────────────────────────────────
 
