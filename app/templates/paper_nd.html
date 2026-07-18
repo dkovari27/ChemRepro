@@ -86,7 +86,7 @@
   {% endif %}
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-6">
+<div class="grid grid-cols-1 lg:grid-cols-[2.25fr_2.75fr] gap-6">
 
   <!-- ═══════════════ LEFT COLUMN ═══════════════ -->
   <div>
@@ -107,15 +107,17 @@
         {% set count = nd_scores.nd_star_dist.get(star, 0) %}
         {% set bar_cls = nd_star_colors[star][0] %}
         {% set txt_cls = nd_star_colors[star][1] %}
-        {% set is_active = active_star == star | string %}
+        {% set star_val = 'null' if star is none else star | string %}
+        {% set is_active = active_star == star_val %}
         <div class="cursor-pointer rounded-md px-1 py-0.5 -mx-1 transition-colors
                     {% if is_active %}bg-slate-100 ring-1 ring-slate-300{% else %}hover:bg-slate-50{% endif %}"
-             onclick="applyFilter('star', '{{ '' if is_active else star }}')"
+             onclick="applyFilter('star', '{{ '' if is_active else star_val }}')"
              title="{% if is_active %}Clear filter{% else %}Show only: {{ nd_star_labels[star] }}{% endif %}">
           <div class="flex justify-between text-xs mb-0.5">
-            <span class="{{ txt_cls }} font-medium">
-              <span class="font-bold">{{ star }}</span>
-              <span class="mx-0.5 opacity-60">–</span>{{ nd_star_labels[star] }}
+            <span class="{{ txt_cls }} font-medium flex items-baseline">
+              <span class="font-bold shrink-0" style="width:1.1em;text-align:center">{% if star is none %}–{% else %}{{ star }}{% endif %}</span>
+              <span class="opacity-60 shrink-0" style="width:1.25em;text-align:center">:</span>
+              <span>{{ nd_star_labels[star] }}</span>
             </span>
             <span class="font-semibold shrink-0 ml-2 {% if count > 0 %}text-slate-600{% else %}text-slate-300{% endif %}">
               {% if count > 0 %}×{{ count }}{% else %}–{% endif %}
@@ -176,30 +178,31 @@
             <div class="flex flex-col gap-2">
               {% for star in nd_star_order %}
               <label class="flex items-center gap-2 cursor-pointer">
-                <input type="radio" name="nd_star" value="{{ star }}" class="accent-brand w-4 h-4"
-                       onchange="ndStarChanged({{ star }})" />
-                <span class="text-sm text-slate-800">
-                  <span class="font-bold">{{ star }}</span>
-                  <span class="text-slate-400 mx-0.5">–</span>{{ nd_star_labels[star] }}
+                <input type="radio" name="nd_star" value="{{ 'null' if star is none else star }}" class="accent-brand w-4 h-4"
+                       data-star="{{ 'null' if star is none else star }}" onchange="ndStarChanged(this.dataset.star)" />
+                <span class="text-sm text-slate-800 flex items-baseline">
+                  <span class="font-bold shrink-0" style="width:1.1em;text-align:center">{% if star is none %}–{% else %}{{ star }}{% endif %}</span>
+                  <span class="text-slate-400 shrink-0" style="width:1.25em;text-align:center">:</span>
+                  <span>{{ nd_star_labels[star] }}</span>
                 </span>
               </label>
               {% endfor %}
             </div>
           </div>
 
-          <!-- ══ STEP 2: FAILURE CONTEXT (shown only for star=1) ══════ -->
-          <div id="nd-failure-context-section" class="hidden border-t border-slate-100 pt-4 mb-4">
-            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">What did you test?</p>
+          <!-- ══ STEP 2: NULL CONTEXT (shown only for null rating) ═══ -->
+          <div id="nd-null-context-section" class="hidden border-t border-slate-100 pt-4 mb-4">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">What was your observation?</p>
             <div class="flex flex-col gap-2">
               <label class="flex items-center gap-2 cursor-pointer">
-                <input type="radio" name="nd_failure_context" value="original_tested"
+                <input type="radio" name="nd_failure_context" value="extension_failed"
                        class="accent-brand w-4 h-4" onchange="checkNdReady()" />
-                <span class="text-sm text-slate-800">Tested original procedure</span>
+                <span class="text-sm text-slate-800">Extension failed</span>
               </label>
               <label class="flex items-center gap-2 cursor-pointer">
-                <input type="radio" name="nd_failure_context" value="extension_only"
+                <input type="radio" name="nd_failure_context" value="inconclusive"
                        class="accent-brand w-4 h-4" onchange="checkNdReady()" />
-                <span class="text-sm text-slate-800">Extension only – did not test the original</span>
+                <span class="text-sm text-slate-800">Inconclusive results</span>
               </label>
             </div>
           </div>
@@ -254,8 +257,13 @@
         </p>
         <div class="bg-white border border-amber-200 rounded-lg p-3 mb-3 text-sm text-slate-700">
           <div class="flex items-center gap-2 mb-1">
-            <span class="font-bold text-slate-800">{{ own_flagged_review.nd_star }}</span>
+            {% if own_flagged_review.nd_star is none %}
+            <span class="font-bold text-slate-800">–</span>
+            <span class="text-slate-400">Not Determined</span>
+            {% else %}
+            <span class="font-bold text-slate-800">★ {{ own_flagged_review.nd_star }}</span>
             <span class="text-slate-400">stars</span>
+            {% endif %}
             {% if own_flagged_review.nd_failure_context %}
             <span class="text-xs text-slate-500">({{ own_flagged_review.nd_failure_context.replace('_', ' ') }})</span>
             {% endif %}
@@ -331,15 +339,16 @@
           All
         </button>
         {% for star in nd_star_order %}
-        <button onclick="applyFilter('star', '{{ star }}')"
+        {% set star_val = 'null' if star is none else star | string %}
+        <button onclick="applyFilter('star', '{{ star_val }}')"
           class="px-2.5 py-0.5 rounded-full border transition-colors
-                 {% if active_star == star | string %}bg-brand text-white border-brand{% else %}bg-white border-slate-200 text-slate-600 hover:border-brand{% endif %}">
-          {{ star }} ★
+                 {% if active_star == star_val %}bg-brand text-white border-brand{% else %}bg-white border-slate-200 text-slate-600 hover:border-brand{% endif %}">
+          {% if star is none %}–{% else %}{{ star }} ★{% endif %}
         </button>
         {% endfor %}
       </div>
 
-      <!-- Failure context filter (only useful when star=1 reviews exist) -->
+      <!-- Null context filter -->
       <div class="flex items-center gap-2 flex-wrap">
         <span class="font-medium text-slate-500 shrink-0">Context</span>
         <button onclick="applyFilter('ctx', '')"
@@ -347,15 +356,15 @@
                  {% if not active_ctx %}bg-brand text-white border-brand{% else %}bg-white border-slate-200 text-slate-600 hover:border-brand{% endif %}">
           All
         </button>
-        <button onclick="applyFilter('ctx', 'original_tested')"
+        <button onclick="applyFilter('ctx', 'extension_failed')"
           class="px-2.5 py-0.5 rounded-full border transition-colors
-                 {% if active_ctx == 'original_tested' %}bg-slate-600 text-white border-slate-600{% else %}bg-white border-slate-200 text-slate-600 hover:border-slate-500{% endif %}">
-          Tested original
+                 {% if active_ctx == 'extension_failed' %}bg-slate-600 text-white border-slate-600{% else %}bg-white border-slate-200 text-slate-600 hover:border-slate-500{% endif %}">
+          Extension failed
         </button>
-        <button onclick="applyFilter('ctx', 'extension_only')"
+        <button onclick="applyFilter('ctx', 'inconclusive')"
           class="px-2.5 py-0.5 rounded-full border transition-colors
-                 {% if active_ctx == 'extension_only' %}bg-amber-500 text-white border-amber-500{% else %}bg-white border-slate-200 text-slate-600 hover:border-amber-400{% endif %}">
-          Extension only
+                 {% if active_ctx == 'inconclusive' %}bg-amber-500 text-white border-amber-500{% else %}bg-white border-slate-200 text-slate-600 hover:border-amber-400{% endif %}">
+          Inconclusive
         </button>
       </div>
 
@@ -364,8 +373,8 @@
     {% if reviews %}
     <div class="space-y-4">
       {% for r in reviews %}
-      {% set star_bar_cls = nd_star_colors.get(r.nd_star, ('bg-slate-300', 'text-slate-500'))[0] %}
-      {% set star_txt_cls = nd_star_colors.get(r.nd_star, ('bg-slate-300', 'text-slate-500'))[1] %}
+      {% set star_bar_cls = nd_star_colors.get(r.nd_star, nd_star_colors[none])[0] %}
+      {% set star_txt_cls = nd_star_colors.get(r.nd_star, nd_star_colors[none])[1] %}
       {% set is_liked = r.id in user_likes %}
       {% set like_count = like_counts.get(r.id, 0) %}
       <div id="review-{{ r.id }}" class="bg-white border border-slate-200 rounded-xl p-4">
@@ -407,16 +416,18 @@
 
         <!-- Badges: ND star + failure_context -->
         <div class="flex gap-2 flex-wrap mb-3">
-          {% if r.nd_star %}
-          <span class="text-xs font-semibold {{ star_txt_cls }} bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1">
-            ★ {{ r.nd_star }} – {{ nd_star_labels.get(r.nd_star, '') }}
+          {% if r.nd_star is none %}
+          <span class="text-xs font-semibold text-slate-500 bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1">
+            – : {{ nd_star_labels[none] }}
+          </span>
+          {% if r.nd_failure_context %}
+          <span class="text-xs font-semibold bg-slate-100 text-slate-600 rounded-full px-2.5 py-1">
+            {{ nd_failure_context_labels.get(r.nd_failure_context, r.nd_failure_context) }}
           </span>
           {% endif %}
-          {% if r.nd_star == 1 and r.nd_failure_context %}
-          <span class="text-xs font-semibold rounded-full px-2.5 py-1
-            {% if r.nd_failure_context == 'extension_only' %}bg-amber-100 text-amber-700
-            {% else %}bg-slate-100 text-slate-600{% endif %}">
-            {{ nd_failure_context_labels.get(r.nd_failure_context, r.nd_failure_context) }}
+          {% else %}
+          <span class="text-xs font-semibold {{ star_txt_cls }} bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1">
+            ★ {{ r.nd_star }} : {{ nd_star_labels.get(r.nd_star, '') }}
           </span>
           {% endif %}
         </div>
@@ -1031,12 +1042,12 @@
 <script>
   // ── ND rating form logic ──────────────────────────────────────────────
   function ndStarChanged(star) {
-    const ctxSection = document.getElementById('nd-failure-context-section');
+    const nullSection = document.getElementById('nd-null-context-section');
     const obsSection = document.getElementById('nd-obs-section');
-    if (star === 1) {
-      ctxSection.classList.remove('hidden');
+    if (star === 'null') {
+      nullSection.classList.remove('hidden');
     } else {
-      ctxSection.classList.add('hidden');
+      nullSection.classList.add('hidden');
       document.querySelectorAll('input[name="nd_failure_context"]').forEach(r => r.checked = false);
     }
     obsSection.classList.remove('hidden');
@@ -1046,7 +1057,7 @@
   function checkNdReady() {
     const starVal = document.querySelector('input[name="nd_star"]:checked')?.value;
     const coi = document.getElementById('nd-coi-checkbox')?.checked;
-    const ctxRequired = starVal === '1';
+    const ctxRequired = starVal === 'null';
     const ctxOk = !ctxRequired || document.querySelector('input[name="nd_failure_context"]:checked');
     const btn = document.getElementById('nd-submit-btn');
     if (btn) btn.disabled = !(starVal && coi && ctxOk);

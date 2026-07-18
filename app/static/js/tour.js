@@ -21,9 +21,9 @@
       stepNum: 'Step 2 of 7',
       title: 'Review cards',
       body: 'Papers you have personally reviewed appear under <strong>My reviewed papers</strong>. '
-        + 'Below that, the community feed shows what other chemists have recently rated. '
-        + 'Each card shows a <strong>★ score (1–5)</strong> and the rating count. '
-        + 'Hover the score to see the full star breakdown, or click the card to open the paper.',
+        + 'Below that, the community feed shows recently rated papers. '
+        + 'Each card shows a <strong>★ score</strong> (1–5 average) and the total rating count. '
+        + 'Hover the score badge to see the full outcome breakdown, or click the card to open the paper.',
       nextLabel: 'Next →',
       nextAction: 'navigate',
       navigateTo: '/paper/demo',
@@ -33,12 +33,14 @@
       selector: '#tour-score-card',
       stepNum: 'Step 3 of 7',
       title: 'Paper score breakdown',
-      body: 'The aggregated star rating for this paper. '
-        + 'Stars run from <strong>1 (Did not work)</strong> through '
-        + '<strong>3 (Reproduced as published)</strong> to '
-        + '<strong>5 (Major extension (new functional group))</strong>. '
-        + 'Each bar shows how many reviewers gave that rating. '
-        + 'Click a bar on a real paper to filter the reviews by that score.',
+      body: 'The aggregated community score for this paper. '
+        + 'Outcomes run from <strong style="white-space:nowrap">5 : Major extension</strong> through '
+        + '<strong style="white-space:nowrap">3 : Reproduced as published</strong> and '
+        + '<strong style="white-space:nowrap">1 : Did not work</strong> to '
+        + '<strong style="white-space:nowrap">– : Extension failed / Inconclusive</strong>; '
+        + 'these count toward the total but are excluded from the star average. '
+        + 'On a real paper, click any bar to filter the reviews below by that outcome.',
+      tipWidth: 350,
       nextLabel: 'Next →',
       nextAction: 'advance',
     },
@@ -47,10 +49,9 @@
       selector: '#tour-rate-box',
       stepNum: 'Step 4 of 7',
       title: 'Rate this paper',
-      body: 'Tried a procedure from this paper in the lab? Select a <strong>star rating</strong> '
-        + 'that matches your outcome, add observations or images, and submit. '
-        + 'Star 1 also asks whether you tested the original procedure or only an extension. '
-        + 'Your review appears under your chosen display name.',
+      body: 'Tried a procedure from this paper in the lab? Select the outcome that best describes your result, '
+        + 'optionally add observations or images, then submit. '
+        + 'Your rating and display name appear in the community review list below.',
       nextLabel: 'Next →',
       nextAction: 'advance',
     },
@@ -164,9 +165,9 @@
     if (_tip) _tip.style.display = 'none';
   }
 
-  function positionAround(target, zoom, preferAbove) {
+  function positionAround(target, zoom, preferAbove, tipW) {
     var PAD = zoom ? 6 : 10;
-    var TIP_W = 300;
+    var TIP_W = tipW || 300;
     var TIP_H = 300;
     var rect = target.getBoundingClientRect();
 
@@ -227,18 +228,21 @@
     document.getElementById('cr-tour-body').innerHTML = step.body;
     document.getElementById('cr-tour-next').textContent = step.nextLabel;
 
+    var tipW = step.tipWidth || 300;
+    _tip.style.width = tipW + 'px';
+
     var above = !!step.preferAbove;
     var alreadyVisible = _spotlight && _spotlight.style.display === 'block';
 
     if (_resizeHandler) window.removeEventListener('resize', _resizeHandler);
-    _resizeHandler = function () { positionAround(target, zoom, above); };
+    _resizeHandler = function () { positionAround(target, zoom, above, tipW); };
     window.addEventListener('resize', _resizeHandler, { passive: true });
 
     function placeAndReveal() {
       // Instant scroll so getBoundingClientRect is accurate on the very next frame
       target.scrollIntoView({ block: 'center' });
       requestAnimationFrame(function () {
-        positionAround(target, zoom, above);
+        positionAround(target, zoom, above, tipW);
         requestAnimationFrame(function () {
           _spotlight.style.opacity = '1';
           _tip.style.opacity = '1';

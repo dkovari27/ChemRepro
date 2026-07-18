@@ -66,8 +66,12 @@
 
     <!-- ND score column -->
     <div class="shrink-0 text-center w-20 group/score relative cursor-default" onclick="return false;">
-      {% if entry.nd_rating_count > 0 and entry.nd_avg_star %}
+      {% if entry.nd_rating_count > 0 %}
+      {% if entry.nd_avg_star %}
       <p class="text-xl font-bold text-[#111c17] leading-none">★ {{ entry.nd_avg_star }}</p>
+      {% else %}
+      <p class="text-xl font-bold text-slate-400 leading-none">–</p>
+      {% endif %}
       <p class="text-[10px] text-slate-400 mt-0.5 font-medium uppercase tracking-widest">{{ entry.nd_rating_count }}
         rating{{ 's' if entry.nd_rating_count != 1 }}</p>
 
@@ -82,9 +86,10 @@
           {% set txt_cls = nd_star_colors[star][1] %}
           <div>
             <div class="flex justify-between text-xs mb-0.5">
-              <span class="{{ txt_cls }} font-medium leading-tight">
-                <span class="font-bold">{{ star }}</span>
-                <span class="mx-0.5 opacity-60">–</span>{{ nd_star_labels[star] }}
+              <span class="{{ txt_cls }} font-medium leading-tight flex items-baseline">
+                <span class="font-bold shrink-0" style="width:1.1em;text-align:center">{% if star is none %}–{% else %}{{ star }}{% endif %}</span>
+                <span class="opacity-60 shrink-0" style="width:1.25em;text-align:center">:</span>
+                <span>{{ nd_star_labels[star] }}</span>
               </span>
               <span
                 class="font-semibold shrink-0 ml-3 {% if count > 0 %}text-slate-600{% else %}text-slate-300{% endif %}">

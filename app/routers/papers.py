@@ -87,18 +87,22 @@ ND_STAR_LABELS = {
     3: "Reproduced as published",
     4: "Minor extension (no new functional group)",
     5: "Major extension (new functional group)",
+    None: "Extension failed / Inconclusive",
 }
-ND_STAR_ORDER = [5, 4, 3, 2, 1]
+ND_STAR_ORDER = [5, 4, 3, 2, 1, None]
 ND_STAR_COLORS = {
     5: ("bg-blue-500",   "text-blue-700"),
     4: ("bg-teal-500",   "text-teal-700"),
     3: ("bg-green-500",  "text-green-700"),
     2: ("bg-orange-400", "text-orange-700"),
     1: ("bg-red-500",    "text-red-700"),
+    None: ("bg-slate-300", "text-slate-500"),
 }
 ND_FAILURE_CONTEXT_LABELS = {
-    "original_tested": "Tested original",
-    "extension_only":  "Extension only",
+    "extension_failed": "Extension failed",
+    "inconclusive":     "Inconclusive",
+    "original_tested":  "Tested original",  # legacy
+    "extension_only":   "Extension only",   # legacy
 }
 
 _SCORE_EXPR = case(
@@ -112,21 +116,19 @@ _SCORE_EXPR = case(
 
 
 def _get_nd_paper_scores(doi: str, db: Session) -> dict:
-    nd_filter = [Rating.doi == doi, Rating.scoring_mode ==
-                 "new_design", Rating.nd_star.isnot(None), Rating.ai_flagged == False]  # noqa: E712
-    row = db.query(
-        func.avg(Rating.nd_star).label("avg_star"),
-        func.count(Rating.id).label("count"),
-    ).filter(*nd_filter).one()
+    base_filter = [Rating.doi == doi, Rating.scoring_mode == "new_design", Rating.ai_flagged == False]  # noqa: E712
+    scored_filter = base_filter + [Rating.nd_star.isnot(None)]
+    row = db.query(func.avg(Rating.nd_star).label("avg_star")).filter(*scored_filter).one()
+    total_count = db.query(func.count(Rating.id)).filter(*base_filter).scalar()
     dist_rows = (
         db.query(Rating.nd_star, func.count(Rating.id))
-        .filter(*nd_filter)
+        .filter(*base_filter)
         .group_by(Rating.nd_star)
         .all()
     )
     return {
         "nd_avg_star": round(float(row.avg_star), 1) if row.avg_star else None,
-        "nd_rating_count": row.count,
+        "nd_rating_count": total_count,
         "nd_star_dist": {star: cnt for star, cnt in dist_rows},
     }
 
@@ -1688,7 +1690,9 @@ async def nd_paper_page(doi: str, request: Request, db: Session = Depends(get_db
     q = db.query(Rating).filter(
         Rating.doi == doi, Rating.scoring_mode == "new_design", Rating.ai_flagged == False  # noqa: E712
     )
-    if active_star:
+    if active_star == "null":
+        q = q.filter(Rating.nd_star.is_(None))
+    elif active_star:
         try:
             q = q.filter(Rating.nd_star == int(active_star))
         except ValueError:
@@ -2050,16 +2054,27 @@ async def nd_submit_rating(
         raise HTTPException(
             status_code=422, detail="Content contains prohibited language.")
 
-    star_int = int(nd_star) if nd_star else None
-    if star_int is None or not (1 <= star_int <= 5):
-        raise HTTPException(
-            status_code=422, detail="Star rating 1–5 is required")
+    if nd_star == "null":
+        star_int = None
+    elif nd_star:
+        try:
+            star_int = int(nd_star)
+        except ValueError:
+            star_int = None
+    else:
+        star_int = None
+
+    if nd_star == "":
+        raise HTTPException(status_code=422, detail="Rating selection is required")
+    if star_int is not None and not (1 <= star_int <= 5):
+        raise HTTPException(status_code=422, detail="Invalid star rating")
 
     ctx = nd_failure_context.strip() or None
-    if star_int == 1 and ctx not in ("original_tested", "extension_only"):
-        raise HTTPException(
-            status_code=422, detail="Failure context is required for a 1-star review")
-    if star_int != 1:
+    if star_int is None:
+        if ctx not in ("extension_failed", "inconclusive"):
+            raise HTTPException(
+                status_code=422, detail="Context is required for a null rating")
+    else:
         ctx = None
 
     existing = db.query(Rating).filter(
@@ -2153,16 +2168,27 @@ async def nd_edit_rating_submit(
         raise HTTPException(status_code=403)
     r = _editable_rating_or_404(rating_id, orcid_id, db)
 
-    star_int = int(nd_star) if nd_star else None
-    if star_int is None or not (1 <= star_int <= 5):
-        raise HTTPException(
-            status_code=422, detail="Star rating 1–5 is required")
+    if nd_star == "null":
+        star_int = None
+    elif nd_star:
+        try:
+            star_int = int(nd_star)
+        except ValueError:
+            star_int = None
+    else:
+        star_int = None
+
+    if nd_star == "":
+        raise HTTPException(status_code=422, detail="Rating selection is required")
+    if star_int is not None and not (1 <= star_int <= 5):
+        raise HTTPException(status_code=422, detail="Invalid star rating")
 
     ctx = nd_failure_context.strip() or None
-    if star_int == 1 and ctx not in ("original_tested", "extension_only"):
-        raise HTTPException(
-            status_code=422, detail="Failure context is required for a 1-star review")
-    if star_int != 1:
+    if star_int is None:
+        if ctx not in ("extension_failed", "inconclusive"):
+            raise HTTPException(
+                status_code=422, detail="Context is required for a null rating")
+    else:
         ctx = None
 
     was_flagged = r.ai_flagged

@@ -14,7 +14,7 @@ from app.models.paper_subscription import PaperSubscription
 from app.models.rating import Rating, OUTCOME_LABELS
 from app.models.user import User, CAREER_STAGES
 from app.models.user_follow import UserFollow
-from app.routers.papers import OUTCOME_SCORES, ND_STAR_LABELS, ND_STAR_COLORS
+from app.routers.papers import OUTCOME_SCORES, ND_STAR_LABELS, ND_STAR_COLORS, ND_FAILURE_CONTEXT_LABELS
 
 router = APIRouter(tags=["profile"])
 templates = Jinja2Templates(directory="app/templates")
@@ -66,6 +66,7 @@ async def my_reviews(request: Request, db: Session = Depends(get_db)):
         "outcome_scores": OUTCOME_SCORES,
         "nd_star_labels": ND_STAR_LABELS,
         "nd_star_colors": ND_STAR_COLORS,
+        "nd_failure_context_labels": ND_FAILURE_CONTEXT_LABELS,
         "user_name": request.session.get("user_name"),
         "orcid_id": orcid_id,
         "site_version": "standard",

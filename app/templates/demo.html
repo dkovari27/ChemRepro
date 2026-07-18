@@ -51,7 +51,7 @@
 </div>
 
 <!-- Two-column layout -->
-<div class="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-6">
+<div class="grid grid-cols-1 lg:grid-cols-[2.25fr_2.75fr] gap-6">
 
   <!-- ═══ LEFT COLUMN ═══ -->
   <div>
@@ -67,7 +67,7 @@
         <!-- 5 – {{ nd_star_labels[5] }} -->
         <div class="cursor-pointer rounded-md px-1 py-0.5 -mx-1 hover:bg-slate-50 transition-colors" title="Show only: {{ nd_star_labels[5] }}">
           <div class="flex justify-between text-xs mb-0.5">
-            <span class="text-blue-700 font-medium opacity-40"><span class="font-bold">5</span> <span class="mx-0.5 opacity-60">&ndash;</span>{{ nd_star_labels[5] }}</span>
+            <span class="text-blue-700 font-medium opacity-40 flex items-baseline"><span class="font-bold shrink-0" style="width:1.1em;text-align:center">5</span><span class="opacity-60 shrink-0" style="width:1.25em;text-align:center">:</span><span>{{ nd_star_labels[5] }}</span></span>
             <span class="text-slate-300">&ndash;</span>
           </div>
           <div class="h-1.5 w-full bg-slate-100 rounded-full"></div>
@@ -75,7 +75,7 @@
         <!-- 4 – {{ nd_star_labels[4] }} -->
         <div class="cursor-pointer rounded-md px-1 py-0.5 -mx-1 hover:bg-slate-50 transition-colors" title="Show only: {{ nd_star_labels[4] }}">
           <div class="flex justify-between text-xs mb-0.5">
-            <span class="text-teal-700 font-medium"><span class="font-bold">4</span> <span class="mx-0.5 opacity-60">&ndash;</span>{{ nd_star_labels[4] }}</span>
+            <span class="text-teal-700 font-medium flex items-baseline"><span class="font-bold shrink-0" style="width:1.1em;text-align:center">4</span><span class="opacity-60 shrink-0" style="width:1.25em;text-align:center">:</span><span>{{ nd_star_labels[4] }}</span></span>
             <span class="font-semibold text-slate-600">&times;1</span>
           </div>
           <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden"><div class="bg-teal-500 h-full rounded-full" style="width:50%"></div></div>
@@ -83,7 +83,7 @@
         <!-- 3 – Reproduced as published -->
         <div class="cursor-pointer rounded-md px-1 py-0.5 -mx-1 hover:bg-slate-50 transition-colors" title="Show only: Reproduced as published">
           <div class="flex justify-between text-xs mb-0.5">
-            <span class="text-green-700 font-medium"><span class="font-bold">3</span> <span class="mx-0.5 opacity-60">&ndash;</span>Reproduced as published</span>
+            <span class="text-green-700 font-medium flex items-baseline"><span class="font-bold shrink-0" style="width:1.1em;text-align:center">3</span><span class="opacity-60 shrink-0" style="width:1.25em;text-align:center">:</span><span>Reproduced as published</span></span>
             <span class="font-semibold text-slate-600">&times;1</span>
           </div>
           <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden"><div class="bg-green-500 h-full rounded-full" style="width:50%"></div></div>
@@ -91,7 +91,7 @@
         <!-- 2 – Reproduced with deviation -->
         <div class="cursor-pointer rounded-md px-1 py-0.5 -mx-1 hover:bg-slate-50 transition-colors" title="Show only: Reproduced with deviation">
           <div class="flex justify-between text-xs mb-0.5">
-            <span class="text-orange-700 font-medium opacity-40"><span class="font-bold">2</span> <span class="mx-0.5 opacity-60">&ndash;</span>Reproduced with deviation</span>
+            <span class="text-orange-700 font-medium opacity-40 flex items-baseline"><span class="font-bold shrink-0" style="width:1.1em;text-align:center">2</span><span class="opacity-60 shrink-0" style="width:1.25em;text-align:center">:</span><span>Reproduced with deviation</span></span>
             <span class="text-slate-300">&ndash;</span>
           </div>
           <div class="h-1.5 w-full bg-slate-100 rounded-full"></div>
@@ -99,7 +99,15 @@
         <!-- 1 – Did not work -->
         <div class="cursor-pointer rounded-md px-1 py-0.5 -mx-1 hover:bg-slate-50 transition-colors" title="Show only: Did not work">
           <div class="flex justify-between text-xs mb-0.5">
-            <span class="text-red-700 font-medium opacity-40"><span class="font-bold">1</span> <span class="mx-0.5 opacity-60">&ndash;</span>Did not work</span>
+            <span class="text-red-700 font-medium opacity-40 flex items-baseline"><span class="font-bold shrink-0" style="width:1.1em;text-align:center">1</span><span class="opacity-60 shrink-0" style="width:1.25em;text-align:center">:</span><span>Did not work</span></span>
+            <span class="text-slate-300">&ndash;</span>
+          </div>
+          <div class="h-1.5 w-full bg-slate-100 rounded-full"></div>
+        </div>
+        <!-- ND – Extension failed / Inconclusive -->
+        <div class="cursor-pointer rounded-md px-1 py-0.5 -mx-1 hover:bg-slate-50 transition-colors" title="Show only: {{ nd_star_labels[none] }}">
+          <div class="flex justify-between text-xs mb-0.5">
+            <span class="text-slate-500 font-medium opacity-40 flex items-baseline"><span class="font-bold shrink-0" style="width:1.1em;text-align:center">–</span><span class="opacity-60 shrink-0" style="width:1.25em;text-align:center">:</span><span>{{ nd_star_labels[none] }}</span></span>
             <span class="text-slate-300">&ndash;</span>
           </div>
           <div class="h-1.5 w-full bg-slate-100 rounded-full"></div>
@@ -118,39 +126,43 @@
           <label class="block text-xs font-medium text-slate-600 mb-2">What was the outcome? <span class="text-red-500">*</span></label>
           <div class="flex flex-col gap-2">
             <label class="flex items-center gap-2 cursor-pointer">
-              <input type="radio" name="nd_star" value="5" class="accent-brand w-4 h-4" onchange="onStarChange(5)"/>
-              <span class="text-sm text-slate-800"><span class="font-bold text-blue-700">5</span><span class="text-slate-400 mx-0.5">&ndash;</span>{{ nd_star_labels[5] }}</span>
+              <input type="radio" name="nd_star" value="5" class="accent-brand w-4 h-4" onchange="onStarChange('5')"/>
+              <span class="text-sm text-slate-800 flex items-baseline"><span class="font-bold text-blue-700 shrink-0" style="width:1.1em;text-align:center">5</span><span class="text-slate-400 shrink-0" style="width:1.25em;text-align:center">:</span><span>{{ nd_star_labels[5] }}</span></span>
             </label>
             <label class="flex items-center gap-2 cursor-pointer">
-              <input type="radio" name="nd_star" value="4" class="accent-brand w-4 h-4" onchange="onStarChange(4)"/>
-              <span class="text-sm text-slate-800"><span class="font-bold text-teal-700">4</span><span class="text-slate-400 mx-0.5">&ndash;</span>{{ nd_star_labels[4] }}</span>
+              <input type="radio" name="nd_star" value="4" class="accent-brand w-4 h-4" onchange="onStarChange('4')"/>
+              <span class="text-sm text-slate-800 flex items-baseline"><span class="font-bold text-teal-700 shrink-0" style="width:1.1em;text-align:center">4</span><span class="text-slate-400 shrink-0" style="width:1.25em;text-align:center">:</span><span>{{ nd_star_labels[4] }}</span></span>
             </label>
             <label class="flex items-center gap-2 cursor-pointer">
-              <input type="radio" name="nd_star" value="3" class="accent-brand w-4 h-4" onchange="onStarChange(3)"/>
-              <span class="text-sm text-slate-800"><span class="font-bold text-green-700">3</span><span class="text-slate-400 mx-0.5">&ndash;</span>Reproduced as published</span>
+              <input type="radio" name="nd_star" value="3" class="accent-brand w-4 h-4" onchange="onStarChange('3')"/>
+              <span class="text-sm text-slate-800 flex items-baseline"><span class="font-bold text-green-700 shrink-0" style="width:1.1em;text-align:center">3</span><span class="text-slate-400 shrink-0" style="width:1.25em;text-align:center">:</span><span>Reproduced as published</span></span>
             </label>
             <label class="flex items-center gap-2 cursor-pointer">
-              <input type="radio" name="nd_star" value="2" class="accent-brand w-4 h-4" onchange="onStarChange(2)"/>
-              <span class="text-sm text-slate-800"><span class="font-bold text-orange-700">2</span><span class="text-slate-400 mx-0.5">&ndash;</span>Reproduced with deviation</span>
+              <input type="radio" name="nd_star" value="2" class="accent-brand w-4 h-4" onchange="onStarChange('2')"/>
+              <span class="text-sm text-slate-800 flex items-baseline"><span class="font-bold text-orange-700 shrink-0" style="width:1.1em;text-align:center">2</span><span class="text-slate-400 shrink-0" style="width:1.25em;text-align:center">:</span><span>Reproduced with deviation</span></span>
             </label>
             <label class="flex items-center gap-2 cursor-pointer">
-              <input type="radio" name="nd_star" value="1" class="accent-brand w-4 h-4" onchange="onStarChange(1)"/>
-              <span class="text-sm text-slate-800"><span class="font-bold text-red-700">1</span><span class="text-slate-400 mx-0.5">&ndash;</span>Did not work</span>
+              <input type="radio" name="nd_star" value="1" class="accent-brand w-4 h-4" onchange="onStarChange('1')"/>
+              <span class="text-sm text-slate-800 flex items-baseline"><span class="font-bold text-red-700 shrink-0" style="width:1.1em;text-align:center">1</span><span class="text-slate-400 shrink-0" style="width:1.25em;text-align:center">:</span><span>Did not work</span></span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="nd_star" value="null" class="accent-brand w-4 h-4" data-star="null" onchange="onStarChange('null')"/>
+              <span class="text-sm text-slate-800 flex items-baseline"><span class="font-bold shrink-0" style="width:1.1em;text-align:center">–</span><span class="text-slate-400 shrink-0" style="width:1.25em;text-align:center">:</span><span>{{ nd_star_labels[none] }}</span></span>
             </label>
           </div>
         </div>
 
-        <!-- Failure context (star=1 only) -->
-        <div id="failure-context-section" class="hidden border-t border-slate-100 pt-4 mb-4">
-          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">What did you test?</p>
+        <!-- Null context (ND only) -->
+        <div id="null-context-section" class="hidden border-t border-slate-100 pt-4 mb-4">
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">What was your observation?</p>
           <div class="flex flex-col gap-2">
             <label class="flex items-center gap-2 cursor-pointer">
-              <input type="radio" name="nd_failure_context" value="original_tested" class="accent-brand w-4 h-4" onchange="checkDemoReady()"/>
-              <span class="text-sm text-slate-800">Tested original procedure</span>
+              <input type="radio" name="nd_failure_context" value="extension_failed" class="accent-brand w-4 h-4" onchange="checkDemoReady()"/>
+              <span class="text-sm text-slate-800">Extension failed</span>
             </label>
             <label class="flex items-center gap-2 cursor-pointer">
-              <input type="radio" name="nd_failure_context" value="extension_only" class="accent-brand w-4 h-4" onchange="checkDemoReady()"/>
-              <span class="text-sm text-slate-800">Extension only &ndash; did not test the original</span>
+              <input type="radio" name="nd_failure_context" value="inconclusive" class="accent-brand w-4 h-4" onchange="checkDemoReady()"/>
+              <span class="text-sm text-slate-800">Inconclusive results</span>
             </label>
           </div>
         </div>
@@ -226,7 +238,7 @@
         </div>
 
         <div class="flex gap-2 flex-wrap mb-3">
-          <span class="text-xs font-semibold text-green-700 bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1">3 &ndash; Reproduced as published</span>
+          <span class="text-xs font-semibold text-green-700 bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1">3 : Reproduced as published</span>
         </div>
         <div class="h-1 w-full bg-green-500 rounded-full mb-3 opacity-60"></div>
 
@@ -430,7 +442,7 @@
         </div>
 
         <div class="flex gap-2 flex-wrap mb-3">
-          <span class="text-xs font-semibold text-teal-700 bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1">4 &ndash; {{ nd_star_labels[4] }}</span>
+          <span class="text-xs font-semibold text-teal-700 bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1">4 : {{ nd_star_labels[4] }}</span>
         </div>
         <div class="h-1 w-full bg-teal-500 rounded-full mb-3 opacity-60"></div>
 
@@ -608,14 +620,14 @@
   /* ── rating form ─────────────────────────────────────────────────────── */
 
   var ND_STAR_META = {
-    {% for star in nd_star_order %}{{ star }}: { label: {{ nd_star_labels[star] | tojson }}, txtCls: {{ nd_star_colors[star][1] | tojson }}, barCls: {{ nd_star_colors[star][0] | tojson }} }{% if not loop.last %},{% endif %}
+    {% for star in nd_star_order %}"{{ 'null' if star is none else star }}": { label: {{ nd_star_labels[star] | tojson }}, txtCls: {{ nd_star_colors[star][1] | tojson }}, barCls: {{ nd_star_colors[star][0] | tojson }} }{% if not loop.last %},{% endif %}
     {% endfor %}
   };
 
   window.onStarChange = function(star) {
-    var fctx = document.getElementById('failure-context-section');
-    fctx.classList.toggle('hidden', star !== 1);
-    if (star !== 1) {
+    var nctx = document.getElementById('null-context-section');
+    nctx.classList.toggle('hidden', star !== 'null');
+    if (star !== 'null') {
       document.querySelectorAll('input[name="nd_failure_context"]').forEach(function(r) { r.checked = false; });
     }
     document.getElementById('nd-obs-section').classList.remove('hidden');
@@ -625,8 +637,8 @@
   window.checkDemoReady = function() {
     var starEl = document.querySelector('input[name="nd_star"]:checked');
     if (!starEl) { document.getElementById('submit-btn').disabled = true; return; }
-    var star = parseInt(starEl.value, 10);
-    var ctxOk = star !== 1 || !!document.querySelector('input[name="nd_failure_context"]:checked');
+    var star = starEl.value;
+    var ctxOk = star !== 'null' || !!document.querySelector('input[name="nd_failure_context"]:checked');
     var coiOk = document.getElementById('coi-checkbox').checked;
     document.getElementById('submit-btn').disabled = !(ctxOk && coiOk);
   };
@@ -637,7 +649,7 @@
     if (demoSubmitted) return;
     var starEl = document.querySelector('input[name="nd_star"]:checked');
     if (!starEl) return;
-    var star = parseInt(starEl.value, 10);
+    var star = starEl.value;
     var meta = ND_STAR_META[star];
     var obsText = (document.getElementById('nd-obs-ta') || {}).value || '';
     demoSubmitted = true;
@@ -655,7 +667,7 @@
         '<div></div><div class="text-right text-slate-400">' + todayStr() + '</div>' +
       '</div>' +
       '<div class="flex gap-2 flex-wrap mb-3">' +
-        '<span class="text-xs font-semibold ' + meta.txtCls + ' bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1">' + star + ' &ndash; ' + meta.label + '</span>' +
+        '<span class="text-xs font-semibold ' + meta.txtCls + ' bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1">' + (star === 'null' ? '&#8211;' : star) + ' : ' + meta.label + '</span>' +
         '<span class="text-xs bg-amber-100 text-amber-700 rounded-full px-2.5 py-1">Demo — not saved</span>' +
       '</div>' +
       '<div class="h-1 w-full ' + meta.barCls + ' rounded-full mb-3 opacity-60"></div>' +
