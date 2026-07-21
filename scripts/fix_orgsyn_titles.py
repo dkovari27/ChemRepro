@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Fix OrgSyn reviews: replace bare procedure DOI (or previously-quoted title) in observation
-text with "[[DOI]]" format, and upsert paper records with sentence-case titles.
+"""Fix OrgSyn reviews: set "[[DOI]]" format in observations and upsert sentence-case paper titles.
 
-This preserves the clickable link and mini-card behavior while showing a human-readable
-sentence-case title instead of an ALL-CAPS title or a bare DOI.
+Lookup is by target paper DOI (rating.doi), not by rating ID, so it works correctly
+across both local SQLite and Railway PostgreSQL regardless of auto-increment differences.
 
 Usage:
   python scripts/fix_orgsyn_titles.py --dry-run
@@ -32,22 +31,22 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from app.models.paper import Paper
 from app.models.rating import Rating
 
-# Explicit mapping for records that were previously fixed with quoted-title format
-# (bare DOI was already removed; we need to know which DOI belongs to which rating)
-EXPLICIT_PATCHES: dict[int, str] = {
-    55: "10.15227/orgsyn.079.0176",
-    56: "10.15227/orgsyn.078.0135",
-    57: "10.15227/orgsyn.081.0054",
-    58: "10.15227/orgsyn.081.0001",
+# Maps target paper DOI (rating.doi) -> OrgSyn procedure DOI (10.15227/orgsyn.*)
+# These are the 4 existing AI-OrgSyn reviews.
+TARGET_TO_ORGSYN: dict[str, str] = {
+    "10.1002/0471264180.os079.21":    "10.15227/orgsyn.079.0176",
+    "10.1055/s-1981-29624":           "10.15227/orgsyn.078.0135",
+    "10.1021/ol0156751":              "10.15227/orgsyn.081.0054",
+    "10.1016/s0040-4039(02)00215-0":  "10.15227/orgsyn.081.0001",
 }
 
 
 def to_sentence_case(title: str) -> str:
-    """Convert ALL CAPS (or any case) to sentence case.
+    """Sentence case with chemistry notation preserved.
 
-    Splits on ': ' to handle subtitles. Preserves single-letter chemistry notation:
-    - Letters in parentheses stay uppercase: (E), (Z), (R), (S)
-    - Single letters before hyphen or comma stay uppercase: N-benzyl, N,N-dimethyl
+    - Capitalises first letter of each colon-separated part.
+    - Single letters in parens stay uppercase: (E), (Z), (R), (S).
+    - Single letters before hyphen or comma stay uppercase: N-, O-, N,N-.
     """
     if not title:
         return title
@@ -57,29 +56,25 @@ def to_sentence_case(title: str) -> str:
         low = part.lower()
         result.append(low[0].upper() + low[1:] if low else low)
     text = ': '.join(result)
-    # Uppercase single letters in parentheses: (e) -> (E), (z) -> (Z)
     text = re.sub(r'\(([a-z])\)', lambda m: '(' + m.group(1).upper() + ')', text)
-    # Uppercase single letters before hyphen or comma (heteroatom/stereo prefixes):
-    # n-benzyl -> N-benzyl, n,n-dimethyl -> N,N-dimethyl
     text = re.sub(r'\b([a-z])(?=[,\-])', lambda m: m.group(1).upper(), text)
     return text
 
 
 def fetch_crossref_meta(doi: str) -> dict | None:
-    """Fetch full metadata for a DOI from CrossRef."""
     url = f"https://api.crossref.org/works/{doi}"
     try:
         r = httpx.get(url, headers={"User-Agent": "ChemRepro/1.0 (mailto:chemrepro@gmail.com)"}, timeout=15)
     except httpx.RequestError as e:
-        print(f"  CrossRef request failed for {doi}: {e}")
+        print(f"  CrossRef request failed: {e}")
         return None
     if r.status_code != 200:
-        print(f"  CrossRef returned HTTP {r.status_code} for {doi}")
+        print(f"  CrossRef HTTP {r.status_code}")
         return None
     data = r.json().get("message", {})
     titles = data.get("title", [])
     if not titles:
-        print(f"  No title found for {doi}")
+        print(f"  No title")
         return None
     raw_title = re.sub(r"<[^>]+>", "", titles[0]).strip()
     authors = json.dumps([
@@ -87,7 +82,6 @@ def fetch_crossref_meta(doi: str) -> dict | None:
         for a in data.get("author", []) if a.get("family")
     ])
     container = data.get("container-title", [])
-    journal = container[0] if container else None
     published = data.get("published-print") or data.get("published-online") or {}
     parts = published.get("date-parts", [[]])
     year = parts[0][0] if parts and parts[0] else None
@@ -95,54 +89,49 @@ def fetch_crossref_meta(doi: str) -> dict | None:
     abstract = re.sub(r"<[^>]+>", "", abstract_raw).strip() or None
     if abstract:
         abstract = re.sub(r"^Abstract\s*", "", abstract, flags=re.IGNORECASE).strip() or None
-    return {"doi": doi, "raw_title": raw_title, "authors": authors, "journal": journal,
-            "year": year, "abstract": abstract}
+    return {
+        "doi": doi, "raw_title": raw_title, "authors": authors,
+        "journal": container[0] if container else None, "year": year, "abstract": abstract,
+    }
 
 
+_SOURCED_QUOTED_RE = re.compile(r'(Sourced from Org\. Synth\. )"([^"]*)"')
 _ORGSYN_DOI_RE = re.compile(r"(10\.15227/orgsyn\.[^\s\"',;)\]\[]+)")
-_SOURCED_QUOTED_RE = re.compile(r'(Sourced from Org\. Synth\. )"([^"]+)"')
-_SOURCED_BRACKET_RE = re.compile(r'(Sourced from Org\. Synth\. )"\[\[10\.15227/orgsyn\.[^\]]+\]\]"')
 
 
 def fix_observation(obs: str, orgsyn_doi: str) -> str:
-    """Replace bare OrgSyn DOI or previously-quoted title with [[DOI]] format."""
-    # Case 1: observation already in correct "[[DOI]]" format — nothing to do
-    if f'"[[{orgsyn_doi}]]"' in obs:
-        return obs
-    # Case 2: bare DOI in text (e.g. original format or Railway DB state)
+    """Replace bare OrgSyn DOI or quoted plain title with [[DOI]] format."""
+    target = f'"[[{orgsyn_doi}]]"'
+    if target in obs:
+        return obs  # already correct
     if orgsyn_doi in obs:
-        return obs.replace(orgsyn_doi, f'"[[{orgsyn_doi}]]"')
-    # Case 3: previously fixed with quoted plain-text title (local DB after first run)
+        # Bare DOI: wrap and add surrounding quotes
+        return obs.replace(orgsyn_doi, target)
     m = _SOURCED_QUOTED_RE.search(obs)
     if m:
-        return obs[:m.start()] + m.group(1) + f'"[[{orgsyn_doi}]]"' + obs[m.end():]
+        # Quoted plain-text title: replace with [[DOI]]
+        return obs[:m.start()] + m.group(1) + target + obs[m.end():]
     return obs
 
 
 def upsert_paper(db, meta: dict, title_sc: str, dry_run: bool) -> None:
-    """Insert or update paper record with sentence-case title."""
     doi = meta["doi"]
     paper = db.get(Paper, doi)
     if paper is None:
-        print(f"  Paper {doi}: not in DB, inserting with sentence-case title")
+        print(f"    PAPER: inserting {doi} with sentence-case title")
         if not dry_run:
             db.add(Paper(
-                doi=doi,
-                title=title_sc,
-                authors=meta["authors"],
-                journal=meta["journal"],
-                year=meta["year"],
-                abstract=meta["abstract"],
+                doi=doi, title=title_sc, authors=meta["authors"],
+                journal=meta["journal"], year=meta["year"], abstract=meta["abstract"],
             ))
+    elif paper.title != title_sc:
+        print(f"    PAPER: updating title")
+        print(f"      FROM: {paper.title[:80]}")
+        print(f"      TO:   {title_sc[:80]}")
+        if not dry_run:
+            paper.title = title_sc
     else:
-        if paper.title != title_sc:
-            print(f"  Paper {doi}: updating title")
-            print(f"    FROM: {paper.title}")
-            print(f"    TO:   {title_sc}")
-            if not dry_run:
-                paper.title = title_sc
-        else:
-            print(f"  Paper {doi}: title already correct")
+        print(f"    PAPER: title already correct")
 
 
 def make_session(db_url: str):
@@ -163,36 +152,34 @@ def main():
     print(f"\nDB  : {db_url[:65]}{'...' if len(db_url) > 65 else ''}")
     print(f"Mode: {'DRY RUN' if dry_run else 'LIVE'}\n")
 
-    # Collect all rating → orgsyn_doi pairs to fix
-    # Source A: explicit patches for records whose bare DOI was already removed
-    patches: dict[int, str] = dict(EXPLICIT_PATCHES)
+    # Find AI-OrgSyn ratings whose target DOI we know
+    found: list[tuple[Rating, str]] = []  # (rating, orgsyn_doi)
+    for target_doi, orgsyn_doi in TARGET_TO_ORGSYN.items():
+        rating = db.query(Rating).filter(
+            Rating.doi == target_doi,
+            Rating.orcid_id == "AI-OrgSyn",
+        ).first()
+        if rating:
+            found.append((rating, orgsyn_doi))
+        else:
+            print(f"  WARNING: no AI-OrgSyn rating found for target {target_doi}")
 
-    # Source B: any ratings still containing a bare OrgSyn DOI
-    bare_ratings = db.query(Rating).filter(
-        Rating.reproducibility_observation.like("%10.15227/orgsyn%")
-    ).all()
-    for r in bare_ratings:
-        for m in _ORGSYN_DOI_RE.finditer(r.reproducibility_observation or ""):
-            doi = m.group(1).rstrip(".,;)")
-            if r.id not in patches:
-                patches[r.id] = doi
-
-    if not patches:
+    if not found:
         print("Nothing to fix.")
         return
 
-    all_dois = set(patches.values())
-    print(f"Ratings to fix: {sorted(patches.keys())}")
-    print(f"OrgSyn DOIs:    {sorted(all_dois)}\n")
+    print(f"Found {len(found)} AI-OrgSyn rating(s) to process.\n")
 
-    # Fetch metadata for all unique OrgSyn DOIs
+    # Fetch CrossRef metadata for all unique OrgSyn DOIs
+    all_orgsyn_dois = {orgsyn_doi for _, orgsyn_doi in found}
     doi_to_meta: dict[str, dict] = {}
     doi_to_sc: dict[str, str] = {}
-    for doi in sorted(all_dois):
+
+    for doi in sorted(all_orgsyn_dois):
         print(f"CrossRef: {doi}")
         meta = fetch_crossref_meta(doi)
         if not meta:
-            print(f"  FAILED — skipping\n")
+            print(f"  FAILED\n")
             continue
         sc = to_sentence_case(meta["raw_title"])
         print(f"  Raw:        {meta['raw_title']}")
@@ -200,43 +187,33 @@ def main():
         doi_to_meta[doi] = meta
         doi_to_sc[doi] = sc
 
-    if not doi_to_meta:
-        print("No metadata resolved. Aborting.")
-        return
-
     print("=" * 60)
-    updated_ratings = 0
-    for rating_id, orgsyn_doi in sorted(patches.items()):
+    updated = 0
+    for rating, orgsyn_doi in found:
         if orgsyn_doi not in doi_to_sc:
-            print(f"  id={rating_id}: skipping (CrossRef failed for {orgsyn_doi})")
-            continue
-
-        rating = db.get(Rating, rating_id)
-        if rating is None:
-            print(f"  id={rating_id}: not found in DB")
+            print(f"\n  rating id={rating.id} ({rating.doi}): CrossRef failed, skipping")
             continue
 
         sc = doi_to_sc[orgsyn_doi]
         old = rating.reproducibility_observation or ""
         new = fix_observation(old, orgsyn_doi)
 
-        print(f"\n  id={rating_id} ({orgsyn_doi}):")
+        print(f"\n  rating id={rating.id}, target={rating.doi}")
+        print(f"  orgsyn_doi: {orgsyn_doi}")
         if new != old:
-            print(f"    OBS BEFORE: {old[:140]}")
-            print(f"    OBS AFTER:  {new[:140]}")
+            print(f"    OBS BEFORE: {old[:130]}")
+            print(f"    OBS AFTER:  {new[:130]}")
             if not dry_run:
                 rating.reproducibility_observation = new
-                updated_ratings += 1
+                updated += 1
         else:
-            print(f"    OBS: no change needed")
+            print(f"    OBS: already correct")
 
-        # Upsert paper with sentence-case title
-        meta = doi_to_meta[orgsyn_doi]
-        upsert_paper(db, meta, sc, dry_run)
+        upsert_paper(db, doi_to_meta[orgsyn_doi], sc, dry_run)
 
     if not dry_run:
         db.commit()
-        print(f"\nCommitted: {updated_ratings} observation(s) updated + paper records upserted.")
+        print(f"\nDone: {updated} observation(s) updated.")
     else:
         print(f"\n(dry run: no changes written)")
 
