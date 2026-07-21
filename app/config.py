@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
     DATABASE_URL: str = "sqlite:///./chemrepro.db"
+    PUBLIC_DATABASE_URL: str = ""
     SECRET_KEY: str = "dev-secret-change-in-production"
 
     ORCID_CLIENT_ID: str = ""
