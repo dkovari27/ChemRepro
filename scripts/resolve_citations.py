@@ -126,7 +126,7 @@ def _make_db(db_url: str):
 def _crossref_search(mention: str, authors: str, year: int | None, topic: str) -> list[dict]:
     params: dict = {
         "rows": 5,
-        "select": "DOI,title,author,published-print,published-online,container-title",
+        "select": "DOI,title,author,published-print,published-online,container-title,page",
     }
     # Always pass the raw mention as the bibliographic query — CrossRef handles both
     # "Smith et al. 2019" and "Green Chem. 2022, 24, 4628" style citations well this way.
@@ -165,6 +165,7 @@ def _crossref_search(mention: str, authors: str, year: int | None, topic: str) -
             "authors": author_str,
             "year": pub_year,
             "journal": journal,
+            "page": item.get("page", ""),
         })
     return results
 
@@ -172,9 +173,10 @@ def _crossref_search(mention: str, authors: str, year: int | None, topic: str) -
 def _format_candidates(candidates: list[dict]) -> str:
     lines = []
     for i, c in enumerate(candidates, 1):
+        page_part = f" | Pages: {c['page']}" if c.get("page") else ""
         lines.append(
             f"{i}. DOI: {c['doi']} | Title: {c['title'][:90]} | "
-            f"Authors: {c['authors']} | Year: {c['year']} | Journal: {c['journal']}"
+            f"Authors: {c['authors']} | Year: {c['year']} | Journal: {c['journal']}{page_part}"
         )
     return "\n".join(lines) if lines else "(no candidates found)"
 
@@ -206,7 +208,7 @@ def _flag_for_admin(rating, mention: str, candidate_doi: str, confidence: float)
         body_html = f"""
 <div style="font-family:sans-serif;max-width:620px;margin:0 auto;color:#1e293b">
   <h2 style="color:#1e40af;margin-bottom:4px">Citation review needed</h2>
-  <p style="color:#64748b;margin-top:0">Confidence {confidence:.0%} — below auto-resolve threshold (80%)</p>
+  <p style="color:#64748b;margin-top:0">{"Sonnet confidence " + f"{confidence:.0%}" + " — below auto-resolve threshold (80%)" if confidence > 0 else "Sonnet could not confirm a match — top CrossRef result shown for manual review"}</p>
   <table style="width:100%;border-collapse:collapse;margin:16px 0;background:#f8fafc;
                 border:1px solid #e2e8f0;border-radius:8px;font-size:14px">
     <tr><td style="padding:8px 14px;color:#64748b;font-weight:600;width:150px">Rating ID</td>
@@ -375,8 +377,11 @@ def resolve_ratings(
             if not doi or confidence < 0.80:
                 print(f"      '{mention}': low confidence ({confidence:.2f}), leaving unresolved")
                 unresolved += 1
-                if doi and confidence > 0.0 and not dry_run:
-                    _flag_for_admin(rating, mention, doi, confidence)
+                # Flag for admin: use Sonnet's pick if it had any confidence,
+                # otherwise fall back to the top CrossRef candidate so admin can decide.
+                flag_doi = doi if (doi and confidence > 0.0) else (candidates[0]["doi"] if candidates else None)
+                if flag_doi and not dry_run:
+                    _flag_for_admin(rating, mention, flag_doi, confidence)
                 continue
 
             print(f"      '{mention}' -> \"[[{doi}]]\" (confidence={confidence:.2f})")
