@@ -161,27 +161,30 @@ def render_md_refs(text: str, papers_by_doi: dict) -> str:
             if paper:
                 cards.append(_paper_mini_card(paper))
 
+    def _clean_label(s: str) -> str:
+        return " ".join(s.split())
+
     def _replace_bracket(m: re.Match) -> str:
         doi = _parse_doi_from_raw(m.group(1))
         if not doi:
             return m.group(0)
         paper = papers_by_doi.get(doi)
         _maybe_add_card(doi)
-        label = (paper.title if paper else None) or doi
+        label = _clean_label((paper.title if paper else None) or doi)
         return f"[{label}](/paper/{doi})"
 
     def _replace_chemrepro(m: re.Match) -> str:
         doi = m.group(1).rstrip("/")
         paper = papers_by_doi.get(doi)
         _maybe_add_card(doi)
-        label = (paper.title if paper else None) or m.group(0)
+        label = _clean_label((paper.title if paper else None) or m.group(0))
         return f"[{label}](/paper/{doi})"
 
     def _replace_doi_org(m: re.Match) -> str:
         doi = m.group(1).rstrip("/")
         paper = papers_by_doi.get(doi)
         _maybe_add_card(doi)
-        label = (paper.title if paper else None) or m.group(0)
+        label = _clean_label((paper.title if paper else None) or m.group(0))
         return f"[{label}](/paper/{doi})"
 
     def _wrap_bare_doi(m: re.Match) -> str:

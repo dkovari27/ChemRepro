@@ -135,7 +135,9 @@ async def fetch_paper_metadata(doi: str) -> dict | None:
     title_parts = data.get("title", [])
     title_raw = title_parts[0] if title_parts else "Unknown title"
     # Strip JATS/HTML tags from title (CrossRef embeds <sub>, <sup> etc.)
-    title = re.sub(r"<[^>]+>", "", title_raw).strip()
+    title = re.sub(r"<[^>]+>", "", title_raw)
+    # Normalize whitespace: CrossRef JATS XML leaves \n around stripped tags
+    title = " ".join(title.split()).strip()
     # Remove "Electronic supplementary information" suffix (RSC papers concatenate ESI text)
     title = re.sub(
         r"\s*Electronic supplementary information.*$", "", title, flags=re.IGNORECASE
