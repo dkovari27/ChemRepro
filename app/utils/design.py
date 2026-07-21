@@ -67,6 +67,9 @@ _CHEMREPRO_URL_RE = re.compile(
 _DOI_ORG_URL_RE = re.compile(
     r"https?://doi\.org/(10\.[^\s\)\]\"'<>#]+)"
 )
+# Matches bare DOIs in plain text (e.g. "10.15227/orgsyn.079.0176") but
+# NOT DOIs already inside [[...]], doi.org URLs, or /paper/ paths.
+_BARE_DOI_RE = re.compile(r"(?<!\[)(?<![/(])\b(10\.\d{4,}/[^\s\"'<>#\[\]]+)")
 
 
 def _parse_doi_from_raw(raw: str) -> str | None:
@@ -83,7 +86,7 @@ def _parse_doi_from_raw(raw: str) -> str | None:
 
 
 def collect_doi_refs(texts: list[str]) -> set[str]:
-    """Scan a list of text strings and return all DOIs referenced via [[...]], doi.org, or ChemRepro URLs."""
+    """Scan a list of text strings and return all DOIs referenced via [[...]], doi.org, ChemRepro URLs, or bare DOIs."""
     dois: set[str] = set()
     for text in texts:
         if not text:
@@ -96,6 +99,10 @@ def collect_doi_refs(texts: list[str]) -> set[str]:
             dois.add(m.group(1).rstrip("/"))
         for m in _DOI_ORG_URL_RE.finditer(text):
             dois.add(m.group(1).rstrip("/"))
+        for m in _BARE_DOI_RE.finditer(text):
+            raw = m.group(1).rstrip(".,;)\"'<>]")
+            if raw.startswith("10."):
+                dois.add(raw)
     return dois
 
 
@@ -177,7 +184,13 @@ def render_md_refs(text: str, papers_by_doi: dict) -> str:
         label = (paper.title if paper else None) or m.group(0)
         return f"[{label}](/paper/{doi})"
 
-    processed = _DOI_BRACKET_RE.sub(_replace_bracket, text)
+    def _wrap_bare_doi(m: re.Match) -> str:
+        raw = m.group(1).rstrip(".,;)\"'<>]")
+        trailing = m.group(1)[len(raw):]
+        return f"[[{raw}]]{trailing}"
+
+    normalized = _BARE_DOI_RE.sub(_wrap_bare_doi, text)
+    processed = _DOI_BRACKET_RE.sub(_replace_bracket, normalized)
     processed = _CHEMREPRO_URL_RE.sub(_replace_chemrepro, processed)
     processed = _DOI_ORG_URL_RE.sub(_replace_doi_org, processed)
 
