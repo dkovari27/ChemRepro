@@ -3,6 +3,28 @@ _Last updated: 16 July 2026_
 
 ---
 
+## HOW TO IMPORT AI REVIEWS TO PRODUCTION (OrgSyn / Scraper batches)
+
+1. Prepare a JSON batch file with the scraper agent (e.g. `scripts/orgsyn_reviews_batch2.json`)
+2. Open a terminal in the `chemrepro/` directory
+3. Set the Railway database URL for this session (get the current URL from Railway > PostgreSQL > Connect):
+   ```powershell
+   $env:DATABASE_URL = "postgresql://postgres:<password>@acela.proxy.rlwy.net:17700/railway"
+   ```
+4. Dry run first:
+   ```powershell
+   python scripts/import_reviews.py scripts/orgsyn_reviews_batch2.json --ai-name OrgSyn --dry-run
+   ```
+5. Check the output: all 4 columns (Inserted / Skipped / Failed) and verify titles look correct
+6. Live import:
+   ```powershell
+   python scripts/import_reviews.py scripts/orgsyn_reviews_batch2.json --ai-name OrgSyn
+   ```
+
+Note: `DATABASE_URL` in `.env` stays as SQLite for local dev; the env var set in step 3 overrides it only for that terminal session.
+
+---
+
 ## ACTIVE — by priority
 
 ### HIGH
@@ -23,6 +45,9 @@ _Last updated: 16 July 2026_
 
 ### MEDIUM
 
+- [x] **C23** — Homepage pagination: `?page=N` on `nd_index`; 10 per page; prev/next controls + "X-Y of Z" counter in `index_nd.html`.
+- [x] **C24** — Abstract truncation on paper page: CSS `line-clamp-3` on the abstract block in `paper_nd.html`, with a JS "Show more / Show less" toggle button; only show button when rendered height exceeds the clamp threshold.
+- [x] **G9** — Citation resolver: `scripts/resolve_citations.py` (Haiku detect, CrossRef search, Sonnet pick, rewrite with [[DOI]]); runs automatically after every `import_reviews.py` batch.
 - [ ] **C22** — Tour step review: consider cutting or merging steps 2 and 3; evaluate whether pre-opening the hover tooltip during step 2 would help.
 - [ ] **B4** — Chemistry keyword/condition tags on rating form (Yield discrepancy, Purity issue, Safety concern...) — design not settled.
 - [ ] **C10** — Logo polish (current logo is placeholder).

@@ -17,6 +17,7 @@ Usage:
 Required packages: httpx sqlalchemy psycopg (for PostgreSQL only)
 """
 import argparse
+import base64
 import io
 import json
 import os
@@ -34,6 +35,7 @@ from sqlalchemy.orm import sessionmaker
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from app.models.image import UploadedImage
 from app.models.paper import Paper
 from app.models.rating import Rating
 from app.models.user import User
@@ -111,9 +113,60 @@ def fetch_crossref(doi: str) -> dict | None:
     return {"doi": doi, "title": title, "authors": authors, "journal": journal, "year": year, "abstract": abstract}
 
 
+def import_images(db, image_list: list, uploader_orcid_id: str, dry_run: bool) -> str:
+    """
+    Insert base64-encoded images into uploaded_images table.
+    Returns a string of markdown image tags to append to the observation text.
+    Each entry in image_list must have a 'uri' key (data URI or bare base64).
+    """
+    if not image_list:
+        return ""
+    tags: list[str] = []
+    for img in image_list:
+        uri = img.get("uri", "")
+        if not uri:
+            continue
+        if uri.startswith("data:"):
+            header, _, b64 = uri.partition(",")
+            mime = re.search(r"data:([^;]+)", header)
+            mime_type = mime.group(1) if mime else "image/jpeg"
+        else:
+            b64 = uri
+            mime_type = "image/jpeg"
+        try:
+            data = base64.b64decode(b64)
+        except Exception as exc:
+            print(f"         Image decode error: {exc} — skipped")
+            continue
+        if dry_run:
+            print(f"         DRY RUN: would insert image ({len(data):,} bytes, {mime_type})")
+            tags.append("![](/images/dry-run-uuid)")
+            continue
+        uploaded = UploadedImage(
+            uploader_orcid_id=uploader_orcid_id,
+            mime_type=mime_type,
+            data=data,
+        )
+        db.add(uploaded)
+        db.flush()
+        tags.append(f"![](/images/{uploaded.uuid})")
+        print(f"         Image inserted: /images/{uploaded.uuid} ({len(data):,} bytes)")
+    return "\n".join(tags)
+
+
 VALID_STARS = {1, 2, 3, 4, 5}
-VALID_CONTEXTS = {"original_tested", "extension_only"}
-STAR_LABEL = {1: "did not work", 2: "partial", 3: "reproduced", 4: "minor extension", 5: "major extension"}
+# nd_failure_context when nd_star=null (new schema: extension_failed | inconclusive)
+NULL_STAR_CONTEXTS = {"extension_failed", "inconclusive"}
+# nd_failure_context when nd_star=1 (old schema, kept for back-compat; new schema uses null)
+LEGACY_FAIL_CONTEXTS = {"original_tested", "extension_only"}
+STAR_LABEL = {
+    1: "did not work",
+    2: "partial",
+    3: "reproduced",
+    4: "minor extension",
+    5: "major extension",
+    None: "inconclusive / extension failed",
+}
 
 
 def main():
@@ -158,6 +211,7 @@ def main():
 
     print(f"Importing {len(data)} review(s)...\n")
     ok = skip = fail = 0
+    inserted_ids: list[int] = []
 
     for i, row in enumerate(data, 1):
         doi = (row.get("doi") or "").strip()
@@ -166,16 +220,29 @@ def main():
             skip += 1
             continue
 
-        nd_star = row.get("nd_star")
-        if nd_star not in VALID_STARS:
-            print(f"  [{i:>3}] {doi}: FAIL: nd_star must be 1-5, got {nd_star!r}")
+        nd_star = row.get("nd_star")  # None = null in JSON
+        if nd_star is not None and nd_star not in VALID_STARS:
+            print(f"  [{i:>3}] {doi}: FAIL: nd_star must be 1-5 or null, got {nd_star!r}")
             fail += 1
             continue
 
         ctx = row.get("nd_failure_context") or None
-        if nd_star == 1:
-            if ctx not in VALID_CONTEXTS:
-                print(f"  [{i:>3}] {doi}: FAIL: nd_failure_context must be 'original_tested' or 'extension_only' for 1-star")
+        if nd_star is None:
+            # Null star requires a context value
+            if ctx not in NULL_STAR_CONTEXTS:
+                print(
+                    f"  [{i:>3}] {doi}: FAIL: nd_failure_context must be "
+                    f"'extension_failed' or 'inconclusive' when nd_star is null, got {ctx!r}"
+                )
+                fail += 1
+                continue
+        elif nd_star == 1:
+            # Legacy 1-star import: accept old schema values or null (new schema)
+            if ctx is not None and ctx not in LEGACY_FAIL_CONTEXTS:
+                print(
+                    f"  [{i:>3}] {doi}: FAIL: nd_failure_context for 1-star must be "
+                    f"'original_tested', 'extension_only', or null, got {ctx!r}"
+                )
                 fail += 1
                 continue
         else:
@@ -183,6 +250,7 @@ def main():
 
         career = args.career_stage or row.get("career_stage_snapshot") or default_career
         observation = ((row.get("reproducibility_observation") or "").strip()) or None
+        image_list = row.get("images") or []
 
         paper = db.get(Paper, doi)
         if paper is None:
@@ -210,7 +278,14 @@ def main():
             skip += 1
             continue
 
-        print(f"         star={nd_star} ({STAR_LABEL.get(nd_star, '?')}){f', ctx={ctx}' if ctx else ''}")
+        star_disp = "null" if nd_star is None else str(nd_star)
+        print(f"         star={star_disp} ({STAR_LABEL.get(nd_star, '?')}){f', ctx={ctx}' if ctx else ''}")
+        if image_list:
+            print(f"         images: {len(image_list)} attached")
+
+        img_tags = import_images(db, image_list, orcid_id, args.dry_run)
+        if img_tags:
+            observation = (observation or "") + ("\n\n" if observation else "") + img_tags
 
         if not args.dry_run:
             rating = Rating(
@@ -225,6 +300,7 @@ def main():
             )
             db.add(rating)
             db.commit()
+            inserted_ids.append(rating.id)
             print(f"         INSERTED id={rating.id}")
         else:
             print(f"         would insert")
@@ -237,6 +313,14 @@ def main():
     if args.dry_run:
         print("  (dry run: no changes made)")
     print()
+
+    if inserted_ids and not args.dry_run:
+        print("Running citation resolver on newly imported reviews...")
+        try:
+            from scripts.resolve_citations import resolve_ratings
+            resolve_ratings(db_url=db_url, rating_ids=inserted_ids)
+        except Exception as exc:
+            print(f"  Citation resolver failed (non-fatal): {exc}")
 
 
 if __name__ == "__main__":

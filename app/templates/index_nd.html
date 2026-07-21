@@ -129,10 +129,56 @@
   <h2 class="text-sm font-semibold uppercase tracking-widest text-slate-400">
     {% if my_papers %}Recently rated by the community{% else %}Recently rated papers{% endif %}
   </h2>
+  {% if total_pages > 1 %}
+  <span class="text-xs text-slate-400">{{ page_start }}-{{ page_end }} of {{ total_community }}</span>
+  {% endif %}
 </div>
 <div class="space-y-2">
   {% for entry in community_papers %}{{ paper_card(entry) }}{% endfor %}
 </div>
+{% if total_pages > 1 %}
+<div class="flex items-center justify-center gap-1 mt-6 flex-wrap">
+  {# Previous button #}
+  {% if page > 1 %}
+  <a href="/?page={{ page - 1 }}"
+     class="min-w-[2.25rem] h-9 px-2 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 text-sm font-medium hover:border-brand hover:text-brand hover:bg-brand/5 transition-all">
+    &lt;
+  </a>
+  {% else %}
+  <span class="min-w-[2.25rem] h-9 px-2 flex items-center justify-center rounded-lg border border-slate-100 text-slate-300 text-sm font-medium cursor-default select-none">
+    &lt;
+  </span>
+  {% endif %}
+
+  {# Page numbers and ellipsis #}
+  {% for p in page_range %}
+    {% if p is none %}
+    <span class="min-w-[2.25rem] h-9 flex items-center justify-center text-slate-400 text-sm select-none">&#8230;</span>
+    {% elif p == page %}
+    <span class="min-w-[2.25rem] h-9 px-2 flex items-center justify-center rounded-lg bg-brand text-white text-sm font-semibold shadow-sm select-none">
+      {{ p }}
+    </span>
+    {% else %}
+    <a href="/?page={{ p }}"
+       class="min-w-[2.25rem] h-9 px-2 flex items-center justify-center rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:border-brand hover:text-brand hover:bg-brand/5 transition-all">
+      {{ p }}
+    </a>
+    {% endif %}
+  {% endfor %}
+
+  {# Next button #}
+  {% if page < total_pages %}
+  <a href="/?page={{ page + 1 }}"
+     class="min-w-[2.25rem] h-9 px-2 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 text-sm font-medium hover:border-brand hover:text-brand hover:bg-brand/5 transition-all">
+    &gt;
+  </a>
+  {% else %}
+  <span class="min-w-[2.25rem] h-9 px-2 flex items-center justify-center rounded-lg border border-slate-100 text-slate-300 text-sm font-medium cursor-default select-none">
+    &gt;
+  </span>
+  {% endif %}
+</div>
+{% endif %}
 {% elif not my_papers %}
 <div class="text-center text-slate-400 mt-16 text-sm">
   No papers rated yet. Be the first – look up a DOI above.

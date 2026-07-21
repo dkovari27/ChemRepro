@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Citation review — ChemRepro Admin{% endblock %}
+{% block content %}
+<div class="max-w-2xl mx-auto mt-10">
+
+  <div class="mb-6">
+    <p class="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-1">Admin</p>
+    <h1 class="text-xl font-bold text-slate-800">Citation review</h1>
+    <p class="text-sm text-slate-500 mt-1">
+      Rating <span class="font-mono">{{ rating.id }}</span> on paper
+      <a href="/paper/{{ rating.doi }}" class="text-brand hover:underline font-mono">{{ rating.doi }}</a>
+    </p>
+  </div>
+
+  <!-- Current observation text -->
+  <div class="bg-white border border-slate-200 rounded-xl p-5 mb-5">
+    <p class="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-2">Current review text</p>
+    <p id="obs-display" class="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{{ rating.reproducibility_observation }}</p>
+  </div>
+
+  <!-- Mention highlight -->
+  {% if mention %}
+  <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 text-sm">
+    <p class="font-semibold text-amber-800 mb-1">Unresolved mention detected</p>
+    <p class="font-mono text-amber-700 bg-amber-100 rounded px-2 py-1 inline-block">{{ mention }}</p>
+  </div>
+  {% endif %}
+
+  <!-- Resolution form -->
+  <form method="post" id="review-form"
+        class="bg-white border border-slate-200 rounded-xl p-5 space-y-4">
+    <input type="hidden" name="mention" value="{{ mention }}">
+
+    <div>
+      <label class="block text-xs font-semibold uppercase tracking-widest text-slate-400 mb-1.5">
+        Correct DOI to substitute
+      </label>
+      <input type="text" name="new_doi" id="new-doi"
+             value="{{ candidate_doi }}"
+             placeholder="10.xxxx/..."
+             class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono
+                    focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/30">
+      <p class="text-xs text-slate-400 mt-1">
+        Will be inserted as <span class="font-mono">"[[DOI]]"</span> — renders as the paper title with a link.
+      </p>
+    </div>
+
+    <!-- Live preview -->
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-1.5">Preview</p>
+      <div id="preview-box"
+           class="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap bg-slate-50
+                  border border-slate-200 rounded-lg px-4 py-3 min-h-[60px]">
+        <span class="text-slate-400 italic">Enter a DOI above to see preview</span>
+      </div>
+    </div>
+
+    <div class="flex gap-3 pt-1">
+      <button type="submit"
+              class="px-5 py-2 bg-brand text-white rounded-lg text-sm font-semibold
+                     hover:bg-brand-dark transition-colors">
+        Apply
+      </button>
+      <a href="/paper/{{ rating.doi }}"
+         class="px-5 py-2 border border-slate-200 text-slate-600 rounded-lg text-sm font-semibold
+                hover:border-slate-300 transition-colors">
+        Cancel
+      </a>
+    </div>
+  </form>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var obs = {{ rating.reproducibility_observation | tojson }};
+  var mention = {{ mention | tojson }};
+  var doiInput = document.getElementById('new-doi');
+  var preview = document.getElementById('preview-box');
+
+  function updatePreview() {
+    var doi = doiInput.value.trim();
+    if (!doi) {
+      preview.innerHTML = '<span class="text-slate-400 italic">Enter a DOI above to see preview</span>';
+      return;
+    }
+    var replacement = '“[[' + doi + ']]”';
+    var text = mention ? obs.replace(mention, replacement) : obs;
+    preview.textContent = text;
+    // Highlight the replacement
+    var html = preview.innerHTML;
+    preview.innerHTML = html.replace(
+      replacement.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+      '<mark class="bg-brand/10 text-brand rounded px-0.5">' + replacement + '</mark>'
+    );
+  }
+
+  doiInput.addEventListener('input', updatePreview);
+  updatePreview();
+})();
+</script>
+{% endblock %}

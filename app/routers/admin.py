@@ -1,7 +1,10 @@
+import hashlib
+import hmac as _hmac_module
 from datetime import datetime, timezone
+from urllib.parse import unquote
 
 from app.utils.design import register_globals
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
@@ -583,3 +586,87 @@ async def admin_request_substantiation(rating_id: int, request: Request, db: Ses
     ))
     db.commit()
     return JSONResponse({"ok": True, "deadline": deadline.isoformat()})
+
+
+# ── Citation resolution ───────────────────────────────────────────────────────
+
+def _citation_token(rating_id: int, mention: str, candidate_doi: str) -> str:
+    msg = f"{rating_id}:{mention}:{candidate_doi}".encode()
+    return _hmac_module.new(settings.ADMIN_SECRET_TOKEN.encode(), msg, hashlib.sha256).hexdigest()
+
+
+@router.get("/citation-approve", response_class=HTMLResponse)
+async def citation_approve(
+    request: Request,
+    r: int = Query(...),
+    m: str = Query(...),
+    d: str = Query(...),
+    t: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    """One-click HMAC-verified citation approval from email link. No session required."""
+    mention = unquote(m)
+    candidate_doi = unquote(d)
+    expected = _citation_token(r, mention, candidate_doi)
+    if not _hmac_module.compare_digest(t, expected):
+        raise HTTPException(status_code=403, detail="Invalid or expired confirmation link")
+    rating = db.get(Rating, r)
+    if not rating:
+        raise HTTPException(status_code=404, detail=f"Rating {r} not found")
+    obs = rating.reproducibility_observation or ""
+    if mention not in obs:
+        msg = "Mention not found — the review may already have been updated."
+        already_done = True
+    else:
+        rating.reproducibility_observation = obs.replace(mention, f'"[[{candidate_doi}]]"', 1)
+        db.commit()
+        msg = f'Replaced "{mention}" with "[[{candidate_doi}]]" in rating {r}.'
+        already_done = False
+    return templates.TemplateResponse("admin_citation_result.html", {
+        **_base(request),
+        "msg": msg,
+        "already_done": already_done,
+        "rating": rating,
+        "paper_url": f"/paper/{rating.doi}",
+    })
+
+
+@router.get("/citation-review/{rating_id}", response_class=HTMLResponse)
+async def citation_review_get(
+    request: Request,
+    rating_id: int,
+    m: str = Query(""),
+    d: str = Query(""),
+    db: Session = Depends(get_db),
+):
+    _require_admin(request)
+    rating = db.get(Rating, rating_id)
+    if not rating:
+        raise HTTPException(status_code=404)
+    return templates.TemplateResponse("admin_citation_review.html", {
+        **_base(request),
+        "rating": rating,
+        "mention": unquote(m),
+        "candidate_doi": unquote(d),
+    })
+
+
+@router.post("/citation-review/{rating_id}", response_class=HTMLResponse)
+async def citation_review_post(
+    request: Request,
+    rating_id: int,
+    mention: str = Form(""),
+    new_doi: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    _require_admin(request)
+    if not new_doi.strip():
+        raise HTTPException(status_code=400, detail="DOI is required")
+    rating = db.get(Rating, rating_id)
+    if not rating:
+        raise HTTPException(status_code=404)
+    obs = rating.reproducibility_observation or ""
+    if mention and mention in obs:
+        rating.reproducibility_observation = obs.replace(mention, f'"[[{new_doi.strip()}]]"', 1)
+    db.commit()
+    return RedirectResponse(f"/paper/{rating.doi}", status_code=303)

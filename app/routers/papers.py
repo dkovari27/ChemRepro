@@ -2,7 +2,9 @@
 from datetime import datetime, timezone
 
 from app.utils.design import collect_doi_refs, index_tpl, paper_classic_tpl, paper_tpl, register_globals, render_md_refs
-from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Request
+import math
+
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import case, func, select
@@ -32,6 +34,25 @@ from app.services.crossref import fetch_paper_metadata, is_valid_doi, normalise_
 router = APIRouter(tags=["papers"])
 templates = Jinja2Templates(directory="app/templates")
 register_globals(templates)
+
+
+def _page_range(page: int, total_pages: int) -> list[int | None]:
+    """Return a list of page numbers with None representing ellipsis gaps."""
+    if total_pages <= 7:
+        return list(range(1, total_pages + 1))
+    visible: set[int] = set()
+    visible.add(1)
+    visible.add(total_pages)
+    for p in range(max(1, page - 2), min(total_pages, page + 2) + 1):
+        visible.add(p)
+    result: list[int | None] = []
+    prev: int | None = None
+    for p in sorted(visible):
+        if prev is not None and p - prev > 1:
+            result.append(None)
+        result.append(p)
+        prev = p
+    return result
 
 
 def _collections_flat(orcid_id: str, db: Session) -> list[tuple]:
@@ -1573,10 +1594,17 @@ def _nd_scoring_context() -> dict:
     }
 
 
+_COMMUNITY_PAGE_SIZE = 10
+
+
 @router.get("/", response_class=HTMLResponse)
 @router.get("/nd/", response_class=HTMLResponse)
 @router.get("/nd", response_class=HTMLResponse)
-async def nd_index(request: Request, db: Session = Depends(get_db)):
+async def nd_index(
+    request: Request,
+    db: Session = Depends(get_db),
+    page: int = Query(1, ge=1),
+):
     orcid_id = request.session.get("orcid_id")
 
     def _enrich_nd(papers):
@@ -1610,15 +1638,27 @@ async def nd_index(request: Request, db: Session = Depends(get_db)):
         )
 
     my_doi_set = {e["paper"].doi for e in my_papers}
-    community_candidates = (
+
+    community_q = (
         db.query(Paper)
         .join(last_rated_sq, Paper.doi == last_rated_sq.c.doi)
         .order_by(last_rated_sq.c.last_rated.desc())
-        .limit(10 + len(my_doi_set))
+    )
+    if my_doi_set:
+        community_q = community_q.filter(~Paper.doi.in_(list(my_doi_set)))
+
+    total_community = community_q.count()
+    total_pages = max(1, math.ceil(total_community / _COMMUNITY_PAGE_SIZE))
+    page = max(1, min(page, total_pages))
+    page_start = (page - 1) * _COMMUNITY_PAGE_SIZE + 1
+    page_end = min(page * _COMMUNITY_PAGE_SIZE, total_community)
+
+    community_papers = _enrich_nd(
+        community_q
+        .offset((page - 1) * _COMMUNITY_PAGE_SIZE)
+        .limit(_COMMUNITY_PAGE_SIZE)
         .all()
     )
-    community_papers = _enrich_nd(
-        [p for p in community_candidates if p.doi not in my_doi_set][:10])
 
     return templates.TemplateResponse("index_nd.html", {
         "request": request,
@@ -1628,6 +1668,12 @@ async def nd_index(request: Request, db: Session = Depends(get_db)):
         "orcid_id": orcid_id,
         "site_version": "new_design",
         "switch_urls": {"standard": "/", "classic": "/classic/", "new_design": "/nd/"},
+        "page": page,
+        "total_pages": total_pages,
+        "total_community": total_community,
+        "page_start": page_start,
+        "page_end": page_end,
+        "page_range": _page_range(page, total_pages),
         **_dev_context(),
         **_nd_scoring_context(),
     })
