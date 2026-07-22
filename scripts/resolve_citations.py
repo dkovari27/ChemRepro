@@ -13,25 +13,33 @@ Author-name phrases like "Smith et al." or "Njardarson and co-workers" are
 NOT processed by this script (Category B detection is disabled).
 
 Pipeline per rating:
-  1. Claude Haiku: detect formatted bibliographic citations
+  1. Claude Haiku (via CLI): detect formatted bibliographic citations
   2. CrossRef search API: retrieve top-5 candidates per citation
-  3. Claude Sonnet: pick the best match and report confidence
+  3. Claude Sonnet (via CLI): pick the best match and report confidence
   4. Send admin email with Approve / Resolve manually / Dismiss buttons
   5. Text is NEVER changed automatically regardless of confidence
+
+Runs locally via the Claude Code CLI (claude -p), using your Pro subscription.
+No Anthropic API key required. See TASKS.md for future API migration note.
 
 Usage:
   python scripts/resolve_citations.py --dry-run        # preview only
   python scripts/resolve_citations.py                  # live run (sends emails)
+  python scripts/resolve_citations.py --railway        # use Railway DB
   python scripts/resolve_citations.py --ai-name JACSAU # limit to one AI reviewer
   python scripts/resolve_citations.py --ids 52 53 54  # specific rating IDs
 """
 import argparse
+import glob as _glob
 import hashlib
 import hmac as _hmac_module
 import html as _html
 import json
 import os
+import platform
 import re
+import shutil
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -46,21 +54,64 @@ from sqlalchemy.orm import sessionmaker
 
 from app.models.rating import Rating
 
-try:
-    import anthropic as _anthropic_module
-    _anthropic_available = True
-except ImportError:
-    _anthropic_available = False
-
 
 _CROSSREF_URL = "https://api.crossref.org/works"
 
 
-def _extract_text(response) -> str:
-    for block in response.content:
-        if hasattr(block, "text"):
-            return block.text
-    return ""
+def _call_claude_cli(system: str, user: str, model: str) -> str:
+    """Call the Claude Code CLI (claude -p). Uses Pro subscription; no API key needed."""
+    prompt = f"<system_instructions>\n{system}\n</system_instructions>\n\n{user}" if system else user
+    cmd = _build_claude_cmd(prompt, model)
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=180, encoding="utf-8")
+    except FileNotFoundError:
+        raise RuntimeError(
+            "Claude CLI not found. Run 'where claude' in PowerShell to locate it, "
+            "then add it to PATH or set the CLAUDE_PATH environment variable."
+        )
+    if result.returncode != 0:
+        err = result.stderr.strip() or "claude CLI returned a non-zero exit code"
+        raise RuntimeError(f"Claude CLI error: {err}")
+    return result.stdout.strip()
+
+
+def _build_claude_cmd(prompt: str, model: str) -> list[str]:
+    """Build subprocess command for claude -p, handling Windows .cmd wrapper."""
+    override = os.environ.get("CLAUDE_PATH")
+    if override:
+        return _wrap_cmd(override, prompt, model)
+    if platform.system() != "Windows":
+        exe = shutil.which("claude") or "claude"
+        return [exe, "-p", prompt, "--model", model]
+    for name in ("claude.cmd", "claude.exe", "claude"):
+        path = shutil.which(name)
+        if path:
+            return _wrap_cmd(path, prompt, model)
+    local = os.environ.get("LOCALAPPDATA", "")
+    home = os.path.expanduser("~")
+    for p in [
+        os.path.join(home, "AppData", "Roaming", "npm", "claude.cmd"),
+        os.path.join(home, "AppData", "Local", "Programs", "claude", "claude.exe"),
+    ]:
+        if os.path.exists(p):
+            return _wrap_cmd(p, prompt, model)
+    store_pattern = os.path.join(
+        local, "Packages", "Claude_*", "LocalCache", "Roaming",
+        "Claude", "claude-code", "*", "claude.exe"
+    )
+    matches = sorted(_glob.glob(store_pattern))
+    if matches:
+        return [matches[-1], "-p", prompt, "--model", model]
+    raise FileNotFoundError(
+        "claude CLI not found. Run 'where claude' in PowerShell, "
+        "then add it to PATH or set CLAUDE_PATH."
+    )
+
+
+def _wrap_cmd(path: str, prompt: str, model: str) -> list[str]:
+    if path.lower().endswith(".cmd"):
+        return ["cmd", "/c", path, "-p", prompt, "--model", model]
+    return [path, "-p", prompt, "--model", model]
 
 
 def _parse_json_response(text: str) -> dict:
@@ -378,29 +429,13 @@ def resolve_ratings(
     orcid_id: str | None = None,
     paper_dois: list[str] | None = None,
     dry_run: bool = False,
-    api_key: str | None = None,
 ) -> dict:
     """
     Core resolution function. Call from import_reviews.py or standalone.
+    Uses the Claude Code CLI (Pro subscription). Run locally only.
 
     Returns {"flagged": N, "no_candidate": N, "skipped": N, "errors": N}
     """
-    if not _anthropic_available:
-        print("  resolve_citations: anthropic package not installed, skipping.")
-        return {"flagged": 0, "no_candidate": 0, "skipped": 0, "errors": 0}
-
-    if not api_key:
-        try:
-            from app.config import settings as _settings
-            api_key = _settings.ANTHROPIC_API_KEY
-        except Exception:
-            pass
-    key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
-    if not key:
-        print("  resolve_citations: ANTHROPIC_API_KEY not set in .env or environment, skipping.")
-        return {"flagged": 0, "no_candidate": 0, "skipped": 0, "errors": 0}
-
-    client = _anthropic_module.Anthropic(api_key=key)
     db = _make_db(db_url)
 
     q = db.query(Rating).filter(
@@ -422,21 +457,17 @@ def resolve_ratings(
     for rating in ratings:
         obs = rating.reproducibility_observation or ""
 
-        # Haiku: detect formatted bibliographic citations
-        detect_resp = None
+        # Haiku via CLI: detect formatted bibliographic citations
         try:
-            detect_resp = client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=600,
+            raw = _call_claude_cli(
                 system=_HAIKU_DETECT_PROMPT,
-                messages=[{"role": "user", "content": f"Observation text:\n{obs}"}],
+                user=f"Observation text:\n{obs}",
+                model="claude-haiku-4-5-20251001",
             )
-            detected = _parse_json_response(_extract_text(detect_resp))
+            detected = _parse_json_response(raw)
             citations = detected.get("citations", [])
         except Exception as exc:
-            raw_preview = _extract_text(detect_resp)[:120] if (detect_resp and detect_resp.content) else "<empty>"
             print(f"    rating {rating.id}: detection error: {exc}")
-            print(f"    raw response: {raw_preview!r}")
             errors += 1
             continue
 
@@ -469,24 +500,21 @@ def resolve_ratings(
                 no_candidate += 1
                 continue
 
-            # Sonnet: pick best match
+            # Sonnet via CLI: pick best match
             try:
-                sonnet_resp = client.messages.create(
+                raw = _call_claude_cli(
+                    system="",
+                    user=_SONNET_PICK_PROMPT.format(
+                        mention=mention,
+                        sentence=sentence,
+                        topic=topic,
+                        candidates=_format_candidates(candidates),
+                    ),
                     model="claude-sonnet-5",
-                    max_tokens=100,
-                    messages=[{
-                        "role": "user",
-                        "content": _SONNET_PICK_PROMPT.format(
-                            mention=mention,
-                            sentence=sentence,
-                            topic=topic,
-                            candidates=_format_candidates(candidates),
-                        ),
-                    }],
                 )
-                pick = _parse_json_response(_extract_text(sonnet_resp))
+                pick = _parse_json_response(raw)
             except Exception as exc:
-                print(f"      '{mention}': Sonnet error: {exc}")
+                print(f"      '{mention}': pick error: {exc}")
                 errors += 1
                 continue
 

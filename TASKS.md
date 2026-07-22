@@ -54,9 +54,11 @@ Note: `DATABASE_URL` in `.env` stays as SQLite for local dev; the env var set in
 
 - [x] **C23** — Homepage pagination: `?page=N` on `nd_index`; 10 per page; prev/next controls + "X-Y of Z" counter in `index_nd.html`.
 - [x] **C24** — Abstract truncation on paper page: CSS `line-clamp-3` on the abstract block in `paper_nd.html`, with a JS "Show more / Show less" toggle button; only show button when rendered height exceeds the clamp threshold.
-- [x] **G9** — Citation resolver: `scripts/resolve_citations.py` (Haiku detect, CrossRef search, Sonnet pick); flags formatted bibliographic citations via admin email (Approve / Resolve manually / Dismiss buttons). Text is NEVER changed automatically. Runs after every `import_reviews.py` batch.
+- [x] **G9** — Citation resolver: `scripts/resolve_citations.py` (Haiku detect, CrossRef search, Sonnet pick); flags formatted bibliographic citations via admin email (Approve / Resolve manually / Dismiss buttons). Text is NEVER changed automatically. Run locally with `--railway` flag.
   - **Category A** (active): detects formatted bibliographic citations like "J. Org. Chem. 2022, 87, 1234".
   - **Category B** (disabled): detected author-name phrases like "Smith et al.", "Njardarson and co-workers". Disabled because it produced false positives (e.g. resolving an author's name to the reviewed paper's own DOI). The code is preserved in `resolve_citations.py` comments; may be re-enabled with a narrower prompt and manual-review-only flow.
+  - **Runtime (current)**: uses Claude Code CLI (`claude -p`) via Pro subscription. No API key needed. Must be run locally — not wired into Railway background tasks.
+  - **Future option**: switch to Anthropic API (`anthropic.Anthropic(api_key=...)`) to allow running on Railway automatically after each submission. Would require `ANTHROPIC_API_KEY` in Railway env and a `resolve_rating_bg` background task in `papers.py`. Cost estimate: ~$0.001 per review that contains a formatted citation.
 - [ ] **B4** — Chemistry keyword/condition tags on rating form (Yield discrepancy, Purity issue, Safety concern...) — design not settled.
 - [ ] **C10** — Logo polish (current logo is placeholder).
 

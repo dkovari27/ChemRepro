@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app import prompts
 from app.config import settings
 from app.utils.moderation import is_clean as _is_clean
-from app.utils.ai_moderation import contains_misconduct_allegation, moderate_comment_bg, moderate_rating_bg, resolve_rating_bg
+from app.utils.ai_moderation import contains_misconduct_allegation, moderate_comment_bg, moderate_rating_bg
 from app.utils.email import notify_admin
 from app.database import get_db
 from app.models.author_notification import AuthorNotification
@@ -2181,7 +2181,6 @@ async def nd_submit_rating(
         background_tasks.add_task(
             notify_author_if_possible, doi, paper.title or "", rating.id, db, base_url)
         background_tasks.add_task(moderate_rating_bg, rating.id)
-        background_tasks.add_task(resolve_rating_bg, rating.id)
         background_tasks.add_task(
             notify_admin,
             f"New review — {doi}",
