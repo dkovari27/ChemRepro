@@ -74,6 +74,12 @@ class Rating(Base):
     nd_failure_context: Mapped[str | None] = mapped_column(String(20), nullable=True)
     career_stage_snapshot: Mapped[str | None] = mapped_column(String(60), nullable=True)
 
+    # Scraper provenance (bot reviews only; null for human reviews)
+    citing_author: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    is_multi_target: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    source_doi: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    source_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+
     # "standard" = single outcome-based score | "classic" = repro stars + outcome | "new_design" = 1-5 star
     scoring_mode: Mapped[str] = mapped_column(String(10), default="standard", server_default="standard")
 

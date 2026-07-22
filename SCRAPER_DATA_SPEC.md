@@ -80,27 +80,47 @@ one source paper.
 The AI agent reads Stage 1 JSONL and adds the following fields.
 The DB import script reads this enriched file.
 
+### Core review fields
+
 | Field | Type | Notes |
 |---|---|---|
-| `nd_star` | int 1-5 | Star rating inferred from the extracted sentences. See mapping guide below. |
-| `nd_failure_context` | string or null | `"original_tested"` or `"extension_only"`. Required only when `nd_star = 1`. |
-| `observation_text` | string | The text shown on the review card. Written by the AI in 2-4 sentences. Should cite the source and describe what was done. Max 800 chars. |
+| `nd_star` | int 1-5 or null | Star rating. See rubric below. null = inconclusive or extension failed. |
+| `nd_failure_context` | string or null | Required when `nd_star` is null: `"extension_failed"` or `"inconclusive"`. |
+| `reproducibility_observation` | string | Text shown on review card. 2-4 sentences, max 900 chars. |
 | `ai_confidence` | float 0-1 | AI self-assessed confidence in the star assignment. |
+| `citing_author` | string or null | First author(s) of the source paper (e.g. "Jones et al."). |
+| `is_multi_target` | bool | True if a single sentence cites two or more external papers. |
 
-### Star assignment guide for the AI agent
+### Clarification fields (records needing human review before import)
 
-| Situation described in the source text | `nd_star` |
-|---|---|
-| Procedure followed without modification, yield matches | 3 |
-| Procedure followed, yield lower or minor workup changes | 2 |
-| Procedure adopted and extended to new substrates or conditions | 4 |
-| Procedure adopted and extended to a new functional group class | 5 |
-| Procedure attempted, failed completely | 1 |
-| Unclear or ambiguous | Do not import (flag for manual review) |
+| Field | Type | Notes |
+|---|---|---|
+| `_needs_clarification` | bool | True when the claim is genuine but nd_star cannot be assigned confidently (ai_confidence < 0.70 or key data missing). These records are NOT imported until a human resolves them. |
+| `_clarification_questions` | list[str] | What specific information is needed (e.g. "yield not stated", "compound identity unclear"). |
 
-For `nd_star = 1`: set `nd_failure_context = "original_tested"` if the
-original procedure was tested. Set `"extension_only"` if only an extension
-was attempted and the original was not tested.
+### Bot reviewer metadata
+
+| Field | Type | Notes |
+|---|---|---|
+| `reviewer_nickname` | string | Source-specific bot name. See BOT_NICKNAMES in config.py. E.g. `"AI-ORGSYN"`, `"AI-JACSAU"`. |
+| `career_stage` | string | Always `"Data curator agent"` for all bot-generated reviews. |
+
+### Star assignment rubric
+
+| nd_star | Label | When to assign |
+|---|---|---|
+| 5 | Major extension | Reproduced AND extended to new substrates or functional groups not in the original paper |
+| 4 | Minor extension | Reproduced AND extended, but within the same functional group class |
+| 3 | Reproduced as published | Procedure followed without significant deviation; outcome successful |
+| 2 | Reproduced with deviation | Got the product but with meaningful changes (different conditions, lower yield, modified workup) |
+| 1 | Did not work | Procedure failed entirely under conditions described in the paper |
+| null | Inconclusive / Extension failed | Set nd_failure_context to `"extension_failed"` or `"inconclusive"` |
+
+`nd_failure_context` values:
+- `"extension_failed"`: an extension was attempted and it failed
+- `"inconclusive"`: outcome was ambiguous or results were unclear
+
+Ratings 1–5 contribute to the star average. null counts toward total review count only.
 
 ### Example Stage 2 record (same record, enriched)
 
@@ -120,8 +140,12 @@ was attempted and the original was not tested.
   "extraction_confidence": 0.92,
   "nd_star": 2,
   "nd_failure_context": null,
-  "observation_text": "Sourced from Org. Synth. (Jones A et al., 2024). The procedure was followed with minor workup modification; yield 78% vs. reported 81%. Lower yield attributed to technical-grade solvent.",
-  "ai_confidence": 0.88
+  "citing_author": "Jones et al.",
+  "is_multi_target": false,
+  "reproducibility_observation": "Sourced from Org. Synth. (Jones A et al., 2024). The procedure was followed with minor workup modification; yield 78% vs. reported 81%. Lower yield attributed to technical-grade solvent.",
+  "ai_confidence": 0.88,
+  "reviewer_nickname": "AI-ORGSYN",
+  "career_stage": "Data curator agent"
 }
 ```
 
@@ -132,21 +156,55 @@ was attempted and the original was not tested.
 Each source gets its own user row in the ChemRepro database.
 The DB import script creates these automatically if they do not exist.
 
-| Source | `orcid_id` (bot key) | Display name |
-|---|---|---|
-| OrgSyn | `bot:orgsyn` | OrgSyn |
-| Europe PMC | `bot:europepmc` | Europe PMC |
-| ChemRxiv | `bot:chemrxiv` | ChemRxiv |
-| RSC Open Access | `bot:rsc_oa` | RSC Open Access |
+| Source | `orcid_id` (bot key) | `reviewer_nickname` | `career_stage` | Display name |
+|---|---|---|---|---|
+| OrgSyn | `AI-ORGSYN` | `AI-ORGSYN` | `Data curation agent` | OrgSyn |
+| JACS Au | `AI-JACS_Au` | `AI-JACS_Au` | `Data curation agent` | JACS Au |
+| Europe PMC | `AI-EUROPEPMC` | `AI-EUROPEPMC` | `Data curation agent` | Europe PMC |
+| ChemRxiv | `AI-CHEMRXIV` | `AI-CHEMRXIV` | `Data curation agent` | ChemRxiv |
+| RSC Open Access | `AI-RSCOA` | `AI-RSCOA` | `Data curation agent` | RSC Open Access |
+| PMC | `AI-PMC` | `AI-PMC` | `Data curation agent` | PMC |
 
-These users are flagged `is_bot = true` in the `users` table so the UI
-can display a "Sourced from X" badge instead of a reviewer name.
+`reviewer_nickname` and `career_stage` are written into every Stage 2 record by `ReviewWriterAgent`
+using the `BOT_NICKNAMES` and `BOT_CAREER_STAGE` constants from `config.py`. Add new sources there
+before running any Stage 2 enrichment.
 
-The unique constraint `(doi, orcid_id, scoring_mode)` means each bot user
-can submit only ONE review per target paper. If multiple source documents
-all reference the same target paper, the import script should keep the
-highest-confidence record and discard the rest (or aggregate them into one
-observation text).
+`orcid_id` for bot users equals the `reviewer_nickname` (e.g. `AI-ORGSYN`). The `bot:orgsyn`
+format shown in earlier versions of this spec was never implemented.
+
+`is_bot` on the User model is deferred. Bot users are currently identified by the `AI-` prefix
+on their `orcid_id`. The UI badge is planned but not yet wired.
+
+The DB dedup constraint is `(doi, orcid_id, scoring_mode)`, not `sentence_id`. Each bot user may
+submit only ONE review per target paper. If multiple source documents reference the same target,
+the scraper should pre-select the highest-confidence record before sending to the import script.
+`sentence_id` is the scraper's internal dedup key and is not stored in the database.
+
+---
+
+## Future input: reaction scheme images (not yet implemented)
+
+When ChemRepro adds user-facing image upload, the following tools should be evaluated:
+
+| Tool | Scope | Output | Notes |
+|---|---|---|---|
+| **RxnScribe** | Full reaction schemes | Reactants + products as SMILES, condition text, bounding boxes | Best option for full scheme parsing; published in J. Chem. Inf. Model.; Python API with pre-trained checkpoint |
+| **DECIMER** | Single molecules only | SMILES string | `pip install decimer`; also has web API at decimer.ai; use when user uploads a single structure image |
+| **ReactionDataExtractor 2** | Reaction scheme topology | Reaction graph (nodes + adjacency) | Heavy install (Conda + Tesseract); useful for arrow detection and layout parsing |
+
+Recommended integration path:
+1. User uploads image on ChemRepro review form
+2. Backend detects image type: single molecule → DECIMER; full scheme → RxnScribe
+3. RxnScribe returns reactant + product SMILES + condition text
+4. SMILES passed to CrossRef/PubChem to resolve compound identity and DOI
+5. Pre-fill the review form fields (compound, conditions, nd_star suggestion)
+
+New Stage 1 fields needed when source is an image upload:
+- `source_image_type`: `"reaction_scheme"` or `"single_molecule"`
+- `source_image_hash`: SHA-256 of the uploaded image (for dedup)
+- `rxnscribe_reactants`: list of SMILES strings
+- `rxnscribe_products`: list of SMILES strings
+- `rxnscribe_conditions`: text extracted from above/below arrow
 
 ---
 
@@ -196,3 +254,16 @@ Stage 1 must NOT do:
 - [ ] Assign star ratings (that is Stage 2)
 - [ ] Write observation text (that is Stage 2)
 - [ ] Touch the database
+
+Stage 2 must output (in addition to Stage 1 passthrough fields):
+
+- [ ] `nd_star` — 1-5 or null (never 6 or other values)
+- [ ] `nd_failure_context` — `"extension_failed"` or `"inconclusive"` when nd_star is null; null otherwise
+- [ ] `reproducibility_observation` — 2-4 sentences, max 900 chars, opens with citing author
+- [ ] `ai_confidence` — float 0-1; records < 0.75 are rejected at import
+- [ ] `citing_author` — first author(s) of source paper or null
+- [ ] `is_multi_target` — bool
+- [ ] `reviewer_nickname` — from BOT_NICKNAMES in config.py (e.g. "AI-ORGSYN")
+- [ ] `career_stage` — always "Data curator agent"
+- [ ] `_needs_clarification` — bool; if true, record is held for human review, not imported
+- [ ] `_clarification_questions` — list[str]; only present when _needs_clarification is true

@@ -1,29 +1,34 @@
 #!/usr/bin/env python3
 """
-Scan ChemRepro ratings for unresolved paper citations and attempt to resolve them.
+Scan ChemRepro ratings for unresolved formatted bibliographic citations and
+flag them for admin review.
 
-An "unresolved citation" is a mention like "Smith et al. (2019)" or "as reported
-by Jones and Lee" that does NOT already have a [[DOI]] in double-bracket notation.
+An "unresolved citation" is a formatted bibliographic reference such as
+  "J. Org. Chem. 2022, 87, 1234-1238"
+  "Org. Lett. 2019, 21, 5678"
+  "Angew. Chem. Int. Ed. 2021, 60, 12345"
+that does NOT already carry a [[DOI]] in double-bracket notation.
+
+Author-name phrases like "Smith et al." or "Njardarson and co-workers" are
+NOT processed by this script (Category B detection is disabled).
 
 Pipeline per rating:
-  1. Claude Haiku: detect unresolved mentions and extract author/year/topic info
-  2. CrossRef search API: retrieve top-3 candidates per mention
-  3. Claude Sonnet: pick the best match (confidence threshold >= 0.80)
-  4. Rewrite observation text with [[DOI]] substituted in place; commit
-  5. If unresolved: leave text unchanged; print a warning
+  1. Claude Haiku: detect formatted bibliographic citations
+  2. CrossRef search API: retrieve top-5 candidates per citation
+  3. Claude Sonnet: pick the best match and report confidence
+  4. Send admin email with Approve / Resolve manually / Dismiss buttons
+  5. Text is NEVER changed automatically regardless of confidence
 
 Usage:
-  set DATABASE_URL=postgresql://...
-  set ANTHROPIC_API_KEY=sk-ant-...
-
   python scripts/resolve_citations.py --dry-run        # preview only
-  python scripts/resolve_citations.py                  # live run on all ratings
+  python scripts/resolve_citations.py                  # live run (sends emails)
   python scripts/resolve_citations.py --ai-name JACSAU # limit to one AI reviewer
   python scripts/resolve_citations.py --ids 52 53 54  # specific rating IDs
 """
 import argparse
 import hashlib
 import hmac as _hmac_module
+import html as _html
 import json
 import os
 import re
@@ -52,7 +57,6 @@ _CROSSREF_URL = "https://api.crossref.org/works"
 
 
 def _extract_text(response) -> str:
-    """Return the text of the first TextBlock in a response (skips ThinkingBlocks)."""
     for block in response.content:
         if hasattr(block, "text"):
             return block.text
@@ -60,40 +64,57 @@ def _extract_text(response) -> str:
 
 
 def _parse_json_response(text: str) -> dict:
-    """Extract and parse a JSON object from a model response robustly.
-
-    Handles: plain JSON, ```json fences, fences with extra trailing text.
-    """
     text = text.strip()
     m = re.search(r'\{.*\}', text, re.DOTALL)
     if m:
         return json.loads(m.group(0))
     return json.loads(text)
+
+
 _CROSSREF_HEADERS = {"User-Agent": "ChemRepro/1.0 (mailto:chemrepro@gmail.com)"}
 
+# Category B (author-name phrase detection) was intentionally DISABLED.
+# The original Category B prompt detected mentions like "Smith et al.", "Jones and Lee",
+# "Njardarson and co-workers" and tried to resolve them to DOIs. This caused false
+# positives (e.g. resolving an author's own name to the reviewed paper's DOI).
+# Kept here as a comment in case it proves useful in the future.
+#
+# Category A only: formatted bibliographic citations.
+
 _HAIKU_DETECT_PROMPT = """\
-You review a chemistry reproducibility observation for unresolved paper citations.
+You review a chemistry reproducibility observation for formatted bibliographic citations \
+that have not yet been resolved to a DOI.
 
-An UNRESOLVED citation is a reference to a specific external paper by author name (e.g. "Smith et al.", \
-"Jones and Lee (2019)", "following the method of Peng et al.") where no DOI in [[double-bracket]] notation \
-is present in the same sentence.
+A FORMATTED CITATION contains a journal name or abbreviation together with a year and \
+optionally a volume and/or page range. Examples:
+  "J. Org. Chem. 2022, 87, 1234-1238"
+  "Org. Lett. 2019, 21, 5678"
+  "ACS Catal. 2020, 10, 9012-9020"
+  "Angew. Chem. Int. Ed. 2021, 60, 12345"
+  "Chem. Commun. 2017, 53, 7890-7893"
+  "Green Chem. 2018, 20, 3456-3465"
+  "Nat. Chem. 2020, 12, 123-130"
 
-An ALREADY RESOLVED citation has [[10.xxxx/...]] directly in the text — skip those.
+DO NOT flag:
+  - Author-name phrases like "Smith et al.", "Jones and Lee", "as reported by X and co-workers"
+  - General text that does not include a journal abbreviation + year
+  - Any citation already in [[10.xxxx/...]] double-bracket notation — skip those entirely
 
 Return ONLY valid JSON, no markdown:
 {
-  "unresolved": [
+  "citations": [
     {
-      "mention": "<exact phrase identifying the cited group, e.g. 'Smith et al. (2019)'>",
-      "sentence": "<the full sentence containing the mention>",
-      "authors": "<surname(s) of cited authors, comma-separated>",
+      "mention": "<exact citation text as it appears in the observation>",
+      "sentence": "<the full sentence containing the citation>",
+      "journal": "<journal name or abbreviation>",
       "year": <integer year or null>,
-      "topic": "<brief description of what the cited work is about, from context>"
+      "volume": "<volume number as string or null>",
+      "pages": "<page range or null>"
     }
   ]
 }
 
-Return {"unresolved": []} if all citations already have [[DOI]] or if there are no citations.\
+Return {"citations": []} if no formatted bibliographic citations are found.\
 """
 
 _SONNET_PICK_PROMPT = """\
@@ -101,13 +122,14 @@ You are verifying whether a CrossRef search result matches a chemistry paper cit
 
 Unresolved mention: "{mention}"
 Sentence context: "{sentence}"
-Topic from context: "{topic}"
+Journal / volume / pages from citation: "{topic}"
 
 CrossRef candidates:
 {candidates}
 
-Pick the candidate that best matches the citation. Only confirm a match if you are highly confident \
-(>= 0.80) the candidate is the same paper being cited.
+Pick the candidate that best matches the citation. Only confirm a match if you are highly \
+confident (>= 0.80) the candidate is the same paper being cited. For formatted bibliographic \
+citations, match on journal, year, volume, and page range.
 
 Return ONLY valid JSON:
 {{"doi": "<DOI string>", "confidence": <0.0-1.0>}}
@@ -123,22 +145,22 @@ def _make_db(db_url: str):
     return sessionmaker(bind=engine)()
 
 
-def _crossref_search(mention: str, authors: str, year: int | None, topic: str) -> list[dict]:
+def _crossref_search(
+    mention: str,
+    year: int | None,
+    journal: str = "",
+    volume: str = "",
+    pages: str = "",
+) -> list[dict]:
     params: dict = {
         "rows": 5,
-        "select": "DOI,title,author,published-print,published-online,container-title,page",
+        "select": "DOI,title,author,published-print,published-online,container-title,page,volume",
     }
-    # Always pass the raw mention as the bibliographic query — CrossRef handles both
-    # "Smith et al. 2019" and "Green Chem. 2022, 24, 4628" style citations well this way.
-    bib = mention
-    if topic and topic not in mention:
-        bib = f"{mention} {topic[:60]}"
-    params["query.bibliographic"] = bib[:200]
-    # Add author search only for "et al." / "Author and Author" style mentions
-    if authors and re.search(r'\bet al\b|and\s+\w+', mention, re.I):
-        params["query.author"] = authors
+    params["query.bibliographic"] = mention[:200]
+    if journal:
+        params["query.container-title"] = journal[:80]
     if year:
-        params["filter"] = f"from-pub-date:{year - 1},until-pub-date:{year + 1}"
+        params["filter"] = f"from-pub-date:{year},until-pub-date:{year}"
     try:
         r = httpx.get(_CROSSREF_URL, params=params, headers=_CROSSREF_HEADERS, timeout=10)
         items = r.json().get("message", {}).get("items", [])
@@ -158,14 +180,15 @@ def _crossref_search(mention: str, authors: str, year: int | None, topic: str) -
         parts = pub.get("date-parts", [[]])
         pub_year = parts[0][0] if parts and parts[0] else None
         journals = item.get("container-title", [])
-        journal = journals[0] if journals else ""
+        journal_name = journals[0] if journals else ""
         results.append({
             "doi": item.get("DOI", ""),
             "title": title,
             "authors": author_str,
             "year": pub_year,
-            "journal": journal,
+            "journal": journal_name,
             "page": item.get("page", ""),
+            "volume": item.get("volume", ""),
         })
     return results
 
@@ -173,10 +196,11 @@ def _crossref_search(mention: str, authors: str, year: int | None, topic: str) -
 def _format_candidates(candidates: list[dict]) -> str:
     lines = []
     for i, c in enumerate(candidates, 1):
+        vol_part = f" | Vol: {c['volume']}" if c.get("volume") else ""
         page_part = f" | Pages: {c['page']}" if c.get("page") else ""
         lines.append(
             f"{i}. DOI: {c['doi']} | Title: {c['title'][:90]} | "
-            f"Authors: {c['authors']} | Year: {c['year']} | Journal: {c['journal']}{page_part}"
+            f"Authors: {c['authors']} | Year: {c['year']} | Journal: {c['journal']}{vol_part}{page_part}"
         )
     return "\n".join(lines) if lines else "(no candidates found)"
 
@@ -186,75 +210,164 @@ def _make_citation_token(rating_id: int, mention: str, candidate_doi: str, secre
     return _hmac_module.new(secret.encode(), msg, hashlib.sha256).hexdigest()
 
 
-def _flag_for_admin(rating, mention: str, candidate_doi: str, confidence: float) -> None:
-    """Send an HTML admin email with Confirm / Review manually buttons."""
+def _make_dismiss_token(rating_id: int, mention: str, candidate_doi: str, secret: str) -> str:
+    msg = f"dismiss:{rating_id}:{mention}:{candidate_doi}".encode()
+    return _hmac_module.new(secret.encode(), msg, hashlib.sha256).hexdigest()
+
+
+def _flag_for_admin(
+    rating,
+    mention: str,
+    candidate_doi: str,
+    confidence: float,
+    candidate_info: dict | None = None,
+) -> None:
+    """Send an HTML admin email with Approve / Resolve manually / Dismiss buttons."""
     try:
         from app.utils.email import send_generic_email
         from app.config import settings as _settings
 
-        token = _make_citation_token(
+        approve_token = _make_citation_token(
             rating.id, mention, candidate_doi, _settings.ADMIN_SECRET_TOKEN
         )
+        dismiss_token = _make_dismiss_token(
+            rating.id, mention, candidate_doi, _settings.ADMIN_SECRET_TOKEN
+        )
+
         approve_url = (
             f"{_settings.SITE_URL}/admin/citation-approve"
-            f"?r={rating.id}&m={quote(mention)}&d={quote(candidate_doi)}&t={token}"
+            f"?r={rating.id}&m={quote(mention, safe='')}&d={quote(candidate_doi, safe='')}"
+            f"&t={approve_token}"
+        )
+        review_path = (
+            f"/admin/citation-review/{rating.id}"
+            f"?m={quote(mention, safe='')}&d={quote(candidate_doi, safe='')}"
         )
         review_url = (
-            f"{_settings.SITE_URL}/admin/citation-review/{rating.id}"
-            f"?m={quote(mention)}&d={quote(candidate_doi)}"
+            f"{_settings.SITE_URL}/admin/login/{_settings.ADMIN_SECRET_TOKEN}"
+            f"?next={quote(review_path, safe='')}"
+        )
+        dismiss_url = (
+            f"{_settings.SITE_URL}/admin/citation-dismiss"
+            f"?r={rating.id}&m={quote(mention, safe='')}&d={quote(candidate_doi, safe='')}"
+            f"&t={dismiss_token}"
         )
         paper_url = f"{_settings.SITE_URL}/paper/{rating.doi}"
 
+        # Highlight detected mention in observation text
+        obs = rating.reproducibility_observation or ""
+        obs_esc = _html.escape(obs)
+        mention_esc = _html.escape(mention)
+        obs_highlighted = obs_esc.replace(
+            mention_esc,
+            f'<mark style="background:#fef08a;padding:0 2px;border-radius:2px">{mention_esc}</mark>',
+            1,
+        )
+
+        cand = candidate_info or {}
+        cand_title = _html.escape(cand.get("title", ""))
+        cand_authors = _html.escape(cand.get("authors", ""))
+        cand_journal = _html.escape(cand.get("journal", ""))
+        cand_year = cand.get("year", "")
+        cand_vol = _html.escape(str(cand.get("volume", "") or ""))
+        cand_page = _html.escape(str(cand.get("page", "") or ""))
+
+        candidate_rows = ""
+        if cand_title:
+            candidate_rows += f"""
+    <tr><td style="padding:8px 14px;color:#64748b;font-weight:600">Title</td>
+        <td style="padding:8px 14px">{cand_title}</td></tr>"""
+        if cand_authors:
+            candidate_rows += f"""
+    <tr style="background:#f1f5f9">
+        <td style="padding:8px 14px;color:#64748b;font-weight:600">Authors</td>
+        <td style="padding:8px 14px">{cand_authors}</td></tr>"""
+        if cand_journal:
+            candidate_rows += f"""
+    <tr><td style="padding:8px 14px;color:#64748b;font-weight:600">Journal</td>
+        <td style="padding:8px 14px">{cand_journal}{', ' + str(cand_year) if cand_year else ''}{', vol. ' + cand_vol if cand_vol else ''}{', p. ' + cand_page if cand_page else ''}</td></tr>"""
+
         body_html = f"""
-<div style="font-family:sans-serif;max-width:620px;margin:0 auto;color:#1e293b">
-  <h2 style="color:#1e40af;margin-bottom:4px">Citation review needed</h2>
-  <p style="color:#64748b;margin-top:0">{"Sonnet confidence " + f"{confidence:.0%}" + " — below auto-resolve threshold (80%)" if confidence > 0 else "Sonnet could not confirm a match — top CrossRef result shown for manual review"}</p>
-  <table style="width:100%;border-collapse:collapse;margin:16px 0;background:#f8fafc;
+<div style="font-family:sans-serif;max-width:660px;margin:0 auto;color:#1e293b">
+  <h2 style="color:#1e40af;margin-bottom:4px">Citation detected in rating {rating.id}</h2>
+  <p style="color:#64748b;margin-top:0">
+    A formatted bibliographic citation was found.
+    Proposed DOI confidence: <strong>{confidence:.0%}</strong>
+  </p>
+
+  <h3 style="font-size:13px;font-weight:600;color:#475569;margin-bottom:6px">Observation text</h3>
+  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px 16px;
+              font-size:13px;line-height:1.6;max-height:200px;overflow-y:auto;
+              white-space:pre-wrap;word-wrap:break-word;margin-bottom:16px">
+    {obs_highlighted}
+  </div>
+
+  <table style="width:100%;border-collapse:collapse;margin:0 0 16px;background:#f8fafc;
                 border:1px solid #e2e8f0;border-radius:8px;font-size:14px">
     <tr><td style="padding:8px 14px;color:#64748b;font-weight:600;width:150px">Rating ID</td>
         <td style="padding:8px 14px">{rating.id}</td></tr>
     <tr style="background:#f1f5f9">
         <td style="padding:8px 14px;color:#64748b;font-weight:600">Paper</td>
-        <td style="padding:8px 14px"><a href="{paper_url}" style="color:#1e40af">{rating.doi}</a></td></tr>
-    <tr><td style="padding:8px 14px;color:#64748b;font-weight:600">Mention in text</td>
-        <td style="padding:8px 14px;font-family:monospace">{mention}</td></tr>
+        <td style="padding:8px 14px">
+          <a href="{paper_url}" style="color:#1e40af">{rating.doi}</a>
+        </td></tr>
+    <tr><td style="padding:8px 14px;color:#64748b;font-weight:600">Detected citation</td>
+        <td style="padding:8px 14px;font-family:monospace;color:#b45309">{_html.escape(mention)}</td></tr>
     <tr style="background:#f1f5f9">
-        <td style="padding:8px 14px;color:#64748b;font-weight:600">Best candidate</td>
-        <td style="padding:8px 14px;font-family:monospace">{candidate_doi}</td></tr>
-    <tr><td style="padding:8px 14px;color:#64748b;font-weight:600">Confidence</td>
+        <td style="padding:8px 14px;color:#64748b;font-weight:600">Proposed DOI</td>
+        <td style="padding:8px 14px;font-family:monospace">
+          <a href="https://doi.org/{_html.escape(candidate_doi)}" style="color:#1e40af">
+            {_html.escape(candidate_doi)}
+          </a>
+        </td></tr>
+    {candidate_rows}
+    <tr style="background:#f1f5f9">
+        <td style="padding:8px 14px;color:#64748b;font-weight:600">Confidence</td>
         <td style="padding:8px 14px">{confidence:.0%}</td></tr>
   </table>
-  <p style="font-size:14px">If the candidate DOI is correct, click <strong>Confirm</strong> to apply it
-  instantly. If it is wrong, click <strong>Review</strong> to pick the right DOI and preview the result.</p>
+
+  <p style="font-size:13px;color:#475569;margin-bottom:14px">
+    Clicking <strong>Approve</strong> replaces the citation text with the DOI link in the review.
+    Clicking <strong>Resolve manually</strong> opens a form to enter a different DOI.
+    Clicking <strong>Dismiss</strong> acknowledges this notice with no changes.
+    You are logged in automatically on all three links.
+  </p>
+
   <a href="{approve_url}"
-     style="display:inline-block;padding:10px 22px;background:#1e40af;color:#fff;
-            text-decoration:none;border-radius:7px;font-weight:700;font-size:14px;margin-right:10px">
-    Confirm
+     style="display:inline-block;padding:10px 22px;background:#15803d;color:#fff;
+            text-decoration:none;border-radius:7px;font-weight:700;font-size:14px;margin-right:8px">
+    Approve
   </a>
   <a href="{review_url}"
+     style="display:inline-block;padding:10px 22px;background:#1e40af;color:#fff;
+            text-decoration:none;border-radius:7px;font-weight:700;font-size:14px;margin-right:8px">
+    Resolve manually
+  </a>
+  <a href="{dismiss_url}"
      style="display:inline-block;padding:10px 22px;background:#64748b;color:#fff;
             text-decoration:none;border-radius:7px;font-weight:700;font-size:14px">
-    Review manually
+    Dismiss
   </a>
 </div>"""
 
         body_text = (
-            f"Citation review needed (confidence {confidence:.0%})\n\n"
-            f"Rating  : {rating.id}\n"
-            f"Paper   : {rating.doi}\n"
-            f"Mention : {mention}\n"
-            f"Candidate: {candidate_doi}\n\n"
-            f"Confirm : {approve_url}\n"
-            f"Review  : {review_url}\n"
+            f"Citation detected in rating {rating.id} (confidence {confidence:.0%})\n\n"
+            f"Rating   : {rating.id}\n"
+            f"Paper    : {rating.doi}\n"
+            f"Mention  : {mention}\n"
+            f"Proposed : {candidate_doi}\n\n"
+            f"Approve  : {approve_url}\n"
+            f"Review   : {review_url}\n"
+            f"Dismiss  : {dismiss_url}\n"
         )
 
         send_generic_email(
             to=_settings.GMAIL_ADDRESS,
-            subject=f"[ChemRepro] Citation review needed: rating {rating.id}",
+            subject=f"[ChemRepro] Citation detected: rating {rating.id}",
             body_html=body_html,
             body_text=body_text,
         )
-        print(f"      Admin notified by email: suggested [[{candidate_doi}]] ({confidence:.0%} confidence)")
+        print(f"      Admin notified: suggested [[{candidate_doi}]] ({confidence:.0%} confidence)")
     except Exception as exc:
         print(f"      Admin notify failed (non-fatal): {exc}")
 
@@ -270,11 +383,11 @@ def resolve_ratings(
     """
     Core resolution function. Call from import_reviews.py or standalone.
 
-    Returns {"resolved": N, "unresolved": N, "skipped": N, "errors": N}
+    Returns {"flagged": N, "no_candidate": N, "skipped": N, "errors": N}
     """
     if not _anthropic_available:
         print("  resolve_citations: anthropic package not installed, skipping.")
-        return {"resolved": 0, "unresolved": 0, "skipped": 0, "errors": 0}
+        return {"flagged": 0, "no_candidate": 0, "skipped": 0, "errors": 0}
 
     if not api_key:
         try:
@@ -285,7 +398,7 @@ def resolve_ratings(
     key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
     if not key:
         print("  resolve_citations: ANTHROPIC_API_KEY not set in .env or environment, skipping.")
-        return {"resolved": 0, "unresolved": 0, "skipped": 0, "errors": 0}
+        return {"flagged": 0, "no_candidate": 0, "skipped": 0, "errors": 0}
 
     client = _anthropic_module.Anthropic(api_key=key)
     db = _make_db(db_url)
@@ -304,53 +417,59 @@ def resolve_ratings(
     ratings = q.all()
     print(f"  resolve_citations: checking {len(ratings)} rating(s)...")
 
-    resolved = unresolved = skipped = errors = 0
+    flagged = no_candidate = skipped = errors = 0
 
     for rating in ratings:
         obs = rating.reproducibility_observation or ""
 
-        # --- Haiku: detect unresolved mentions ---
+        # Haiku: detect formatted bibliographic citations
+        detect_resp = None
         try:
-            haiku_resp = client.messages.create(
+            detect_resp = client.messages.create(
                 model="claude-haiku-4-5-20251001",
-                max_tokens=400,
+                max_tokens=600,
                 system=_HAIKU_DETECT_PROMPT,
                 messages=[{"role": "user", "content": f"Observation text:\n{obs}"}],
             )
-            detected = _parse_json_response(_extract_text(haiku_resp))
-            mentions = detected.get("unresolved", [])
+            detected = _parse_json_response(_extract_text(detect_resp))
+            citations = detected.get("citations", [])
         except Exception as exc:
-            raw_preview = _extract_text(haiku_resp)[:120] if haiku_resp.content else "<empty>"
-            print(f"    rating {rating.id}: Haiku error: {exc}")
+            raw_preview = _extract_text(detect_resp)[:120] if (detect_resp and detect_resp.content) else "<empty>"
+            print(f"    rating {rating.id}: detection error: {exc}")
             print(f"    raw response: {raw_preview!r}")
             errors += 1
             continue
 
-        if not mentions:
+        if not citations:
             skipped += 1
             continue
 
-        print(f"    rating {rating.id} (doi={rating.doi}): {len(mentions)} unresolved mention(s)")
-        new_obs = obs
+        print(f"    rating {rating.id} (doi={rating.doi}): {len(citations)} formatted citation(s)")
 
-        for mention_info in mentions:
-            mention = mention_info.get("mention", "")
-            sentence = mention_info.get("sentence", "")
-            authors = mention_info.get("authors", "")
-            year = mention_info.get("year")
-            topic = mention_info.get("topic", "")
+        for cite_info in citations:
+            mention = cite_info.get("mention", "")
+            sentence = cite_info.get("sentence", "")
+            journal = cite_info.get("journal", "")
+            year = cite_info.get("year")
+            volume = str(cite_info.get("volume") or "")
+            pages = str(cite_info.get("pages") or "")
+            topic = " ".join(filter(None, [journal, volume, pages]))
 
-            time.sleep(0.5)  # CrossRef polite-pool
-            candidates = _crossref_search(mention, authors, year, topic)
+            time.sleep(0.5)
+            candidates = _crossref_search(mention, year, journal=journal, volume=volume, pages=pages)
             print(f"      CrossRef candidates for '{mention}':")
             for c in candidates:
-                print(f"        [{c['doi']}] {c['title'][:70]} ({c['year']}) {c['authors'][:40]}")
+                print(
+                    f"        [{c['doi']}] {c['title'][:70]} "
+                    f"({c['year']}) {c['journal']} vol.{c.get('volume', '?')} p.{c.get('page', '?')}"
+                )
+
             if not candidates:
-                print(f"      '{mention}': no CrossRef candidates, leaving unresolved")
-                unresolved += 1
+                print(f"      '{mention}': no CrossRef candidates, skipping")
+                no_candidate += 1
                 continue
 
-            # --- Sonnet: pick best match ---
+            # Sonnet: pick best match
             try:
                 sonnet_resp = client.messages.create(
                     model="claude-sonnet-5",
@@ -374,32 +493,28 @@ def resolve_ratings(
             doi = pick.get("doi")
             confidence = pick.get("confidence", 0.0)
 
-            if not doi or confidence < 0.80:
-                print(f"      '{mention}': low confidence ({confidence:.2f}), leaving unresolved")
-                unresolved += 1
-                # Flag for admin: use Sonnet's pick if it had any confidence,
-                # otherwise fall back to the top CrossRef candidate so admin can decide.
-                flag_doi = doi if (doi and confidence > 0.0) else (candidates[0]["doi"] if candidates else None)
-                if flag_doi and not dry_run:
-                    _flag_for_admin(rating, mention, flag_doi, confidence)
-                continue
+            if not doi:
+                print(f"      '{mention}': Sonnet found no match, using top CrossRef candidate")
+                doi = candidates[0]["doi"]
+                confidence = 0.0
 
-            print(f"      '{mention}' -> \"[[{doi}]]\" (confidence={confidence:.2f})")
+            print(f"      '{mention}' -> proposed [[{doi}]] (confidence={confidence:.2f})")
+
             if not dry_run:
-                new_obs = new_obs.replace(mention, f'"[[{doi}]]"', 1)
-
-        if not dry_run and new_obs != obs:
-            rating.reproducibility_observation = new_obs
-            db.commit()
-            resolved += 1
+                best = next((c for c in candidates if c["doi"] == doi), candidates[0])
+                _flag_for_admin(rating, mention, doi, confidence, candidate_info=best)
+                flagged += 1
 
     db.close()
-    print(f"  resolve_citations: resolved={resolved} unresolved={unresolved} skipped={skipped} errors={errors}")
-    return {"resolved": resolved, "unresolved": unresolved, "skipped": skipped, "errors": errors}
+    print(
+        f"  resolve_citations: flagged={flagged} no_candidate={no_candidate} "
+        f"skipped={skipped} errors={errors}"
+    )
+    return {"flagged": flagged, "no_candidate": no_candidate, "skipped": skipped, "errors": errors}
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Resolve unlinked paper citations in ChemRepro reviews")
+    parser = argparse.ArgumentParser(description="Detect and flag bibliographic citations in ChemRepro reviews")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--railway", action="store_true",
                         help="Use PUBLIC_DATABASE_URL from .env (Railway direct connection)")
@@ -433,7 +548,6 @@ def main():
         orcid_id=orcid_id,
         dry_run=args.dry_run,
     )
-
 
 
 if __name__ == "__main__":

@@ -50,10 +50,14 @@ def _base(request: Request) -> dict:
 # ── Secret login URL ──────────────────────────────────────────────────────────
 
 @router.get("/login/{token}")
-async def admin_login(token: str, request: Request, db: Session = Depends(get_db)):
+async def admin_login(
+    token: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    next: str = Query(""),
+):
     if token != settings.ADMIN_SECRET_TOKEN:
         raise HTTPException(status_code=403, detail="Invalid token")
-    # Ensure admin user exists
     admin = db.get(User, ADMIN_ORCID)
     if not admin:
         admin = User(
@@ -66,7 +70,8 @@ async def admin_login(token: str, request: Request, db: Session = Depends(get_db
     request.session["orcid_id"] = ADMIN_ORCID
     request.session["user_name"] = "ChemReproAdmin"
     request.session["is_admin"] = True
-    return RedirectResponse("/admin/", status_code=303)
+    redirect_to = next if (next and next.startswith("/")) else "/admin/"
+    return RedirectResponse(redirect_to, status_code=303)
 
 
 # ── Dashboard ─────────────────────────────────────────────────────────────────
@@ -595,6 +600,11 @@ def _citation_token(rating_id: int, mention: str, candidate_doi: str) -> str:
     return _hmac_module.new(settings.ADMIN_SECRET_TOKEN.encode(), msg, hashlib.sha256).hexdigest()
 
 
+def _citation_dismiss_token(rating_id: int, mention: str, candidate_doi: str) -> str:
+    msg = f"dismiss:{rating_id}:{mention}:{candidate_doi}".encode()
+    return _hmac_module.new(settings.ADMIN_SECRET_TOKEN.encode(), msg, hashlib.sha256).hexdigest()
+
+
 @router.get("/citation-approve", response_class=HTMLResponse)
 async def citation_approve(
     request: Request,
@@ -615,17 +625,46 @@ async def citation_approve(
         raise HTTPException(status_code=404, detail=f"Rating {r} not found")
     obs = rating.reproducibility_observation or ""
     if mention not in obs:
-        msg = "Mention not found — the review may already have been updated."
+        msg = "Mention not found: the review may already have been updated."
         already_done = True
     else:
-        rating.reproducibility_observation = obs.replace(mention, f'"[[{candidate_doi}]]"', 1)
+        rating.reproducibility_observation = obs.replace(mention, f"[[{candidate_doi}]]", 1)
         db.commit()
-        msg = f'Replaced "{mention}" with "[[{candidate_doi}]]" in rating {r}.'
+        msg = f'Replaced "{mention}" with [[{candidate_doi}]] in rating {r}.'
         already_done = False
     return templates.TemplateResponse("admin_citation_result.html", {
         **_base(request),
         "msg": msg,
         "already_done": already_done,
+        "dismissed": False,
+        "rating": rating,
+        "paper_url": f"/paper/{rating.doi}",
+    })
+
+
+@router.get("/citation-dismiss", response_class=HTMLResponse)
+async def citation_dismiss(
+    request: Request,
+    r: int = Query(...),
+    m: str = Query(...),
+    d: str = Query(...),
+    t: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    """HMAC-verified dismiss: acknowledge citation suggestion with no text change."""
+    mention = unquote(m)
+    candidate_doi = unquote(d)
+    expected = _citation_dismiss_token(r, mention, candidate_doi)
+    if not _hmac_module.compare_digest(t, expected):
+        raise HTTPException(status_code=403, detail="Invalid or expired dismiss link")
+    rating = db.get(Rating, r)
+    if not rating:
+        raise HTTPException(status_code=404, detail=f"Rating {r} not found")
+    return templates.TemplateResponse("admin_citation_result.html", {
+        **_base(request),
+        "msg": f'Citation "{mention}" acknowledged: no changes made to rating {r}.',
+        "already_done": True,
+        "dismissed": True,
         "rating": rating,
         "paper_url": f"/paper/{rating.doi}",
     })
@@ -667,6 +706,6 @@ async def citation_review_post(
         raise HTTPException(status_code=404)
     obs = rating.reproducibility_observation or ""
     if mention and mention in obs:
-        rating.reproducibility_observation = obs.replace(mention, f'"[[{new_doi.strip()}]]"', 1)
+        rating.reproducibility_observation = obs.replace(mention, f"[[{new_doi.strip()}]]", 1)
     db.commit()
     return RedirectResponse(f"/paper/{rating.doi}", status_code=303)

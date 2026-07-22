@@ -2,7 +2,14 @@
 {% block title %}Citation update — ChemRepro{% endblock %}
 {% block content %}
 <div class="max-w-xl mx-auto mt-16 bg-white border border-slate-200 rounded-2xl p-8 text-center">
-  {% if already_done %}
+  {% if dismissed %}
+  <div class="w-12 h-12 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center mx-auto mb-4">
+    <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+    </svg>
+  </div>
+  <h1 class="text-lg font-semibold text-slate-800 mb-2">Acknowledged</h1>
+  {% elif already_done %}
   <div class="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto mb-4">
     <svg class="w-6 h-6 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18A9 9 0 0012 3z"/>

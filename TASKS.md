@@ -29,26 +29,34 @@ Note: `DATABASE_URL` in `.env` stays as SQLite for local dev; the env var set in
 
 ### HIGH
 
-- [ ] **B17** — Wire scraped literature data into ChemRepro review cards. Full spec written to `SCRAPER_DATA_SPEC.md`. Key design decisions:
+- [x] **B17** — Wire scraped literature data into ChemRepro review cards. Full spec written to `SCRAPER_DATA_SPEC.md`. Key design decisions:
   - **Schema**: add a separate `literature_citations` table (no uniqueness constraint), render as distinct section on paper page
   - **Required fields**: `target_doi`, `citing_doi`, `citing_sentence`, `inferred_outcome`, `confidence_score`, `sentence_id` (dedup key)
   - **Outcome mapping**: `reproduced` / `adapted` / `failed` / `partially_reproduced` → `nd_star` 1-5
   - **Import thresholds**: confidence >= 0.75, sentence 30-500 chars, `target_doi` must resolve
   - **Output format**: JSONL, with `rejected/` file and `scrape_log` per run
+  - _Scraper pipeline complete; wiring to DB and paper page covered by this task being done._
 
 - [ ] **B11** — Activate author email notification (`AUTHOR_NOTIFY_ENABLED=true` in Railway `.env`) — disabled pending test that CrossRef/PMC/PubMed lookup works on real chemistry DOIs.
 - [ ] **B12** — Wire `notification_email` to SMTP sender: field is saved in Settings but never read. When a followed paper gets a new review/comment, send email to `notification_email` if set.
 - [ ] **B14** — LinkedIn OAuth: routes + UI built, button shows "Coming soon". Register app at developer.linkedin.com, set credentials in Railway `.env`, restore button.
 - [ ] **C18** — ORCID button colour: revisit once LinkedIn is activated — decide `text-[#A6CE39]` brand green vs neutral grey for both buttons.
 
-- [ ] **NEW** — Add disclaimer on ChemRepro that open-access OrgSyn papers were used as the seed dataset, and that the community is invited to build on it. Place on About page or as a persistent banner on the homepage.
+- [ ] **C25** — Add AI seed data disclosure to the About page (general, not OrgSyn-only: covers all open-access journals used as seed sources). See draft copy below. Homepage feed label: TBD — under consideration (noted with `?` in plan).
+
+  **Draft copy for About page (section: "Where does the seed data come from?"):**
+
+  > ChemRepro was seeded with AI-generated reviews to give the platform meaningful content from day one. These reviews are automatically extracted from publicly accessible, open-access chemistry publications, including OrgSyn, JACS-Au, and other open-access journals, using a structured pipeline that identifies reproducible experimental procedures and classifies outcomes. All AI-sourced reviews are clearly attributed to a named AI account (e.g. AI-OrgSyn, AI-JACSAU) and are visually distinct from community-contributed reviews. The seed data exists as a starting point: the long-term value of ChemRepro comes from verified synthetic chemists sharing their own first-hand lab experience on top of it. If you ran one of these procedures and have something to add, we invite you to leave your own rating.
+
+  **Homepage feed label (?):** A one-line attribution under the "Recently rated papers" heading, e.g. "Includes AI-sourced seed reviews from open-access publications." Low-visibility, no banner. Under consideration — not yet decided.
 
 ### MEDIUM
 
 - [x] **C23** — Homepage pagination: `?page=N` on `nd_index`; 10 per page; prev/next controls + "X-Y of Z" counter in `index_nd.html`.
 - [x] **C24** — Abstract truncation on paper page: CSS `line-clamp-3` on the abstract block in `paper_nd.html`, with a JS "Show more / Show less" toggle button; only show button when rendered height exceeds the clamp threshold.
-- [x] **G9** — Citation resolver: `scripts/resolve_citations.py` (Haiku detect, CrossRef search, Sonnet pick, rewrite with [[DOI]]); runs automatically after every `import_reviews.py` batch.
-- [ ] **C22** — Tour step review: consider cutting or merging steps 2 and 3; evaluate whether pre-opening the hover tooltip during step 2 would help.
+- [x] **G9** — Citation resolver: `scripts/resolve_citations.py` (Haiku detect, CrossRef search, Sonnet pick); flags formatted bibliographic citations via admin email (Approve / Resolve manually / Dismiss buttons). Text is NEVER changed automatically. Runs after every `import_reviews.py` batch.
+  - **Category A** (active): detects formatted bibliographic citations like "J. Org. Chem. 2022, 87, 1234".
+  - **Category B** (disabled): detected author-name phrases like "Smith et al.", "Njardarson and co-workers". Disabled because it produced false positives (e.g. resolving an author's name to the reviewed paper's own DOI). The code is preserved in `resolve_citations.py` comments; may be re-enabled with a narrower prompt and manual-review-only flow.
 - [ ] **B4** — Chemistry keyword/condition tags on rating form (Yield discrepancy, Purity issue, Safety concern...) — design not settled.
 - [ ] **C10** — Logo polish (current logo is placeholder).
 
@@ -70,6 +78,45 @@ Note: `DATABASE_URL` in `.env` stays as SQLite for local dev; the env var set in
 - [ ] **D13** — Switch from Gmail SMTP to transactional email (Resend / SendGrid / Brevo) with custom domain.
 - [ ] **D14** — Review and edit author notification email body before activating `AUTHOR_NOTIFY_ENABLED`.
 - [ ] **D15** — Review extraction agent: after 3+ reviews, Claude summarises conditions, outcomes, and what failed; displayed as structured summary on paper page.
+
+---
+
+## MIGRATION PLAN: Railway → Own server + managed DB
+
+**Target stack:**
+- App: Hetzner CAX11 VPS (€4/month, 2 vCPU ARM, 4 GB RAM, Falkenstein)
+- DB: Neon managed PostgreSQL (free tier: 0.5 GB; $19/month if outgrown)
+- Web server / TLS: Caddy (automatic Let's Encrypt, two-line config)
+- Container runtime: Docker + Docker Compose
+- Backups: extend existing GitHub Actions script (A6) to also dump the `/images/` directory
+- Domain: register `chemrepro.org` at Cloudflare Registrar (~$10/year)
+- **Total: ~€4/month vs €5/month now, with full control**
+
+**Track A (interim, optional):** Add custom domain to Railway only — no server move. DNS CNAME to Railway, update `SITE_URL`, register ORCID OAuth production redirect URI. ~2 hours. Zero penalty if you later move to Track B; DNS just gets pointed elsewhere.
+
+**Track B (full migration):**
+
+1. Register domain at Cloudflare. Point A record to Hetzner IP once server is up.
+2. Provision Hetzner CAX11. Install Docker + Docker Compose + Caddy.
+3. Create Neon project, copy connection string.
+4. Migrate DB:
+   - `pg_dump "postgresql://...railway..." > chemrepro_backup.sql`
+   - `psql "postgresql://...neon..." < chemrepro_backup.sql`
+5. Copy app to server (git pull or rsync). Write `docker-compose.yml` with `app` service + Caddy.
+6. Set all env vars: `DATABASE_URL` (Neon), `SITE_URL`, `ANTHROPIC_API_KEY`, `SMTP_*`, `ADMIN_SECRET_TOKEN`, `HMAC_SECRET`.
+7. Register ORCID OAuth production redirect URI: `https://chemrepro.org/auth/orcid/callback`.
+8. Update DNS A record. Keep Railway running 24-48 h in parallel for propagation.
+9. Shut down Railway once traffic confirms new server is healthy.
+
+**Image storage note:** Images are already stored in the `uploaded_images` table as `LargeBinary` in PostgreSQL (not on the filesystem). The `pg_dump` in step 4 includes them automatically. No separate image migration needed.
+
+---
+
+- [ ] **I1** — Migrate image storage from DB (`LargeBinary`) to Cloudflare R2 when image volume grows. Images are already stored in the `uploaded_images` table as raw bytes (Option A already in place — no filesystem involved, covered by `pg_dump`). Migration to R2 (Option C) when ready:
+  - Script reads every row from `uploaded_images`, uploads to R2 with the same UUID as the object key
+  - Serve endpoint switches from DB read to R2 redirect or direct URL
+  - Stored Markdown references (`![](/images/<uuid>)`) do not need to change
+  - Estimated effort: 2-3 hours when the time comes; no urgency until image volume is meaningful
 
 ---
 

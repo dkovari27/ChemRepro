@@ -11,6 +11,7 @@ CAREER_STAGES = [
     "Academic PI",
     "Independent researcher",
     "Prefer not to say",
+    "Data curation agent",
 ]
 
 

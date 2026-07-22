@@ -42,6 +42,10 @@ from app.models.user import User
 
 AI_CAREER_STAGE = "Data curation agent"
 
+# Confidence thresholds — records below either value are rejected at import
+_MIN_AI_CONFIDENCE = 0.75
+_MIN_EXTRACTION_CONFIDENCE = 0.75
+
 
 def make_session(db_url: str):
     url = db_url
@@ -54,27 +58,33 @@ def make_session(db_url: str):
     return sessionmaker(bind=engine)()
 
 
-def ensure_ai_user(db, orcid_id: str, display_name: str, dry_run: bool) -> bool:
-    """Create AI reviewer profile if it does not exist. Returns True if user exists after this call."""
+def ensure_ai_user(db, orcid_id: str, display_name: str, nickname: str | None, dry_run: bool) -> bool:
+    """Create or update AI reviewer profile. Returns True if user exists after this call.
+    nickname is only updated when explicitly provided from the JSONL (not None)."""
     user = db.get(User, orcid_id)
     if user:
         print(f"  Profile {orcid_id!r} already exists (name={user.name!r})")
+        if nickname is not None and not dry_run and user.nickname != nickname:
+            user.nickname = nickname
+            db.commit()
+            print(f"  Updated nickname to {nickname!r}")
         return True
+    creation_nickname = nickname or display_name
     print(f"  Profile {orcid_id!r} not found, creating...")
     if dry_run:
-        print(f"  DRY RUN: would create profile name={display_name!r}, career_stage={AI_CAREER_STAGE!r}")
+        print(f"  DRY RUN: would create profile name={display_name!r}, nickname={creation_nickname!r}, career_stage={AI_CAREER_STAGE!r}")
         return True
     db.add(User(
         orcid_id=orcid_id,
         name=display_name,
-        nickname=display_name,
+        nickname=creation_nickname,
         career_stage=AI_CAREER_STAGE,
         career_stage_set=True,
         pledge_accepted=True,
         is_demo=False,
     ))
     db.commit()
-    print(f"  Created: {display_name!r} (orcid_id={orcid_id!r}, career_stage={AI_CAREER_STAGE!r})")
+    print(f"  Created: {display_name!r} (orcid_id={orcid_id!r}, nickname={creation_nickname!r}, career_stage={AI_CAREER_STAGE!r})")
     return True
 
 
@@ -154,6 +164,18 @@ def import_images(db, image_list: list, uploader_orcid_id: str, dry_run: bool) -
     return "\n".join(tags)
 
 
+def _open_rejected_log(input_path: Path) -> tuple[Path, "io.TextIOWrapper"]:
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    rejected_path = input_path.parent / f"rejected_{ts}.jsonl"
+    return rejected_path, open(rejected_path, "w", encoding="utf-8", newline="\n")
+
+
+def _write_rejected(fh, row: dict, reason: str) -> None:
+    out = dict(row)
+    out["_rejection_reason"] = reason
+    fh.write(json.dumps(out, ensure_ascii=False) + "\n")
+
+
 VALID_STARS = {1, 2, 3, 4, 5}
 # nd_failure_context when nd_star=null (new schema: extension_failed | inconclusive)
 NULL_STAR_CONTEXTS = {"extension_failed", "inconclusive"}
@@ -194,63 +216,105 @@ def main():
     db_url = os.environ.get("DATABASE_URL", "sqlite:///./chemrepro.db")
     db = make_session(db_url)
 
+    input_path = Path(args.file)
+    rejected_path, rejected_fh = _open_rejected_log(input_path)
+
     print(f"\n{'='*55}")
     print(f"  Reviewer : {orcid_id}")
     print(f"  DB       : {db_url[:65]}{'...' if len(db_url) > 65 else ''}")
     print(f"  Mode     : {'DRY RUN' if args.dry_run else 'LIVE'}")
+    print(f"  Rejected : {rejected_path.name}")
     print(f"{'='*55}\n")
 
-    if args.ai_name:
-        ensure_ai_user(db, orcid_id, display_name, args.dry_run)
-        print()
-
-    data = json.loads(Path(args.file).read_text(encoding="utf-8"))
+    if input_path.suffix == ".jsonl":
+        data = [json.loads(line) for line in input_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    else:
+        data = json.loads(input_path.read_text(encoding="utf-8"))
     if not isinstance(data, list):
         print("ERROR: JSON file must be a list of review objects.")
         sys.exit(1)
 
     print(f"Importing {len(data)} review(s)...\n")
-    ok = skip = fail = 0
+    ok = skip = fail = held = 0
     inserted_ids: list[int] = []
 
     for i, row in enumerate(data, 1):
-        doi = (row.get("doi") or "").strip()
+        # Task 1: field name is target_doi (not doi); accept legacy "doi" as fallback
+        doi = (row.get("target_doi") or row.get("doi") or "").strip()
         if not doi:
-            print(f"  [{i:>3}] SKIP: missing doi field")
+            print(f"  [{i:>3}] SKIP: missing target_doi field")
             skip += 1
+            continue
+
+        # Task 2: gate on _needs_clarification
+        if row.get("_needs_clarification"):
+            print(f"  [{i:>3}] {doi}: HELD: _needs_clarification=true — written to rejected log")
+            _write_rejected(rejected_fh, row, "_needs_clarification: awaiting human review")
+            held += 1
+            continue
+
+        # Task 3: enforce confidence thresholds
+        ai_conf = row.get("ai_confidence")
+        ext_conf = row.get("extraction_confidence")
+        if ai_conf is not None and ai_conf < _MIN_AI_CONFIDENCE:
+            reason = f"ai_confidence={ai_conf:.3f} below {_MIN_AI_CONFIDENCE}"
+            print(f"  [{i:>3}] {doi}: REJECTED: {reason}")
+            _write_rejected(rejected_fh, row, reason)
+            fail += 1
+            continue
+        if ext_conf is not None and ext_conf < _MIN_EXTRACTION_CONFIDENCE:
+            reason = f"extraction_confidence={ext_conf:.3f} below {_MIN_EXTRACTION_CONFIDENCE}"
+            print(f"  [{i:>3}] {doi}: REJECTED: {reason}")
+            _write_rejected(rejected_fh, row, reason)
+            fail += 1
             continue
 
         nd_star = row.get("nd_star")  # None = null in JSON
         if nd_star is not None and nd_star not in VALID_STARS:
-            print(f"  [{i:>3}] {doi}: FAIL: nd_star must be 1-5 or null, got {nd_star!r}")
+            reason = f"nd_star must be 1-5 or null, got {nd_star!r}"
+            print(f"  [{i:>3}] {doi}: FAIL: {reason}")
+            _write_rejected(rejected_fh, row, reason)
             fail += 1
             continue
 
         ctx = row.get("nd_failure_context") or None
         if nd_star is None:
-            # Null star requires a context value
             if ctx not in NULL_STAR_CONTEXTS:
-                print(
-                    f"  [{i:>3}] {doi}: FAIL: nd_failure_context must be "
-                    f"'extension_failed' or 'inconclusive' when nd_star is null, got {ctx!r}"
-                )
+                reason = f"nd_failure_context must be 'extension_failed' or 'inconclusive' when nd_star is null, got {ctx!r}"
+                print(f"  [{i:>3}] {doi}: FAIL: {reason}")
+                _write_rejected(rejected_fh, row, reason)
                 fail += 1
                 continue
         elif nd_star == 1:
-            # Legacy 1-star import: accept old schema values or null (new schema)
             if ctx is not None and ctx not in LEGACY_FAIL_CONTEXTS:
-                print(
-                    f"  [{i:>3}] {doi}: FAIL: nd_failure_context for 1-star must be "
-                    f"'original_tested', 'extension_only', or null, got {ctx!r}"
-                )
+                reason = f"nd_failure_context for 1-star must be 'original_tested', 'extension_only', or null, got {ctx!r}"
+                print(f"  [{i:>3}] {doi}: FAIL: {reason}")
+                _write_rejected(rejected_fh, row, reason)
                 fail += 1
                 continue
         else:
             ctx = None
 
+        # Task 5: read reviewer_nickname from the JSONL record
+        record_nickname = (row.get("reviewer_nickname") or "").strip() or None
+
         career = args.career_stage or row.get("career_stage_snapshot") or default_career
         observation = ((row.get("reproducibility_observation") or "").strip()) or None
         image_list = row.get("images") or []
+
+        # Task 6: scraper enrichment fields
+        citing_author = (row.get("citing_author") or "").strip() or None
+        is_multi_target = bool(row.get("is_multi_target", False))
+
+        # Task 7: provenance fields
+        source_doi = (row.get("source_doi") or "").strip() or None
+        source_url = (row.get("source_url") or "").strip() or None
+
+        # Ensure AI user profile exists.
+        # reviewer_nickname from JSONL updates the stored nickname only when explicitly present;
+        # when absent (None) the existing nickname is left untouched.
+        if args.ai_name:
+            ensure_ai_user(db, orcid_id, display_name, record_nickname, args.dry_run)
 
         paper = db.get(Paper, doi)
         if paper is None:
@@ -258,6 +322,7 @@ def main():
             meta = fetch_crossref(doi)
             if meta is None:
                 print(f"  [{i:>3}] {doi}: FAIL: CrossRef lookup failed")
+                _write_rejected(rejected_fh, row, "CrossRef lookup failed")
                 fail += 1
                 continue
             print(f"         title: {meta['title'][:75]}")
@@ -280,6 +345,12 @@ def main():
 
         star_disp = "null" if nd_star is None else str(nd_star)
         print(f"         star={star_disp} ({STAR_LABEL.get(nd_star, '?')}){f', ctx={ctx}' if ctx else ''}")
+        if citing_author:
+            print(f"         citing_author={citing_author!r}")
+        if is_multi_target:
+            print(f"         is_multi_target=True")
+        if source_doi:
+            print(f"         source_doi={source_doi}")
         if image_list:
             print(f"         images: {len(image_list)} attached")
 
@@ -296,6 +367,10 @@ def main():
                 nd_failure_context=ctx,
                 reproducibility_observation=observation,
                 career_stage_snapshot=career,
+                citing_author=citing_author,
+                is_multi_target=is_multi_target,
+                source_doi=source_doi,
+                source_url=source_url,
                 is_demo=False,
             )
             db.add(rating)
@@ -306,10 +381,17 @@ def main():
             print(f"         would insert")
         ok += 1
 
+    rejected_fh.close()
+    if rejected_path.stat().st_size == 0:
+        rejected_path.unlink()  # clean up empty rejected log
+    else:
+        print(f"\n  Rejected log: {rejected_path}")
+
     print(f"\n{'='*55}")
     print(f"  Inserted : {ok}")
     print(f"  Skipped  : {skip}")
-    print(f"  Failed   : {fail}")
+    print(f"  Held     : {held}  (needs clarification — see rejected log)")
+    print(f"  Rejected : {fail}  (confidence / validation failures — see rejected log)")
     if args.dry_run:
         print("  (dry run: no changes made)")
     print()

@@ -164,3 +164,14 @@ def moderate_rating_bg(rating_id: int) -> None:
         pass
     finally:
         db.close()
+
+
+def resolve_rating_bg(rating_id: int) -> None:
+    """Background task: scan a newly submitted review for formatted bibliographic citations."""
+    try:
+        from scripts.resolve_citations import resolve_ratings
+        resolve_ratings(db_url=settings.DATABASE_URL, rating_ids=[rating_id])
+    except Exception as exc:
+        import traceback
+        print(f"[citation resolver] rating {rating_id}: {exc}")
+        traceback.print_exc()
