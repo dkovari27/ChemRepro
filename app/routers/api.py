@@ -118,7 +118,11 @@ async def get_paper_ratings(doi: str, request: Request, db: Session = Depends(ge
     paper = db.get(Paper, doi)
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
-    ratings = db.query(Rating).filter(Rating.doi == doi).order_by(Rating.created_at.desc()).all()
+    ratings = db.query(Rating).filter(
+        Rating.doi == doi,
+        Rating.ai_flagged == False,  # noqa: E712
+        Rating.pending_admin_review == False,  # noqa: E712
+    ).order_by(Rating.created_at.desc()).all()
     return ratings
 
 

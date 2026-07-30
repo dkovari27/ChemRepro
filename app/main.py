@@ -88,6 +88,15 @@ def _migrate():
             user_cols2 = [row[1] for row in conn.execute(text("PRAGMA table_info(users)"))]
             if "is_demo" not in user_cols2:
                 conn.execute(text("ALTER TABLE users ADD COLUMN is_demo BOOLEAN NOT NULL DEFAULT 0"))
+            rating_cols5 = [row[1] for row in conn.execute(text("PRAGMA table_info(ratings)"))]
+            if "citing_author" not in rating_cols5:
+                conn.execute(text("ALTER TABLE ratings ADD COLUMN citing_author VARCHAR(255)"))
+            if "is_multi_target" not in rating_cols5:
+                conn.execute(text("ALTER TABLE ratings ADD COLUMN is_multi_target BOOLEAN NOT NULL DEFAULT 0"))
+            if "source_doi" not in rating_cols5:
+                conn.execute(text("ALTER TABLE ratings ADD COLUMN source_doi VARCHAR(255)"))
+            if "source_url" not in rating_cols5:
+                conn.execute(text("ALTER TABLE ratings ADD COLUMN source_url VARCHAR(1024)"))
             # collections and saved_papers are created by create_all above; no ALTER needed
         else:
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS career_stage VARCHAR(60)"))
@@ -110,6 +119,10 @@ def _migrate():
             conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS substantiation_deadline TIMESTAMP WITH TIME ZONE"))
             conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS substantiation_sent_at TIMESTAMP WITH TIME ZONE"))
             conn.execute(text("ALTER TABLE reports ADD COLUMN IF NOT EXISTS is_defamatory BOOLEAN NOT NULL DEFAULT FALSE"))
+            conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS citing_author VARCHAR(255)"))
+            conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS is_multi_target BOOLEAN NOT NULL DEFAULT FALSE"))
+            conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS source_doi VARCHAR(255)"))
+            conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS source_url VARCHAR(1024)"))
         conn.commit()
 
 _migrate()

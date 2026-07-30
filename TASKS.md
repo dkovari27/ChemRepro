@@ -1,5 +1,5 @@
 # ChemRepro — Task Tracker
-_Last updated: 16 July 2026_
+_Last updated: 30 July 2026_
 
 ---
 
@@ -29,6 +29,10 @@ Note: `DATABASE_URL` in `.env` stays as SQLite for local dev; the env var set in
 
 ### HIGH
 
+- [x] **SEC-1** — `_migrate()` in `main.py` is out of sync with Alembic: the four scraper provenance columns (`citing_author`, `is_multi_target`, `source_doi`, `source_url`) exist in Alembic migration `001_add_scraper_provenance_fields.py` and in the `Rating` model, but are missing from the startup `_migrate()` function. On any Railway DB that was created before those columns existed and has not had `alembic upgrade head` run manually, `import_reviews.py` will crash on the first insert with "column does not exist". Fix: add four `ADD COLUMN IF NOT EXISTS` statements to the PostgreSQL branch of `_migrate()`. Until then, run `alembic upgrade head` manually after any fresh deploy against an existing DB. (Alembic is the DB migration tool that tracks which schema changes have been applied; Railway does not run it automatically.)
+
+
+
 - [x] **B17** — Wire scraped literature data into ChemRepro review cards. Full spec written to `SCRAPER_DATA_SPEC.md`. Key design decisions:
   - **Schema**: add a separate `literature_citations` table (no uniqueness constraint), render as distinct section on paper page
   - **Required fields**: `target_doi`, `citing_doi`, `citing_sentence`, `inferred_outcome`, `confidence_score`, `sentence_id` (dedup key)
@@ -39,8 +43,8 @@ Note: `DATABASE_URL` in `.env` stays as SQLite for local dev; the env var set in
 
 - [ ] **B11** — Activate author email notification (`AUTHOR_NOTIFY_ENABLED=true` in Railway `.env`) — disabled pending test that CrossRef/PMC/PubMed lookup works on real chemistry DOIs.
 - [ ] **B12** — Wire `notification_email` to SMTP sender: field is saved in Settings but never read. When a followed paper gets a new review/comment, send email to `notification_email` if set.
-- [ ] **B14** — LinkedIn OAuth: routes + UI built, button shows "Coming soon". Register app at developer.linkedin.com, set credentials in Railway `.env`, restore button.
-- [ ] **C18** — ORCID button colour: revisit once LinkedIn is activated — decide `text-[#A6CE39]` brand green vs neutral grey for both buttons.
+- [x] **B14** — LinkedIn OAuth: button live on all sign-in pages (login_choose, paper, paper_nd, paper_classic, guest_setup). To enable end-to-end: register app at developer.linkedin.com, add "Sign In with LinkedIn using OpenID Connect" product, set `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, `LINKEDIN_REDIRECT_URI=https://chemrepro.org/auth/linkedin/callback` in Railway Variables.
+- [x] **C18** — ORCID/LinkedIn button design resolved: ORCID uses brand green with reverse-logo hover swap (white circle, green iD on green background); LinkedIn uses `#0A66C2` blue icon with white icon on hover. Guest login removed from all UI entry points (backend kept).
 
 - [ ] **C25** — Add AI seed data disclosure to the About page (general, not OrgSyn-only: covers all open-access journals used as seed sources). See draft copy below. Homepage feed label: TBD — under consideration (noted with `?` in plan).
 
@@ -52,6 +56,12 @@ Note: `DATABASE_URL` in `.env` stays as SQLite for local dev; the env var set in
 
 ### MEDIUM
 
+- [ ] **SEC-2** — Defamatory report rate limit: the "Report as defamatory" checkbox immediately hides content (`ai_flagged=True`) with no account age check or per-user cooldown. A new account can systematically hide every review by mass-reporting. Implement a 3-strike system: 1st successfully hidden item sends the reporter a warning inbox message; 2nd hidden item sends a stronger warning ("next violation may result in ban"); 3rd hidden item auto-bans the reporter. Strike counter stored on User model. An admin "Un-strike" button on the dashboard allows manual reset if a report later proves legitimate.
+
+- [ ] **SEC-3** — Admin dashboard loads entire `papers` table into memory on every page load (`db.query(Paper).all()`). Fine for now, but will cause timeouts and OOM errors as the DB grows. Fix when paper count exceeds ~5,000: paginate or replace with a `{doi: title}` dict built from a join on the ratings currently shown, rather than the full table.
+
+- [ ] **SEC-4** — Observation text length: new submissions have no length cap, but the edit handler truncates to 1,000 characters silently, causing permanent data loss on first edit of any longer review. Fix: enforce a 1,000-character limit on submission (not just on edit). Add a live character counter in the bottom-right corner of the observation textarea ("55 / 1000"), styled in amber when over 900, red when at limit.
+
 - [x] **C23** — Homepage pagination: `?page=N` on `nd_index`; 10 per page; prev/next controls + "X-Y of Z" counter in `index_nd.html`.
 - [x] **C24** — Abstract truncation on paper page: CSS `line-clamp-3` on the abstract block in `paper_nd.html`, with a JS "Show more / Show less" toggle button; only show button when rendered height exceeds the clamp threshold.
 - [x] **G9** — Citation resolver: `scripts/resolve_citations.py` (Haiku detect, CrossRef search, Sonnet pick); flags formatted bibliographic citations via admin email (Approve / Resolve manually / Dismiss buttons). Text is NEVER changed automatically. Run locally with `--railway` flag.
@@ -61,6 +71,18 @@ Note: `DATABASE_URL` in `.env` stays as SQLite for local dev; the env var set in
   - **Future option**: switch to Anthropic API (`anthropic.Anthropic(api_key=...)`) to allow running on Railway automatically after each submission. Would require `ANTHROPIC_API_KEY` in Railway env and a `resolve_rating_bg` background task in `papers.py`. Cost estimate: ~$0.001 per review that contains a formatted citation.
 - [ ] **B4** — Chemistry keyword/condition tags on rating form (Yield discrepancy, Purity issue, Safety concern...) — design not settled.
 - [ ] **C10** — Logo polish (current logo is placeholder).
+
+### LOW PRIORITY / HOUSEKEEPING
+
+- [ ] **SEC-5** — Windows cmd.exe injection risk in `resolve_citations.py`: when `claude.cmd` is invoked via `["cmd", "/c", path, "-p", prompt, ...]`, cmd.exe parses the argument list as a shell command, so review text containing `&`, `|`, or `>` could theoretically execute shell commands on the operator's machine. Practical risk is near-zero (only you run the script, against your own DB). Fix when productionising: pass the prompt via stdin (`subprocess.run(..., input=prompt)`) instead of as a CLI argument, and use the `--stdin` flag if the claude CLI supports it.
+
+- [ ] **SEC-6** — Approve/dismiss HMAC tokens in citation emails never expire. A link from any past email remains forever valid. Low practical risk (approve becomes a no-op once the mention is already replaced), but a dismiss token could suppress a future re-flag of an identical mention/DOI pair. Fix: add a timestamp to the HMAC message and check it server-side, same approach as the email-login token.
+
+- [ ] **SEC-7** — `datetime.utcnow()` deprecated in Python 3.12 and above (`api_key.py:17`, `api.py:44`). Replace with `datetime.now(timezone.utc)`. The `DateTime` column also lacks `timezone=True`, so stored timestamps are naive UTC. Low urgency, no runtime breakage until Python 3.14+.
+
+- [ ] **SEC-8** — Greedy regex in `_parse_json_response` (`resolve_citations.py`): `re.search(r'\{.*\}', text, re.DOTALL)` matches from the first `{` to the last `}`. If the Claude CLI response contains stray braces after the JSON (e.g. in markdown fences), `json.loads()` raises `JSONDecodeError` and the citation is silently counted as an error. Fix: use a non-greedy pattern (`\{.*?\}`) with `re.DOTALL`, or strip markdown fences before parsing.
+
+- [ ] **SEC-9** — Admin substantiation deadline check runs as a side-effect on every admin dashboard page load rather than as a scheduled job. If the page request is cancelled mid-render after `ai_flagged=True` is written but before `substantiation_deadline = None` is committed, the rating is hidden but the overdue email fires again on the next load. Fix: move the deadline check to an APScheduler daily job (the same scheduler used by the scraper health check, once that is built).
 
 ### POST-LAUNCH
 
@@ -156,7 +178,9 @@ Note: `DATABASE_URL` in `.env` stays as SQLite for local dev; the env var set in
 - API v1 `avg_reproducibility` returns real outcome-based score 1-5 (F5 fixed)
 - `render_md` filter registered globally via `register_globals()`
 - No em dashes in any user-visible text
-- LinkedIn button shows "Coming soon" on all pages until credentials configured
+- LinkedIn button live on all pages; awaiting Railway credentials to enable end-to-end login (see B14)
+- Guest login removed from all UI; backend routes preserved for future re-activation
+- ORCID hover swap: green SVG → white circle + green iD via inline reverse SVG; LinkedIn icon colour fixed to `#0A66C2` at rest, white on hover
 - Admin access: `GET /admin/login/{ADMIN_SECRET_TOKEN}`
 
 ---
@@ -250,7 +274,7 @@ Note: `DATABASE_URL` in `.env` stays as SQLite for local dev; the env var set in
 - **ANTHROPIC_API_KEY**: must be set in Railway env vars for AI moderation to run on production (currently in local `.env`).
 - **ADMIN_SECRET_TOKEN**: set a real secret in Railway `.env` before public launch.
 - **v1 templates** are read-only snapshots. Do not edit.
-- **LinkedIn**: gate review submission behind ORCID; LinkedIn for comments/follows only (connection count not available via API).
+- **LinkedIn**: full login supported (reviews, comments, follows). Set Railway credentials to activate (see B14).
 - **B3 author emails**: CrossRef + Europe PMC + PubMed in order. Silently skips preprints and non-indexed papers — expected.
 
 ---

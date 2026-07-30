@@ -155,7 +155,7 @@ def _get_nd_paper_scores(doi: str, db: Session) -> dict:
 
 
 def _get_paper_scores(doi: str, db: Session) -> dict:
-    std_filter = [Rating.doi == doi, Rating.scoring_mode == "standard"]
+    std_filter = [Rating.doi == doi, Rating.scoring_mode == "standard", Rating.ai_flagged == False]  # noqa: E712
     row = db.query(
         func.avg(_SCORE_EXPR).label("avg_score"),
         func.count(Rating.id).label("count"),
@@ -359,6 +359,9 @@ def _editable_rating_or_404(rating_id: int, orcid_id: str, db: Session) -> Ratin
 
 def _delete_rating(r: Rating, db: Session) -> None:
     db.query(Like).filter(Like.rating_id == r.id).delete()
+    cids = [c.id for c in db.query(Comment.id).filter(Comment.rating_id == r.id).all()]
+    if cids:
+        db.query(CommentLike).filter(CommentLike.comment_id.in_(cids)).delete(synchronize_session=False)
     db.query(Comment).filter(Comment.rating_id == r.id).delete()
     db.delete(r)
     db.commit()

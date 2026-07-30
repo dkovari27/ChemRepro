@@ -42,7 +42,7 @@ def _check_content(text: str) -> bool:
                 ),
             }],
         )
-        return msg.content[0].text.strip().upper() != "FLAG"
+        return "FLAG" not in msg.content[0].text.strip().upper()
     except anthropic.APIError as exc:
         # API reachable but request rejected: likely billing or credit issue
         if not _api_alarm_sent:

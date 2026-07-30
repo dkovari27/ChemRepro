@@ -122,10 +122,6 @@
       {% if not orcid_id %}
       <p class="text-sm text-slate-500 mb-3">Sign in to submit a Classic rating.</p>
       <div class="flex flex-col gap-2">
-        <a href="/auth/guest-setup?next=/classic/paper/{{ paper.doi }}"
-           class="block text-center border border-slate-300 text-slate-700 rounded-lg px-4 py-2 text-sm hover:border-brand transition-colors">
-          Continue as guest
-        </a>
         <a href="/auth/login"
            class="block text-center bg-brand text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-colors">
           Sign in with ORCID

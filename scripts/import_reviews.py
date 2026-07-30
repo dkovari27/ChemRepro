@@ -164,16 +164,17 @@ def import_images(db, image_list: list, uploader_orcid_id: str, dry_run: bool) -
     return "\n".join(tags)
 
 
-def _open_rejected_log(input_path: Path) -> tuple[Path, "io.TextIOWrapper"]:
+def _rejected_path(input_path: Path) -> Path:
     ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    rejected_path = input_path.parent / f"rejected_{ts}.jsonl"
-    return rejected_path, open(rejected_path, "w", encoding="utf-8", newline="\n")
+    return input_path.parent / f"rejected_{ts}.jsonl"
 
 
-def _write_rejected(fh, row: dict, reason: str) -> None:
+def _write_rejected(path: Path, row: dict, reason: str) -> None:
+    """Append one rejected row to the log, creating the file on first call."""
     out = dict(row)
     out["_rejection_reason"] = reason
-    fh.write(json.dumps(out, ensure_ascii=False) + "\n")
+    with open(path, "a", encoding="utf-8", newline="\n") as fh:
+        fh.write(json.dumps(out, ensure_ascii=False) + "\n")
 
 
 VALID_STARS = {1, 2, 3, 4, 5}
@@ -217,13 +218,12 @@ def main():
     db = make_session(db_url)
 
     input_path = Path(args.file)
-    rejected_path, rejected_fh = _open_rejected_log(input_path)
+    rejected_path = _rejected_path(input_path)
 
     print(f"\n{'='*55}")
     print(f"  Reviewer : {orcid_id}")
     print(f"  DB       : {db_url[:65]}{'...' if len(db_url) > 65 else ''}")
     print(f"  Mode     : {'DRY RUN' if args.dry_run else 'LIVE'}")
-    print(f"  Rejected : {rejected_path.name}")
     print(f"{'='*55}\n")
 
     if input_path.suffix == ".jsonl":
@@ -249,7 +249,7 @@ def main():
         # Task 2: gate on _needs_clarification
         if row.get("_needs_clarification"):
             print(f"  [{i:>3}] {doi}: HELD: _needs_clarification=true — written to rejected log")
-            _write_rejected(rejected_fh, row, "_needs_clarification: awaiting human review")
+            _write_rejected(rejected_path, row, "_needs_clarification: awaiting human review")
             held += 1
             continue
 
@@ -259,13 +259,13 @@ def main():
         if ai_conf is not None and ai_conf < _MIN_AI_CONFIDENCE:
             reason = f"ai_confidence={ai_conf:.3f} below {_MIN_AI_CONFIDENCE}"
             print(f"  [{i:>3}] {doi}: REJECTED: {reason}")
-            _write_rejected(rejected_fh, row, reason)
+            _write_rejected(rejected_path, row, reason)
             fail += 1
             continue
         if ext_conf is not None and ext_conf < _MIN_EXTRACTION_CONFIDENCE:
             reason = f"extraction_confidence={ext_conf:.3f} below {_MIN_EXTRACTION_CONFIDENCE}"
             print(f"  [{i:>3}] {doi}: REJECTED: {reason}")
-            _write_rejected(rejected_fh, row, reason)
+            _write_rejected(rejected_path, row, reason)
             fail += 1
             continue
 
@@ -273,7 +273,7 @@ def main():
         if nd_star is not None and nd_star not in VALID_STARS:
             reason = f"nd_star must be 1-5 or null, got {nd_star!r}"
             print(f"  [{i:>3}] {doi}: FAIL: {reason}")
-            _write_rejected(rejected_fh, row, reason)
+            _write_rejected(rejected_path, row, reason)
             fail += 1
             continue
 
@@ -282,14 +282,14 @@ def main():
             if ctx not in NULL_STAR_CONTEXTS:
                 reason = f"nd_failure_context must be 'extension_failed' or 'inconclusive' when nd_star is null, got {ctx!r}"
                 print(f"  [{i:>3}] {doi}: FAIL: {reason}")
-                _write_rejected(rejected_fh, row, reason)
+                _write_rejected(rejected_path, row, reason)
                 fail += 1
                 continue
         elif nd_star == 1:
             if ctx is not None and ctx not in LEGACY_FAIL_CONTEXTS:
                 reason = f"nd_failure_context for 1-star must be 'original_tested', 'extension_only', or null, got {ctx!r}"
                 print(f"  [{i:>3}] {doi}: FAIL: {reason}")
-                _write_rejected(rejected_fh, row, reason)
+                _write_rejected(rejected_path, row, reason)
                 fail += 1
                 continue
         else:
@@ -322,7 +322,7 @@ def main():
             meta = fetch_crossref(doi)
             if meta is None:
                 print(f"  [{i:>3}] {doi}: FAIL: CrossRef lookup failed")
-                _write_rejected(rejected_fh, row, "CrossRef lookup failed")
+                _write_rejected(rejected_path, row, "CrossRef lookup failed")
                 fail += 1
                 continue
             print(f"         title: {meta['title'][:75]}")
@@ -381,10 +381,7 @@ def main():
             print(f"         would insert")
         ok += 1
 
-    rejected_fh.close()
-    if rejected_path.stat().st_size == 0:
-        rejected_path.unlink()  # clean up empty rejected log
-    else:
+    if rejected_path.exists():
         print(f"\n  Rejected log: {rejected_path}")
 
     print(f"\n{'='*55}")

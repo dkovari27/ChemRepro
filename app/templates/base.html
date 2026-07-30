@@ -78,6 +78,15 @@
 
     /* ── Version switcher active pill ───────────────────────────── */
     .vsw-active { background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04); }
+
+    /* ── LinkedIn logo colour fix ───────────────────────────────── */
+    .linkedin-login-btn svg { fill: #0A66C2; }
+    .linkedin-login-btn:hover svg { fill: #fff; }
+
+    /* ── ORCID logo hover swap ───────────────────────────────────── */
+    .orcid-logo-rev { display: none; }
+    .orcid-login-btn:hover .orcid-logo-std { display: none; }
+    .orcid-login-btn:hover .orcid-logo-rev { display: inline-block; }
   </style>
 
   <link rel="stylesheet" href="https://unpkg.com/easymde/dist/easymde.min.css" />
@@ -181,9 +190,6 @@
           </a>
 
         {% else %}
-          <a href="/auth/guest-setup" class="text-slate-500 hover:text-slate-700 transition-colors text-sm">
-            Continue as guest
-          </a>
           <a href="/auth/choose"
              class="inline-flex items-center gap-1.5 bg-brand text-white rounded-lg px-4 py-1.5 text-sm font-medium hover:bg-brand-dark transition-colors">
             Sign in

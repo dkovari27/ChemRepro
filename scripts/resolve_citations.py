@@ -57,6 +57,50 @@ from app.models.rating import Rating
 
 _CROSSREF_URL = "https://api.crossref.org/works"
 
+# Common chemistry journal abbreviations to full CrossRef container-title names.
+# CrossRef's container-title search requires the full name; abbreviations return nothing.
+_JOURNAL_NAMES: dict[str, str] = {
+    "j. org. chem.": "The Journal of Organic Chemistry",
+    "j. am. chem. soc.": "Journal of the American Chemical Society",
+    "jacs": "Journal of the American Chemical Society",
+    "org. lett.": "Organic Letters",
+    "angew. chem.": "Angewandte Chemie International Edition",
+    "angew. chem. int. ed.": "Angewandte Chemie International Edition",
+    "chem. sci.": "Chemical Science",
+    "nat. chem.": "Nature Chemistry",
+    "nat. catal.": "Nature Catalysis",
+    "eur. j. org. chem.": "European Journal of Organic Chemistry",
+    "j. med. chem.": "Journal of Medicinal Chemistry",
+    "chem. commun.": "Chemical Communications",
+    "chem. eur. j.": "Chemistry - A European Journal",
+    "tetrahedron lett.": "Tetrahedron Letters",
+    "tetrahedron": "Tetrahedron",
+    "synthesis": "Synthesis",
+    "synlett": "Synlett",
+    "acs catal.": "ACS Catalysis",
+    "green chem.": "Green Chemistry",
+    "org. biomol. chem.": "Organic & Biomolecular Chemistry",
+    "chem. rev.": "Chemical Reviews",
+    "acc. chem. res.": "Accounts of Chemical Research",
+    "j. nat. prod.": "Journal of Natural Products",
+    "bioorg. med. chem.": "Bioorganic & Medicinal Chemistry",
+    "bioorg. med. chem. lett.": "Bioorganic & Medicinal Chemistry Letters",
+    "eur. j. med. chem.": "European Journal of Medicinal Chemistry",
+    "j. chem. soc. perkin trans. 1": "Journal of the Chemical Society, Perkin Transactions 1",
+    "j. chem. soc. perkin trans. 2": "Journal of the Chemical Society, Perkin Transactions 2",
+    "rsc adv.": "RSC Advances",
+    "dalton trans.": "Dalton Transactions",
+    "inorg. chem.": "Inorganic Chemistry",
+    "acs sustainable chem. eng.": "ACS Sustainable Chemistry & Engineering",
+    "react. chem. eng.": "Reaction Chemistry & Engineering",
+}
+
+
+def _expand_journal(abbrev: str) -> str:
+    """Return full CrossRef journal name for a known abbreviation, or the original string."""
+    key = abbrev.lower().strip()
+    return _JOURNAL_NAMES.get(key, abbrev)
+
 
 def _call_claude_cli(system: str, user: str, model: str) -> str:
     """Call the Claude Code CLI (claude -p). Uses Pro subscription; no API key needed."""
@@ -132,40 +176,64 @@ _CROSSREF_HEADERS = {"User-Agent": "ChemRepro/1.0 (mailto:chemrepro@gmail.com)"}
 #
 # Category A only: formatted bibliographic citations.
 
-_HAIKU_DETECT_PROMPT = """\
-You review a chemistry reproducibility observation for formatted bibliographic citations \
-that have not yet been resolved to a DOI.
+_DETECT_PROMPT = """\
+You review a chemistry reproducibility observation for journal citations that have not \
+yet been resolved to a DOI.
 
-A FORMATTED CITATION contains a journal name or abbreviation together with a year and \
-optionally a volume and/or page range. Examples:
-  "J. Org. Chem. 2022, 87, 1234-1238"
-  "Org. Lett. 2019, 21, 5678"
-  "ACS Catal. 2020, 10, 9012-9020"
-  "Angew. Chem. Int. Ed. 2021, 60, 12345"
-  "Chem. Commun. 2017, 53, 7890-7893"
-  "Green Chem. 2018, 20, 3456-3465"
-  "Nat. Chem. 2020, 12, 123-130"
+FLAG any text that looks like it could be a journal citation: something resembling a journal \
+name or abbreviation (capitalised words, dots, common chemistry journal abbreviations) followed \
+by a 4-digit year, and at least one number that could be a volume, issue, or page number.
+
+Do not require perfect formatting. All of the following are fine:
+  - Missing or extra commas, double spaces, extra or missing dots
+  - Issue numbers in any bracket style: round "(7)", square "[7]", or curly "{7}"
+  - Page given as a full range (2652–2661), or just the first page (2652), or just the last (2661)
+  - Volume present, absent, or combined with issue in brackets
+  - Any reasonable combination of these variations
+
+Orientational examples using J. Org. Chem. 2025, vol 90, issue 7, pages 2652–2661:
+  J. Org. Chem. 2025, 90, 7, 2652–2661        (vol, issue, full range)
+  J. Org. Chem. 2025, 90 (7), 2652–2661       (vol, issue in parens, full range)
+  J. Org. Chem. 2025, 90 [7], 2652–2661       (vol, issue in square brackets, full range)
+  J. Org. Chem. 2025, 90, 2652–2661           (vol, full range, no issue)
+  J. Org. Chem. 2025, 2652–2661               (full range only, no vol or issue)
+  J. Org. Chem. 2025, 90, 7, 2652             (vol, issue, first page only)
+  J. Org. Chem. 2025, 90 (7), 2652            (vol, issue in parens, first page only)
+  J. Org. Chem. 2025, 90, 2652               (vol, first page only, no issue)
+  J. Org. Chem. 2025, 7, 2652–2661           (issue, full range, no vol)
+  J. Org. Chem. 2025, 2652                   (first or last page only, no vol or issue)
+  J. Org. Chem.  2025  90  2652–2661         (double spaces, same meaning)
+
+These are orientation only — do not treat them as rigid rules. If something plausibly looks \
+like a journal citation with a year and at least one number, flag it.
+
+A citation MUST have at least a year AND one number (volume, issue, or page). \
+Do NOT flag a journal name and year alone with no numbers at all.
 
 DO NOT flag:
-  - Author-name phrases like "Smith et al.", "Jones and Lee", "as reported by X and co-workers"
-  - General text that does not include a journal abbreviation + year
-  - Any citation already in [[10.xxxx/...]] double-bracket notation — skip those entirely
+  - Author-name phrases: "Smith et al.", "Jones and Lee", "as reported by X and co-workers"
+  - Text without anything resembling a journal abbreviation or name
+  - Citations already in [[10.xxxx/...]] double-bracket notation — skip those entirely
+
+Extract the structured fields as best you can from whatever format is present. \
+If a field is genuinely absent or ambiguous, set it to null.
 
 Return ONLY valid JSON, no markdown:
 {
   "citations": [
     {
-      "mention": "<exact citation text as it appears in the observation>",
-      "sentence": "<the full sentence containing the citation>",
-      "journal": "<journal name or abbreviation>",
+      "mention": "<exact text as it appears in the observation>",
+      "sentence": "<full sentence containing the citation>",
+      "journal": "<journal name or abbreviation, or null>",
       "year": <integer year or null>,
       "volume": "<volume number as string or null>",
-      "pages": "<page range or null>"
+      "issue": "<issue number as string or null>",
+      "pages": "<page or page range as string or null>"
     }
   ]
 }
 
-Return {"citations": []} if no formatted bibliographic citations are found.\
+Return {"citations": []} if nothing plausibly looks like a journal citation.\
 """
 
 _SONNET_PICK_PROMPT = """\
@@ -173,14 +241,24 @@ You are verifying whether a CrossRef search result matches a chemistry paper cit
 
 Unresolved mention: "{mention}"
 Sentence context: "{sentence}"
-Journal / volume / pages from citation: "{topic}"
+Journal / volume / issue / pages from citation: "{topic}"
 
 CrossRef candidates:
 {candidates}
 
-Pick the candidate that best matches the citation. Only confirm a match if you are highly \
-confident (>= 0.80) the candidate is the same paper being cited. For formatted bibliographic \
-citations, match on journal, year, volume, and page range.
+Match rules — apply strictly in this order:
+1. If the citation contains a page number or page range, the candidate's page field MUST \
+   contain that number. If the citation gives only a first page (e.g. "2652"), a candidate \
+   whose page range starts with that number (e.g. "2652-2661") is a valid match. \
+   A candidate with a completely different page is WRONG — reject it even if journal and year match.
+2. If the citation contains a volume number, it must match the candidate's volume field.
+3. If the citation contains an issue number, it must match the candidate's issue field.
+4. Journal abbreviations in the citation may differ from full journal names in CrossRef — \
+   "J. Org. Chem." and "The Journal of Organic Chemistry" are the same journal. \
+   Year must also match.
+
+Only return a DOI if you are highly confident (>= 0.80) that ALL provided fields match. \
+If no candidate satisfies the page and volume constraints, return doi=null — do not guess.
 
 Return ONLY valid JSON:
 {{"doi": "<DOI string>", "confidence": <0.0-1.0>}}
@@ -196,28 +274,17 @@ def _make_db(db_url: str):
     return sessionmaker(bind=engine)()
 
 
-def _crossref_search(
-    mention: str,
-    year: int | None,
-    journal: str = "",
-    volume: str = "",
-    pages: str = "",
-) -> list[dict]:
-    params: dict = {
-        "rows": 5,
-        "select": "DOI,title,author,published-print,published-online,container-title,page,volume",
-    }
-    params["query.bibliographic"] = mention[:200]
-    if journal:
-        params["query.container-title"] = journal[:80]
-    if year:
-        params["filter"] = f"from-pub-date:{year},until-pub-date:{year}"
+def _crossref_fetch(params: dict) -> list[dict]:
+    """Execute one CrossRef /works query and return raw items."""
     try:
         r = httpx.get(_CROSSREF_URL, params=params, headers=_CROSSREF_HEADERS, timeout=10)
-        items = r.json().get("message", {}).get("items", [])
+        return r.json().get("message", {}).get("items", [])
     except Exception as exc:
         print(f"    CrossRef error: {exc}")
         return []
+
+
+def _parse_crossref_items(items: list[dict]) -> list[dict]:
     results = []
     for item in items:
         title_parts = item.get("title", [])
@@ -238,20 +305,75 @@ def _crossref_search(
             "authors": author_str,
             "year": pub_year,
             "journal": journal_name,
-            "page": item.get("page", ""),
             "volume": item.get("volume", ""),
+            "issue": item.get("issue", ""),
+            "page": item.get("page", ""),
         })
     return results
+
+
+def _crossref_search(
+    mention: str,
+    year: int | None,
+    journal: str = "",
+    volume: str = "",
+    issue: str = "",
+    pages: str = "",
+) -> list[dict]:
+    date_filter = f"from-pub-date:{year},until-pub-date:{year}" if year else ""
+    common = {
+        "rows": 10,
+        "select": "DOI,title,author,published-print,published-online,container-title,page,volume,issue",
+    }
+    if date_filter:
+        common["filter"] = date_filter
+
+    # Primary: full citation string — works well when journal abbrev + numbers are complete.
+    params_primary = {**common, "query.bibliographic": mention[:200]}
+    items_primary = _crossref_fetch(params_primary)
+
+    # Secondary: expanded full journal name in container-title + numeric parts.
+    # CrossRef ignores journal abbreviations in container-title; only full names work.
+    # This catches short citations like "J. Org. Chem. 2025, 2652" where the primary
+    # query returns poor results because the bare page number is not distinctive.
+    expanded = _expand_journal(journal) if journal else ""
+    numeric_parts = [p for p in [volume, issue, pages] if p]
+    items_secondary: list[dict] = []
+    if expanded and expanded != journal:
+        params_secondary = {
+            **common,
+            "query.container-title": expanded,
+            "query.bibliographic": " ".join(numeric_parts) if numeric_parts else mention[:200],
+        }
+        items_secondary = _crossref_fetch(params_secondary)
+
+    # Merge and deduplicate, cap at 10.
+    # When we have targeted secondary results (expanded journal name), put them first —
+    # the full-name container-title search is more precise for short citations where
+    # the primary query (bare page number + abbreviation) returns poor results.
+    seen: set[str] = set()
+    merged: list[dict] = []
+    order = (items_secondary + items_primary) if items_secondary else items_primary
+    for item in order:
+        doi = item.get("DOI", "")
+        if doi and doi not in seen:
+            seen.add(doi)
+            merged.append(item)
+        if len(merged) >= 10:
+            break
+
+    return _parse_crossref_items(merged)
 
 
 def _format_candidates(candidates: list[dict]) -> str:
     lines = []
     for i, c in enumerate(candidates, 1):
         vol_part = f" | Vol: {c['volume']}" if c.get("volume") else ""
+        issue_part = f" | Issue: {c['issue']}" if c.get("issue") else ""
         page_part = f" | Pages: {c['page']}" if c.get("page") else ""
         lines.append(
             f"{i}. DOI: {c['doi']} | Title: {c['title'][:90]} | "
-            f"Authors: {c['authors']} | Year: {c['year']} | Journal: {c['journal']}{vol_part}{page_part}"
+            f"Authors: {c['authors']} | Year: {c['year']} | Journal: {c['journal']}{vol_part}{issue_part}{page_part}"
         )
     return "\n".join(lines) if lines else "(no candidates found)"
 
@@ -266,13 +388,24 @@ def _make_dismiss_token(rating_id: int, mention: str, candidate_doi: str, secret
     return _hmac_module.new(secret.encode(), msg, hashlib.sha256).hexdigest()
 
 
+def _make_email_login_token(secret: str, ttl_hours: int = 168) -> tuple[str, int]:
+    """Return (sig, expiry_ts) for a time-limited admin login link.
+    The master ADMIN_SECRET_TOKEN is never embedded in the URL — only this derived token is.
+    """
+    expiry = int(time.time()) + ttl_hours * 3600
+    msg = f"email-login:{expiry}".encode()
+    sig = _hmac_module.new(secret.encode(), msg, hashlib.sha256).hexdigest()
+    return sig, expiry
+
+
 def _flag_for_admin(
     rating,
     mention: str,
     candidate_doi: str,
     confidence: float,
     candidate_info: dict | None = None,
-) -> None:
+    no_match: bool = False,
+) -> bool:
     """Send an HTML admin email with Approve / Resolve manually / Dismiss buttons."""
     try:
         from app.utils.email import send_generic_email
@@ -294,9 +427,10 @@ def _flag_for_admin(
             f"/admin/citation-review/{rating.id}"
             f"?m={quote(mention, safe='')}&d={quote(candidate_doi, safe='')}"
         )
+        email_sig, email_exp = _make_email_login_token(_settings.ADMIN_SECRET_TOKEN)
         review_url = (
-            f"{_settings.SITE_URL}/admin/login/{_settings.ADMIN_SECRET_TOKEN}"
-            f"?next={quote(review_path, safe='')}"
+            f"{_settings.SITE_URL}/admin/email-login"
+            f"?sig={email_sig}&exp={email_exp}&next={quote(review_path, safe='')}"
         )
         dismiss_url = (
             f"{_settings.SITE_URL}/admin/citation-dismiss"
@@ -338,13 +472,46 @@ def _flag_for_admin(
     <tr><td style="padding:8px 14px;color:#64748b;font-weight:600">Journal</td>
         <td style="padding:8px 14px">{cand_journal}{', ' + str(cand_year) if cand_year else ''}{', vol. ' + cand_vol if cand_vol else ''}{', p. ' + cand_page if cand_page else ''}</td></tr>"""
 
+        if no_match:
+            email_header = f"Citation detected in rating {rating.id} — no confident match found"
+            email_subheader = (
+                "A formatted citation was found but no CrossRef candidate matched the page numbers. "
+                "The DOI shown below is the top CrossRef result for reference only — "
+                "please use <strong>Resolve manually</strong> to enter the correct DOI."
+            )
+        else:
+            email_header = f"Citation detected in rating {rating.id}"
+            email_subheader = (
+                f"A formatted bibliographic citation was found. "
+                f"Proposed DOI confidence: <strong>{confidence:.0%}</strong>"
+            )
+
+        h2_color = "#b45309" if no_match else "#1e40af"
+        if no_match:
+            btn_instructions = (
+                "Clicking <strong>Resolve manually</strong> opens a form to enter the correct DOI. "
+                "Clicking <strong>Dismiss</strong> acknowledges this notice with no changes. "
+                "You are logged in automatically on both links."
+            )
+            approve_btn_html = ""
+        else:
+            btn_instructions = (
+                "Clicking <strong>Approve</strong> replaces the citation text with the DOI link in the review. "
+                "Clicking <strong>Resolve manually</strong> opens a form to enter a different DOI. "
+                "Clicking <strong>Dismiss</strong> acknowledges this notice with no changes. "
+                "You are logged in automatically on all three links."
+            )
+            approve_btn_html = (
+                f'<a href="{approve_url}"'
+                ' style="display:inline-block;padding:10px 22px;background:#15803d;color:#fff;'
+                'text-decoration:none;border-radius:7px;font-weight:700;font-size:14px;margin-right:8px">'
+                "Approve</a>"
+            )
+
         body_html = f"""
 <div style="font-family:sans-serif;max-width:660px;margin:0 auto;color:#1e293b">
-  <h2 style="color:#1e40af;margin-bottom:4px">Citation detected in rating {rating.id}</h2>
-  <p style="color:#64748b;margin-top:0">
-    A formatted bibliographic citation was found.
-    Proposed DOI confidence: <strong>{confidence:.0%}</strong>
-  </p>
+  <h2 style="color:{h2_color};margin-bottom:4px">{email_header}</h2>
+  <p style="color:#64748b;margin-top:0">{email_subheader}</p>
 
   <h3 style="font-size:13px;font-weight:600;color:#475569;margin-bottom:6px">Observation text</h3>
   <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px 16px;
@@ -377,18 +544,9 @@ def _flag_for_admin(
         <td style="padding:8px 14px">{confidence:.0%}</td></tr>
   </table>
 
-  <p style="font-size:13px;color:#475569;margin-bottom:14px">
-    Clicking <strong>Approve</strong> replaces the citation text with the DOI link in the review.
-    Clicking <strong>Resolve manually</strong> opens a form to enter a different DOI.
-    Clicking <strong>Dismiss</strong> acknowledges this notice with no changes.
-    You are logged in automatically on all three links.
-  </p>
+  <p style="font-size:13px;color:#475569;margin-bottom:14px">{btn_instructions}</p>
 
-  <a href="{approve_url}"
-     style="display:inline-block;padding:10px 22px;background:#15803d;color:#fff;
-            text-decoration:none;border-radius:7px;font-weight:700;font-size:14px;margin-right:8px">
-    Approve
-  </a>
+  {approve_btn_html}
   <a href="{review_url}"
      style="display:inline-block;padding:10px 22px;background:#1e40af;color:#fff;
             text-decoration:none;border-radius:7px;font-weight:700;font-size:14px;margin-right:8px">
@@ -401,26 +559,30 @@ def _flag_for_admin(
   </a>
 </div>"""
 
+        subject_tag = "no match" if no_match else f"{confidence:.0%} confidence"
+        approve_line = "" if no_match else f"Approve  : {approve_url}\n"
         body_text = (
-            f"Citation detected in rating {rating.id} (confidence {confidence:.0%})\n\n"
+            f"Citation detected in rating {rating.id} ({subject_tag})\n\n"
             f"Rating   : {rating.id}\n"
             f"Paper    : {rating.doi}\n"
             f"Mention  : {mention}\n"
-            f"Proposed : {candidate_doi}\n\n"
-            f"Approve  : {approve_url}\n"
+            f"{'Top CrossRef result (unconfirmed)' if no_match else 'Proposed'}: {candidate_doi}\n\n"
+            f"{approve_line}"
             f"Review   : {review_url}\n"
             f"Dismiss  : {dismiss_url}\n"
         )
 
         send_generic_email(
             to=_settings.GMAIL_ADDRESS,
-            subject=f"[ChemRepro] Citation detected: rating {rating.id}",
+            subject=f"[ChemRepro] Citation {'— no match' if no_match else 'detected'}: rating {rating.id}",
             body_html=body_html,
             body_text=body_text,
         )
         print(f"      Admin notified: suggested [[{candidate_doi}]] ({confidence:.0%} confidence)")
+        return True
     except Exception as exc:
         print(f"      Admin notify failed (non-fatal): {exc}")
+        return False
 
 
 def resolve_ratings(
@@ -457,12 +619,12 @@ def resolve_ratings(
     for rating in ratings:
         obs = rating.reproducibility_observation or ""
 
-        # Haiku via CLI: detect formatted bibliographic citations
+        # Sonnet via CLI: detect formatted bibliographic citations
         try:
             raw = _call_claude_cli(
-                system=_HAIKU_DETECT_PROMPT,
+                system=_DETECT_PROMPT,
                 user=f"Observation text:\n{obs}",
-                model="claude-haiku-4-5-20251001",
+                model="claude-sonnet-5",
             )
             detected = _parse_json_response(raw)
             citations = detected.get("citations", [])
@@ -483,16 +645,18 @@ def resolve_ratings(
             journal = cite_info.get("journal", "")
             year = cite_info.get("year")
             volume = str(cite_info.get("volume") or "")
+            issue = str(cite_info.get("issue") or "")
             pages = str(cite_info.get("pages") or "")
-            topic = " ".join(filter(None, [journal, volume, pages]))
+            topic = " ".join(filter(None, [journal, volume, issue, pages]))
 
             time.sleep(0.5)
-            candidates = _crossref_search(mention, year, journal=journal, volume=volume, pages=pages)
+            candidates = _crossref_search(mention, year, journal=journal, volume=volume, issue=issue, pages=pages)
             print(f"      CrossRef candidates for '{mention}':")
             for c in candidates:
+                iss = f" iss.{c['issue']}" if c.get("issue") else ""
                 print(
                     f"        [{c['doi']}] {c['title'][:70]} "
-                    f"({c['year']}) {c['journal']} vol.{c.get('volume', '?')} p.{c.get('page', '?')}"
+                    f"({c['year']}) {c['journal']} vol.{c.get('volume', '?')}{iss} p.{c.get('page', '?')}"
                 )
 
             if not candidates:
@@ -522,16 +686,24 @@ def resolve_ratings(
             confidence = pick.get("confidence", 0.0)
 
             if not doi:
-                print(f"      '{mention}': Sonnet found no match, using top CrossRef candidate")
-                doi = candidates[0]["doi"]
-                confidence = 0.0
+                # No confident match: email admin with top CrossRef candidate as reference
+                # but clearly flagged as unresolved so they know to use Resolve manually.
+                print(f"      '{mention}': no confident match — flagging for manual resolution")
+                if not dry_run:
+                    best = candidates[0]
+                    if _flag_for_admin(
+                        rating, mention, best["doi"], 0.0,
+                        candidate_info=best, no_match=True,
+                    ):
+                        flagged += 1
+                continue
 
             print(f"      '{mention}' -> proposed [[{doi}]] (confidence={confidence:.2f})")
 
             if not dry_run:
                 best = next((c for c in candidates if c["doi"] == doi), candidates[0])
-                _flag_for_admin(rating, mention, doi, confidence, candidate_info=best)
-                flagged += 1
+                if _flag_for_admin(rating, mention, doi, confidence, candidate_info=best):
+                    flagged += 1
 
     db.close()
     print(

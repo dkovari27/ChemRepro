@@ -64,14 +64,33 @@
           When you log in with ORCID, we receive your <strong>ORCID iD</strong>
           (e.g. 0000-0002-1234-5678) and your <strong>public name</strong> as registered
           with ORCID. We do not receive your email address, publication list, or institutional
-          affiliation — we do not request those scopes.
+          affiliation; we do not request those scopes.
         </p>
         <p class="text-slate-500 mb-1">
-          <strong>Legal basis:</strong> Art. 6(1)(a) GDPR (consent — you actively choose to
+          <strong>Legal basis:</strong> Art. 6(1)(a) GDPR (consent; you actively choose to
           authenticate via ORCID); nDSG Art. 31(2)(a).
         </p>
         <p class="text-slate-500">
-          <strong>Mandatory?</strong> Not mandatory. You may use guest login instead.
+          <strong>Mandatory?</strong> Not mandatory. You may sign in with LinkedIn instead.
+          Without any login you can browse the site but cannot submit reviews or comments.
+        </p>
+      </div>
+
+      <div class="border-b border-slate-100 pb-4">
+        <p class="font-semibold text-slate-700 mb-1">Account data – LinkedIn login</p>
+        <p class="leading-relaxed mb-1">
+          When you log in with LinkedIn, we receive your <strong>LinkedIn user ID</strong>
+          (an internal identifier assigned by LinkedIn), your <strong>display name</strong>,
+          and your <strong>email address</strong> if LinkedIn makes it available under the
+          OpenID Connect scope. We do not receive your connections, employer, job title,
+          or messages.
+        </p>
+        <p class="text-slate-500 mb-1">
+          <strong>Legal basis:</strong> Art. 6(1)(a) GDPR (consent; you actively choose to
+          authenticate via LinkedIn); nDSG Art. 31(2)(a).
+        </p>
+        <p class="text-slate-500">
+          <strong>Mandatory?</strong> Not mandatory. You may sign in with ORCID instead.
           Without any login you can browse the site but cannot submit reviews or comments.
         </p>
       </div>
@@ -277,6 +296,12 @@
         <a href="https://info.orcid.org/privacy-policy/" target="_blank" class="text-brand hover:underline">ORCID Privacy Policy</a>.</span>
       </div>
       <div class="flex gap-3">
+        <span class="font-semibold text-slate-700 w-28 flex-shrink-0">LinkedIn</span>
+        <span>Authentication provider. When you click "Sign in with LinkedIn" you are redirected
+        to LinkedIn's servers; their privacy policy governs that interaction.
+        <a href="https://www.linkedin.com/legal/privacy-policy" target="_blank" class="text-brand hover:underline">LinkedIn Privacy Policy</a>.</span>
+      </div>
+      <div class="flex gap-3">
         <span class="font-semibold text-slate-700 w-28 flex-shrink-0">CrossRef</span>
         <span>Public bibliographic API. Only the paper DOI is sent — no user data is shared.</span>
       </div>
@@ -286,7 +311,7 @@
       </div>
     </div>
     <p class="text-sm text-slate-500 mt-3">
-      No other third parties receive personal data. We do not use any analytics, advertising,
+      No other third parties receive personal data. We do not use analytics, advertising,
       error-tracking, or monitoring services that receive user data.
     </p>
   </div>

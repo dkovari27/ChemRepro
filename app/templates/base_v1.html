@@ -19,6 +19,11 @@
   <style>
     .star-btn { cursor: pointer; transition: color 0.1s; }
     .star-btn:hover, .star-btn.active { color: #f59e0b; }
+    .linkedin-login-btn svg { fill: #0A66C2; }
+    .linkedin-login-btn:hover svg { fill: #fff; }
+    .orcid-logo-rev { display: none; }
+    .orcid-login-btn:hover .orcid-logo-std { display: none; }
+    .orcid-login-btn:hover .orcid-logo-rev { display: inline-block; }
   </style>
 </head>
 <body class="h-full flex flex-col">
@@ -122,10 +127,6 @@
           </a>
 
         {% else %}
-          <a href="/auth/guest-setup"
-             class="text-slate-500 hover:text-brand transition-colors text-sm">
-            Continue as guest
-          </a>
           <a href="/auth/login"
              class="inline-flex items-center gap-1.5 bg-brand text-white rounded-md px-4 py-1.5 font-medium hover:bg-blue-700 transition-colors">
             Sign in with ORCID
