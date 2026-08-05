@@ -20,11 +20,28 @@
           Display name <span class="text-slate-400 font-normal">(shown on your reviews)</span>
         </label>
         <input type="text" id="nickname" name="nickname" maxlength="60"
-          value="{{ user_name or '' }}"
+          value="{{ nickname_input or user_name or '' }}"
           placeholder="e.g. J. Smith or leave blank"
           class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm
-                 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand" />
-        <p class="text-xs text-slate-400 mt-1">Leave blank to use your ORCID / guest name.</p>
+                 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand
+                 {% if nickname_error == 'taken' %}border-red-300{% endif %}" />
+        {% if nickname_error == "taken" %}
+        <p data-static-nick-msg class="text-xs text-red-500 mt-1">That nickname is already taken. Nicknames are case-insensitive, so "DanK" and "dank" count as the same.</p>
+        {% if nickname_suggestions %}
+        <div data-static-nick-msg class="mt-2 flex flex-wrap gap-1.5 items-center">
+          <span class="text-xs text-slate-400">Try:</span>
+          {% for s in nickname_suggestions %}
+          <button type="button"
+            onclick="document.getElementById('nickname').value='{{ s }}'"
+            class="text-xs bg-slate-100 hover:bg-brand hover:text-white text-slate-600 px-2.5 py-1 rounded-full transition-colors cursor-pointer border border-slate-200 hover:border-brand">
+            {{ s }}
+          </button>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% else %}
+        <p data-static-nick-msg class="text-xs text-slate-400 mt-1">Leave blank to use your ORCID / guest name.</p>
+        {% endif %}
       </div>
 
       <fieldset class="mb-6">
@@ -33,7 +50,8 @@
           {% for stage in career_stages %}
           <label class="flex items-center gap-3 cursor-pointer group">
             <input type="radio" name="career_stage" value="{{ stage }}"
-              class="accent-brand w-4 h-4 flex-shrink-0" />
+              class="accent-brand w-4 h-4 flex-shrink-0"
+              {% if selected_career_stage == stage %}checked{% endif %} />
             <span class="text-sm text-slate-700 group-hover:text-slate-900 transition-colors">{{ stage }}</span>
           </label>
           {% endfor %}
@@ -59,4 +77,94 @@
     It is not linked to your name or identity.
   </p>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  const input = document.getElementById('nickname');
+  if (!input) return;
+
+  const errorEl = document.createElement('p');
+  errorEl.className = 'text-xs text-red-500 mt-1 hidden';
+  errorEl.textContent = 'That nickname is already taken. Nicknames are case-insensitive, so "DanK" and "dank" count as the same.';
+  const chipsEl = document.createElement('div');
+  chipsEl.className = 'mt-2 flex flex-wrap gap-1.5 items-center hidden';
+  const hintEl = document.createElement('p');
+  hintEl.className = 'text-xs text-slate-400 mt-1';
+  hintEl.textContent = 'Leave blank to use your ORCID / guest name.';
+
+  // Insert after input in DOM order: error, chips, hint (so error appears directly below input)
+  input.insertAdjacentElement('afterend', hintEl);
+  input.insertAdjacentElement('afterend', chipsEl);
+  input.insertAdjacentElement('afterend', errorEl);
+
+  // Remove server-rendered static messages — JS manages them live from here
+  document.querySelectorAll('[data-static-nick-msg]').forEach(el => el.remove());
+
+  const okEl = document.createElement('p');
+  okEl.className = 'text-xs text-green-600 mt-1 hidden flex items-center gap-1';
+  okEl.innerHTML = '<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg> <span>Available</span>';
+  input.insertAdjacentElement('afterend', okEl);
+
+  function setChips(suggestions) {
+    chipsEl.innerHTML = '';
+    if (!suggestions.length) { chipsEl.classList.add('hidden'); return; }
+    const label = document.createElement('span');
+    label.className = 'text-xs text-slate-400';
+    label.textContent = 'Try:';
+    chipsEl.appendChild(label);
+    suggestions.forEach(s => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = s;
+      btn.className = 'text-xs bg-slate-100 hover:bg-brand hover:text-white text-slate-600 px-2.5 py-1 rounded-full transition-colors cursor-pointer border border-slate-200 hover:border-brand';
+      btn.onclick = () => { input.value = s; clearError(); };
+      chipsEl.appendChild(btn);
+    });
+    chipsEl.classList.remove('hidden');
+  }
+
+  function showError(suggestions) {
+    input.classList.remove('border-green-400');
+    input.classList.add('border-red-300');
+    errorEl.classList.remove('hidden');
+    okEl.classList.add('hidden');
+    hintEl.classList.add('hidden');
+    setChips(suggestions);
+  }
+
+  function showOk() {
+    input.classList.remove('border-red-300');
+    input.classList.add('border-green-400');
+    errorEl.classList.add('hidden');
+    okEl.classList.remove('hidden');
+    hintEl.classList.add('hidden');
+    chipsEl.classList.add('hidden');
+  }
+
+  function clearError() {
+    input.classList.remove('border-red-300', 'border-green-400');
+    errorEl.classList.add('hidden');
+    okEl.classList.add('hidden');
+    hintEl.classList.remove('hidden');
+    chipsEl.classList.add('hidden');
+  }
+
+  let timer;
+  input.addEventListener('input', function() {
+    clearTimeout(timer);
+    const val = input.value.trim();
+    if (!val) { clearError(); return; }
+    timer = setTimeout(async function() {
+      try {
+        const res = await fetch('/profile/nickname-check?q=' + encodeURIComponent(val));
+        const data = await res.json();
+        if (data.taken) showError(data.suggestions);
+        else showOk();
+      } catch(e) {}
+    }, 400);
+  });
+})();
+</script>
 {% endblock %}

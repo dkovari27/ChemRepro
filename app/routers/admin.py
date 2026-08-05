@@ -228,6 +228,23 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     users_map = {u.orcid_id: u for u in db.query(User).all()}
     api_keys = db.query(ApiKey).order_by(ApiKey.created_at.desc()).all()
 
+    # Reviews with LinkedIn draft (most recent 10 that have one)
+    reviews_with_draft = (
+        db.query(Rating)
+        .filter(Rating.linkedin_post_draft.isnot(None), Rating.is_demo == False)  # noqa: E712
+        .order_by(Rating.created_at.desc())
+        .limit(10)
+        .all()
+    )
+    # Reviews without draft (most recent 5, for one-click generation)
+    reviews_without_draft = (
+        db.query(Rating)
+        .filter(Rating.linkedin_post_draft.is_(None), Rating.is_demo == False)  # noqa: E712
+        .order_by(Rating.created_at.desc())
+        .limit(5)
+        .all()
+    )
+
     # Pre-fetch full content for each open report (used by View modal)
     report_targets = {}
     for _rep in open_reports:
@@ -280,6 +297,8 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
         "users_map": users_map,
         "api_keys": api_keys,
         "report_targets": report_targets,
+        "reviews_with_draft": reviews_with_draft,
+        "reviews_without_draft": reviews_without_draft,
     })
 
 
@@ -651,6 +670,36 @@ async def admin_request_substantiation(rating_id: int, request: Request, db: Ses
     ))
     db.commit()
     return JSONResponse({"ok": True, "deadline": deadline.isoformat()})
+
+
+# ── LinkedIn post draft ───────────────────────────────────────────────────────
+
+@router.post("/reviews/{rating_id}/generate-linkedin-post")
+async def admin_generate_linkedin_post(rating_id: int, request: Request, db: Session = Depends(get_db)):
+    _require_admin(request)
+    r = db.get(Rating, rating_id)
+    if not r:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    paper = db.get(Paper, r.doi)
+    if not paper:
+        return JSONResponse({"error": "paper not found"}, status_code=404)
+
+    from app.services.linkedin_post import generate_linkedin_post
+    draft = generate_linkedin_post(
+        paper_title=paper.title or "",
+        journal=paper.journal,
+        year=paper.year,
+        doi=r.doi,
+        nd_star=r.nd_star,
+        nd_failure_context=r.nd_failure_context,
+        observation=r.reproducibility_observation,
+        career_stage=r.career_stage_snapshot,
+    )
+    if not draft:
+        return JSONResponse({"error": "generation failed — check ANTHROPIC_API_KEY"}, status_code=500)
+    r.linkedin_post_draft = draft
+    db.commit()
+    return JSONResponse({"ok": True, "draft": draft})
 
 
 # ── Citation resolution ───────────────────────────────────────────────────────

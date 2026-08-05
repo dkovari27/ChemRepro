@@ -29,6 +29,7 @@ from app.models.rating import Rating
 from app.models.user import User
 from app.routers.auth import DEV_FAKE_USERS
 from app.services.author_notify import notify_author_if_possible
+from app.services.linkedin_post import generate_linkedin_post_for_rating
 from app.services.crossref import fetch_paper_metadata, is_valid_doi, normalise_doi, resolve_url_to_doi
 
 router = APIRouter(tags=["papers"])
@@ -2184,6 +2185,7 @@ async def nd_submit_rating(
         background_tasks.add_task(
             notify_author_if_possible, doi, paper.title or "", rating.id, db, base_url)
         background_tasks.add_task(moderate_rating_bg, rating.id)
+        background_tasks.add_task(generate_linkedin_post_for_rating, rating.id)
         background_tasks.add_task(
             notify_admin,
             f"New review — {doi}",

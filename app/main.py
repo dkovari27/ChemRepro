@@ -97,6 +97,14 @@ def _migrate():
                 conn.execute(text("ALTER TABLE ratings ADD COLUMN source_doi VARCHAR(255)"))
             if "source_url" not in rating_cols5:
                 conn.execute(text("ALTER TABLE ratings ADD COLUMN source_url VARCHAR(1024)"))
+            user_cols3 = [row[1] for row in conn.execute(text("PRAGMA table_info(users)"))]
+            if "linkedin_id" not in user_cols3:
+                conn.execute(text("ALTER TABLE users ADD COLUMN linkedin_id VARCHAR(255)"))
+            if "orcid_real" not in user_cols3:
+                conn.execute(text("ALTER TABLE users ADD COLUMN orcid_real VARCHAR(50)"))
+            rating_cols6 = [row[1] for row in conn.execute(text("PRAGMA table_info(ratings)"))]
+            if "linkedin_post_draft" not in rating_cols6:
+                conn.execute(text("ALTER TABLE ratings ADD COLUMN linkedin_post_draft TEXT"))
             # collections and saved_papers are created by create_all above; no ALTER needed
         else:
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS career_stage VARCHAR(60)"))
@@ -123,6 +131,9 @@ def _migrate():
             conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS is_multi_target BOOLEAN NOT NULL DEFAULT FALSE"))
             conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS source_doi VARCHAR(255)"))
             conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS source_url VARCHAR(1024)"))
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS linkedin_id VARCHAR(255) UNIQUE"))
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS orcid_real VARCHAR(50) UNIQUE"))
+            conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS linkedin_post_draft TEXT"))
         conn.commit()
 
 _migrate()

@@ -83,6 +83,8 @@ class Rating(Base):
     # "standard" = single outcome-based score | "classic" = repro stars + outcome | "new_design" = 1-5 star
     scoring_mode: Mapped[str] = mapped_column(String(10), default="standard", server_default="standard")
 
+    linkedin_post_draft: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     ai_flagged: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     pending_admin_review: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")

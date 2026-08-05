@@ -21,6 +21,59 @@ templates = Jinja2Templates(directory="app/templates")
 register_globals(templates)
 
 
+# ── Nickname helpers ──────────────────────────────────────────────────────────
+
+def _nickname_taken(nickname: str, current_user_id: str, db: Session) -> bool:
+    """Case-insensitive check: is this nickname already used by someone else?"""
+    return db.query(User).filter(
+        User.nickname.isnot(None),
+        User.orcid_id != current_user_id,
+        func.lower(User.nickname) == nickname.strip().lower(),
+    ).first() is not None
+
+
+def _suggest_nicknames(base: str, orcid_id: str, current_user_id: str, db: Session) -> list:
+    """Generate up to 4 free nickname alternatives (all verified case-insensitively)."""
+    import datetime
+    year = str(datetime.datetime.now().year)[-2:]
+    if orcid_id.startswith("linkedin:"):
+        id_suffix = orcid_id.replace("linkedin:", "")[-4:]
+    else:
+        id_suffix = orcid_id.replace("-", "")[-4:]
+
+    candidates = [
+        f"{base}2",
+        f"{base}{year}",
+        f"{base}_{id_suffix}",
+        f"{base}3",
+    ]
+    # Remove duplicate lower-case entries while preserving order
+    seen: set = set()
+    unique = [c for c in candidates if not (c.lower() in seen or seen.add(c.lower()))]
+
+    # Single query to find which are taken
+    taken_rows = db.query(User.nickname).filter(
+        User.nickname.isnot(None),
+        User.orcid_id != current_user_id,
+        func.lower(User.nickname).in_([c.lower() for c in unique]),
+    ).all()
+    taken_lower = {row[0].lower() for row in taken_rows}
+
+    return [c for c in unique if c.lower() not in taken_lower][:4]
+
+
+@router.get("/profile/nickname-check")
+async def nickname_check(request: Request, q: str = "", db: Session = Depends(get_db)):
+    """Live availability check used by the debounced input handler."""
+    orcid_id = request.session.get("orcid_id") or ""
+    q = q.strip()[:60]
+    if not q:
+        return JSONResponse({"taken": False, "suggestions": []})
+    taken = _nickname_taken(q, orcid_id, db)
+    suggestions = _suggest_nicknames(q, orcid_id, orcid_id, db) if taken else []
+    return JSONResponse({"taken": taken, "suggestions": suggestions})
+
+
 @router.get("/profile/my-reviews", response_class=HTMLResponse)
 async def my_reviews(request: Request, db: Session = Depends(get_db)):
     orcid_id = request.session.get("orcid_id")
@@ -132,6 +185,11 @@ async def settings_page(request: Request, db: Session = Depends(get_db)):
         "user": user,
         "career_stages": CAREER_STAGES,
         "saved": request.query_params.get("saved") == "1",
+        "linked": request.query_params.get("linked") == "1",
+        "link_error": request.query_params.get("link_error", ""),
+        "nickname_error": "",
+        "nickname_suggestions": [],
+        "nickname_input": "",
         "user_name": request.session.get("user_name"),
         "orcid_id": orcid_id,
         "site_version": "standard",
@@ -151,15 +209,38 @@ async def save_settings(
     if not orcid_id:
         return RedirectResponse("/auth/login", status_code=303)
     user = db.query(User).filter(User.orcid_id == orcid_id).first()
-    if user:
-        if not user.nickname:
-            user.nickname = nickname.strip() or None
-        user.notification_email = notification_email.strip() or None
-        if career_stage in CAREER_STAGES:
-            user.career_stage = career_stage
-            user.career_stage_set = True
-        db.commit()
-        request.session["user_name"] = user.nickname or user.name or orcid_id
+    if not user:
+        return RedirectResponse("/profile/settings", status_code=303)
+
+    nickname_clean = nickname.strip()[:60]
+
+    # Nickname conflict check (only when user doesn't have one yet)
+    if nickname_clean and not user.nickname:
+        if _nickname_taken(nickname_clean, orcid_id, db):
+            suggestions = _suggest_nicknames(nickname_clean, orcid_id, orcid_id, db)
+            return templates.TemplateResponse("profile_settings.html", {
+                "request": request,
+                "user": user,
+                "career_stages": CAREER_STAGES,
+                "saved": False,
+                "linked": False,
+                "link_error": "",
+                "nickname_error": "taken",
+                "nickname_suggestions": suggestions,
+                "nickname_input": nickname_clean,
+                "user_name": request.session.get("user_name"),
+                "orcid_id": orcid_id,
+                "site_version": "standard",
+                "switch_urls": {"standard": "/", "classic": "/classic/"},
+            })
+        user.nickname = nickname_clean
+
+    user.notification_email = notification_email.strip() or None
+    if career_stage in CAREER_STAGES:
+        user.career_stage = career_stage
+        user.career_stage_set = True
+    db.commit()
+    request.session["user_name"] = user.nickname or user.name or orcid_id
     return RedirectResponse("/profile/settings?saved=1", status_code=303)
 
 
