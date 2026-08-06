@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     LINKEDIN_CLIENT_SECRET: str = ""
     LINKEDIN_REDIRECT_URI: str = "http://localhost:8000/auth/linkedin/callback"
 
+    RESEND_API_KEY: str = ""
+    MAIL_FROM: str = "ChemRepro <noreply@chemrepro.org>"
+
     @property
     def orcid_base_url(self) -> str:
         if self.ORCID_ENV == "production":
