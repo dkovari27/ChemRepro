@@ -1,8 +1,11 @@
+import logging
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def _smtp_send(msg: MIMEText | MIMEMultipart) -> None:
@@ -49,8 +52,8 @@ def notify_admin(subject: str, body: str) -> None:
         msg["From"] = settings.GMAIL_ADDRESS
         msg["To"] = settings.GMAIL_ADDRESS
         _smtp_send(msg)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.error("notify_admin failed — subject=%r error=%s: %s", subject, type(exc).__name__, exc)
 
 
 def send_generic_email(to: str, subject: str, body_html: str, body_text: str) -> None:
