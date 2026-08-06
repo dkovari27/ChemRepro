@@ -851,6 +851,7 @@ async def toggle_comment_like(doi: str, comment_id: int, request: Request, db: S
 
 # ── Edit a comment ───────────────────────────────────────────────────────────
 
+@router.post("/paper/{doi:path}/comment/{comment_id}/edit")
 @router.post("/design-archive/standard/paper/{doi:path}/comment/{comment_id}/edit")
 async def edit_comment(
     doi: str,

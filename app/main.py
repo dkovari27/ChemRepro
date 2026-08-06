@@ -105,6 +105,8 @@ def _migrate():
             rating_cols6 = [row[1] for row in conn.execute(text("PRAGMA table_info(ratings)"))]
             if "linkedin_post_draft" not in rating_cols6:
                 conn.execute(text("ALTER TABLE ratings ADD COLUMN linkedin_post_draft TEXT"))
+            if "linkedin_post_status" not in rating_cols6:
+                conn.execute(text("ALTER TABLE ratings ADD COLUMN linkedin_post_status VARCHAR(20)"))
             # collections and saved_papers are created by create_all above; no ALTER needed
         else:
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS career_stage VARCHAR(60)"))
@@ -134,6 +136,7 @@ def _migrate():
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS linkedin_id VARCHAR(255) UNIQUE"))
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS orcid_real VARCHAR(50) UNIQUE"))
             conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS linkedin_post_draft TEXT"))
+            conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS linkedin_post_status VARCHAR(20)"))
         conn.commit()
 
 _migrate()

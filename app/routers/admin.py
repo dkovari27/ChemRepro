@@ -228,10 +228,14 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     users_map = {u.orcid_id: u for u in db.query(User).all()}
     api_keys = db.query(ApiKey).order_by(ApiKey.created_at.desc()).all()
 
-    # Reviews with LinkedIn draft (most recent 10 that have one)
+    # Active drafts: have a draft and not yet marked posted/archived
     reviews_with_draft = (
         db.query(Rating)
-        .filter(Rating.linkedin_post_draft.isnot(None), Rating.is_demo == False)  # noqa: E712
+        .filter(
+            Rating.linkedin_post_draft.isnot(None),
+            Rating.linkedin_post_status.is_(None),
+            Rating.is_demo == False,  # noqa: E712
+        )
         .order_by(Rating.created_at.desc())
         .limit(10)
         .all()
@@ -242,6 +246,19 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
         .filter(Rating.linkedin_post_draft.is_(None), Rating.is_demo == False)  # noqa: E712
         .order_by(Rating.created_at.desc())
         .limit(5)
+        .all()
+    )
+    # Posted and archived — shown in the summary columns below the draft area
+    linkedin_posted = (
+        db.query(Rating)
+        .filter(Rating.linkedin_post_status == "posted", Rating.is_demo == False)  # noqa: E712
+        .order_by(Rating.created_at.desc())
+        .all()
+    )
+    linkedin_archived = (
+        db.query(Rating)
+        .filter(Rating.linkedin_post_status == "archived", Rating.is_demo == False)  # noqa: E712
+        .order_by(Rating.created_at.desc())
         .all()
     )
 
@@ -299,6 +316,8 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
         "report_targets": report_targets,
         "reviews_with_draft": reviews_with_draft,
         "reviews_without_draft": reviews_without_draft,
+        "linkedin_posted": linkedin_posted,
+        "linkedin_archived": linkedin_archived,
     })
 
 
@@ -673,6 +692,24 @@ async def admin_request_substantiation(rating_id: int, request: Request, db: Ses
 
 
 # ── LinkedIn post draft ───────────────────────────────────────────────────────
+
+@router.post("/reviews/{rating_id}/linkedin-post-status")
+async def admin_set_linkedin_post_status(
+    rating_id: int,
+    request: Request,
+    status: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    _require_admin(request)
+    if status not in ("posted", "archived", "restore"):
+        return JSONResponse({"error": "invalid status"}, status_code=422)
+    r = db.get(Rating, rating_id)
+    if not r:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    r.linkedin_post_status = None if status == "restore" else status
+    db.commit()
+    return JSONResponse({"ok": True})
+
 
 @router.post("/reviews/{rating_id}/generate-linkedin-post")
 async def admin_generate_linkedin_post(rating_id: int, request: Request, db: Session = Depends(get_db)):
