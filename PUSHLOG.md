@@ -3,7 +3,27 @@
 
 ---
 
-## 2026-08-07 | Push 2 | (hash TBD)
+## 2026-08-07 | Push 4 | (hash TBD)
+**Files pushed (7):**
+- `app/routers/feedback.py` — `_voter_id` now returns None for anonymous and guest (local:) users; `toggle_vote` returns 401 for unauthenticated; `add_suggestion` redirects to login if unauthenticated; `can_vote` flag passed to template
+- `app/routers/admin.py` — `GET /admin/name-votes`, `POST /admin/name-votes/{id}/delete`, `POST /admin/name-suggestions/{id}/delete`, `POST /admin/name-suggestions/add`; suggestions serialised to plain dicts before template render
+- `app/routers/auth.py` — `_safe_next()` helper (open-redirect guard); `choose_login` saves `next` query param to session as `login_next`; ORCID and LinkedIn callbacks thread `login_next` through post-login redirect and profile-setup flow
+- `app/templates/_name_suggestions.html` — locked (static, unclickable) chips for anonymous users; Sign in CTA replaces suggest form; voteFor JS only included when `can_vote` is true; removed "Multiple votes are allowed" text
+- `app/templates/admin_name_votes.html` — new admin page: list suggestions by vote count, show voter IDs with timestamps, Remove vote button, Delete suggestion button, Add name form
+- `CLAUDE.md` — added pre-push review protocol (bug search, severity report, approval required before push)
+- `TASKS.md` — removed completed Push 2 parked entry
+
+**What changed:**
+- Name voting now requires a real login (ORCID or LinkedIn); anonymous and guest accounts see read-only chips and a Sign In button
+- Admin can manage name suggestions and individual votes at /admin/name-votes
+- After being blocked by the voting gate, signing in returns the user to /feedback (not /)
+
+**Deferred:**
+- Nothing new
+
+---
+
+## 2026-08-07 | Push 2 | `ef7e9e8`
 **Files pushed (5):**
 - `app/models/user.py` — `linkedin_id` (String 255, unique, nullable) and `orcid_real` (String 50, unique, nullable) fields on User model
 - `app/routers/auth.py` — LinkedIn login; `/auth/link/linkedin` and `/auth/link/orcid` routes; ORCID and LinkedIn callbacks modified for linking; `/auth/dev-link/{orcid_idx}/{linkedin_idx}` (production-guarded); session keys now popped at top of each callback (bug fix: stale key on denied OAuth)

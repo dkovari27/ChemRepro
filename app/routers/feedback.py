@@ -1,4 +1,4 @@
-﻿from app.utils.design import register_globals
+from app.utils.design import register_globals
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -18,9 +18,13 @@ register_globals(templates)
 VALID_PREFS = {"standard", "classic", "both", "unsure"}
 
 
-def _voter_id(request: Request) -> str:
+def _voter_id(request: Request) -> str | None:
+    """Returns the stable voter ID for a properly authenticated user (ORCID or LinkedIn).
+    Returns None for anonymous visitors and guest (local:) accounts."""
     orcid = request.session.get("orcid_id")
-    return orcid if orcid else (request.client.host or "anon")
+    if not orcid or orcid.startswith("local:"):
+        return None
+    return orcid
 
 
 def _get_suggestions(db: Session, voter_id: str) -> list[dict]:
@@ -81,7 +85,8 @@ async def feedback_page(request: Request, db: Session = Depends(get_db)):
         "orcid_id": request.session.get("orcid_id"),
         "submitted": request.query_params.get("submitted") == "1",
         "bug_doi": request.query_params.get("doi", ""),
-        "suggestions": _get_suggestions(db, voter_id),
+        "suggestions": _get_suggestions(db, voter_id) if voter_id else _get_suggestions(db, ""),
+        "can_vote": voter_id is not None,
         "site_version": "new_design",
         "switch_urls": {"standard": "/design-archive/standard/", "classic": "/classic/", "new_design": "/nd/"},
     })
@@ -113,8 +118,11 @@ async def add_suggestion(
     db: Session = Depends(get_db),
     suggested_names: str = Form(""),
 ):
+    voter_id = _voter_id(request)
+    if not voter_id:
+        return RedirectResponse("/auth/choose?next=/feedback", status_code=303)
     if suggested_names.strip():
-        _upsert_names(suggested_names, _voter_id(request), db)
+        _upsert_names(suggested_names, voter_id, db)
     return RedirectResponse("/feedback", status_code=303)
 
 
@@ -125,6 +133,9 @@ async def toggle_vote(
     db: Session = Depends(get_db),
 ):
     voter_id = _voter_id(request)
+    if not voter_id:
+        return JSONResponse({"error": "login_required"}, status_code=401)
+
     suggestion = db.get(NameSuggestion, suggestion_id)
     if not suggestion:
         return JSONResponse({"error": "not found"}, status_code=404)

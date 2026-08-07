@@ -2,12 +2,13 @@
 <div class="bg-white border border-slate-200 rounded-xl p-6">
   <h2 class="text-lg font-bold text-slate-800 mb-1">Help us name the platform</h2>
   <p class="text-sm text-slate-500 mb-4">
-    Suggest a name, vote for your favourites, or do both. Multiple votes are allowed.
+    Suggest a name and vote for your favourites. Sign in to participate.
   </p>
 
   {% if suggestions %}
   <div class="flex flex-wrap gap-2 mb-5">
     {% for s in suggestions | sort(attribute='name') %}
+    {% if can_vote %}
     <button type="button" id="sug-btn-{{ s.id }}"
       onclick="voteFor({{ s.id }}, this)"
       class="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-all
@@ -18,12 +19,19 @@
         {{ s.votes }}
       </span>
     </button>
+    {% else %}
+    <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 text-sm text-slate-400 cursor-default select-none">
+      {{ s.name }}
+      <span class="text-xs tabular-nums text-slate-300">{{ s.votes }}</span>
+    </span>
+    {% endif %}
     {% endfor %}
   </div>
   {% else %}
   <p class="text-sm text-slate-400 italic mb-4">No suggestions yet. Be the first!</p>
   {% endif %}
 
+  {% if can_vote %}
   <form action="/feedback/suggest" method="post" class="flex gap-2">
     <input type="text" name="suggested_names" maxlength="500" required
       placeholder="Your idea (comma-separate multiple names)"
@@ -34,14 +42,28 @@
       Suggest
     </button>
   </form>
+  {% else %}
+  <div class="flex items-center gap-3 pt-1">
+    <a href="/auth/choose?next=/feedback"
+       class="inline-flex items-center gap-1.5 bg-brand text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-brand-dark transition-colors">
+      Sign in to vote or suggest
+    </a>
+    <span class="text-xs text-slate-400">Takes 30 seconds via ORCID or LinkedIn.</span>
+  </div>
+  {% endif %}
 </div>
 
+{% if can_vote %}
 <script>
 async function voteFor(id, btn) {
   try {
     const resp = await fetch(`/feedback/vote/${id}`, {
       method: 'POST', headers: { 'Accept': 'application/json' },
     });
+    if (resp.status === 401) {
+      window.location.href = '/auth/choose?next=/feedback';
+      return;
+    }
     if (!resp.ok) return;
     const { voted, votes } = await resp.json();
     const count = document.getElementById('vcount-' + id);
@@ -58,3 +80,4 @@ async function voteFor(id, btn) {
   } catch (_) {}
 }
 </script>
+{% endif %}

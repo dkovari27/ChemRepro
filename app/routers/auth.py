@@ -1,4 +1,4 @@
-﻿import secrets
+import secrets
 import uuid
 from datetime import datetime, timezone
 from urllib.parse import urlencode
@@ -40,8 +40,18 @@ DEV_FAKE_USERS = [
 ]
 
 
+def _safe_next(url: str) -> str:
+    """Allow only relative paths to prevent open-redirect abuse."""
+    if url and url.startswith("/") and not url.startswith("//"):
+        return url
+    return "/"
+
+
 @router.get("/choose")
 async def choose_login(request: Request, error: str | None = None):
+    next_url = request.query_params.get("next", "")
+    if next_url:
+        request.session["login_next"] = _safe_next(next_url)
     return templates.TemplateResponse("login_choose.html", {
         "request": request,
         "error": error,
@@ -127,10 +137,11 @@ async def callback(
     request.session["orcid_id"] = orcid_id
     request.session["user_name"] = user.nickname or user.name or orcid_id
 
+    login_next = request.session.pop("login_next", "/")
     if not user.career_stage_set:
-        request.session["after_profile_setup"] = "/"
+        request.session["after_profile_setup"] = login_next
         return RedirectResponse("/auth/profile-setup", status_code=303)
-    return _post_login_redirect(user, "/")
+    return _post_login_redirect(user, login_next)
 
 
 @router.get("/guest-setup")
@@ -406,10 +417,11 @@ async def linkedin_callback(
     request.session["orcid_id"] = session_key
     request.session["user_name"] = user.nickname or user.name or session_key
 
+    login_next = request.session.pop("login_next", "/")
     if not user.career_stage_set:
-        request.session["after_profile_setup"] = "/"
+        request.session["after_profile_setup"] = login_next
         return RedirectResponse("/auth/profile-setup", status_code=303)
-    return _post_login_redirect(user, "/")
+    return _post_login_redirect(user, login_next)
 
 
 @router.get("/dev-login/{user_index}")

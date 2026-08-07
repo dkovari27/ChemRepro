@@ -11,22 +11,6 @@ This replaces the scattered memory files for project-specific state. The `.claud
 
 ---
 
-## Parked
-
-### Push 2: Account Linking (ORCID ↔ LinkedIn)
-Files ready locally, not yet pushed to GitHub.
-- `app/models/user.py` — `linkedin_id` and `orcid_real` model fields (DB columns already exist from Push 1 migration)
-- `app/routers/auth.py` — `/auth/link/linkedin`, `/auth/link/orcid` routes + modified OAuth callbacks; `/auth/dev-link/` already has production guard (`ORCID_ENV == production` → 403)
-- `app/templates/base.html` — DEV panel (is_local guarded, invisible on Railway)
-- `app/templates/profile_settings.html` — Linked accounts card in Settings
-
-Prerequisites confirmed:
-- LinkedIn OAuth credentials on Railway
-- Orphaned LinkedIn ChemRepro account deleted via admin
-- User has one ORCID-primary account; wants to attach LinkedIn to it
-
-To deploy: review files locally, then push when ready.
-
 ---
 
 ## Future / Planned

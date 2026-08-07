@@ -855,3 +855,77 @@ async def citation_review_post(
         rating.reproducibility_observation = obs.replace(mention, f"[[{new_doi.strip()}]]", 1)
     db.commit()
     return RedirectResponse(f"/paper/{rating.doi}", status_code=303)
+
+
+# ── Name suggestions / vote management ───────────────────────────────────────
+
+@router.get("/name-votes", response_class=HTMLResponse)
+async def admin_name_votes(request: Request, db: Session = Depends(get_db)):
+    _require_admin(request)
+    from app.models.name_suggestion import NameSuggestion, NameVote
+    raw = db.query(NameSuggestion).order_by(NameSuggestion.id.asc()).all()
+    # Build plain dicts so Jinja2 never hits a lazy-load; sort by vote count desc
+    suggestions = sorted(
+        [
+            {
+                "id": s.id,
+                "name": s.name,
+                "votes": [
+                    {"id": v.id, "voter_id": v.voter_id, "created_at": v.created_at}
+                    for v in s.votes
+                ],
+            }
+            for s in raw
+        ],
+        key=lambda s: len(s["votes"]),
+        reverse=True,
+    )
+    return templates.TemplateResponse("admin_name_votes.html", {
+        "request": request,
+        "suggestions": suggestions,
+        "user_name": request.session.get("user_name"),
+        "orcid_id": request.session.get("orcid_id"),
+        "site_version": "standard",
+        "switch_urls": {"standard": "/", "classic": "/classic/"},
+    })
+
+
+@router.post("/name-votes/{vote_id}/delete")
+async def admin_delete_vote(vote_id: int, request: Request, db: Session = Depends(get_db)):
+    _require_admin(request)
+    from app.models.name_suggestion import NameVote
+    vote = db.get(NameVote, vote_id)
+    if vote:
+        db.delete(vote)
+        db.commit()
+    return RedirectResponse("/admin/name-votes", status_code=303)
+
+
+@router.post("/name-suggestions/{suggestion_id}/delete")
+async def admin_delete_suggestion(suggestion_id: int, request: Request, db: Session = Depends(get_db)):
+    _require_admin(request)
+    from app.models.name_suggestion import NameSuggestion
+    suggestion = db.get(NameSuggestion, suggestion_id)
+    if suggestion:
+        db.delete(suggestion)
+        db.commit()
+    return RedirectResponse("/admin/name-votes", status_code=303)
+
+
+@router.post("/name-suggestions/add")
+async def admin_add_suggestion(
+    request: Request,
+    db: Session = Depends(get_db),
+    name: str = Form(""),
+):
+    _require_admin(request)
+    from app.models.name_suggestion import NameSuggestion
+    name_clean = name.strip()[:100]
+    if name_clean:
+        existing = db.query(NameSuggestion).filter(
+            NameSuggestion.name.ilike(name_clean)
+        ).first()
+        if not existing:
+            db.add(NameSuggestion(name=name_clean))
+            db.commit()
+    return RedirectResponse("/admin/name-votes", status_code=303)
