@@ -26,6 +26,8 @@ class User(Base):
     career_stage_set: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     pledge_accepted: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    linkedin_id: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
+    orcid_real: Mapped[str | None] = mapped_column(String(50), unique=True, nullable=True)
     verified_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

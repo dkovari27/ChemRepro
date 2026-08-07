@@ -120,6 +120,8 @@
               <span class="font-medium text-sm">{{ user_name }}</span>
               {% if orcid_id.startswith('local:') %}
                 <span class="text-[11px] text-slate-500 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 leading-none">guest</span>
+              {% elif orcid_id.startswith('linkedin:') %}
+                <span class="text-[11px] text-[#0A66C2] bg-[#0A66C2]/8 border border-[#0A66C2]/20 rounded px-1.5 py-0.5 leading-none font-medium">LinkedIn ✓</span>
               {% else %}
                 <span class="text-[11px] text-brand bg-brand/8 border border-brand/20 rounded px-1.5 py-0.5 leading-none font-medium">ORCID ✓</span>
               {% endif %}
@@ -461,5 +463,46 @@
   </script>
 
   {% block scripts %}{% endblock %}
+
+  {% if is_local %}
+  {# ── Dev account switcher ──────────────────────────────────────────── #}
+  {% set _cur = orcid_id if orcid_id is defined else "" %}
+  {% set _devs = [
+    (0, "Alice Testuser",   "0000-0000-0000-0001"),
+    (1, "Bob Labrat",       "0000-0000-0000-0002"),
+    (2, "Carol Benchwork",  "0000-0000-0000-0003"),
+    (3, "DanK-ORCID",       "0000-0000-0000-9999"),
+    (4, "DanK-LinkedIn",    "linkedin:dank-linkedin-test"),
+  ] %}
+  <div class="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-1">
+    <div id="dev-dd" class="hidden mb-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden w-48">
+      <div class="px-3 py-2 border-b border-slate-100">
+        <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Dev accounts</p>
+      </div>
+      {% for idx, label, uid in _devs %}
+      <a href="/auth/dev-login/{{ idx }}"
+         class="flex items-center gap-2.5 px-3 py-2 text-xs hover:bg-slate-50 transition-colors {% if _cur == uid %}text-brand font-semibold{% else %}text-slate-700{% endif %}">
+        <span class="w-1.5 h-1.5 rounded-full shrink-0 {% if _cur == uid %}bg-brand{% else %}bg-slate-200{% endif %}"></span>
+        {{ label }}
+      </a>
+      {% endfor %}
+      <div class="border-t border-slate-100">
+        <a href="/auth/dev-link/3/4" class="flex items-center gap-2.5 px-3 py-2 text-xs text-slate-500 hover:bg-slate-50 transition-colors">
+          <span class="w-1.5 h-1.5 rounded-full shrink-0 bg-amber-300"></span>
+          Link DanK-ORCID &harr; LinkedIn
+        </a>
+        <a href="/auth/logout" class="flex items-center gap-2.5 px-3 py-2 text-xs text-slate-400 hover:bg-slate-50 transition-colors">
+          <span class="w-1.5 h-1.5 rounded-full shrink-0 bg-transparent border border-slate-300"></span>
+          Sign out
+        </a>
+      </div>
+    </div>
+    <button onclick="document.getElementById('dev-dd').classList.toggle('hidden')"
+      class="bg-amber-400 hover:bg-amber-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-md transition-colors leading-none">
+      DEV
+    </button>
+  </div>
+  {% endif %}
+
 </body>
 </html>

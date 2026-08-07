@@ -85,6 +85,8 @@
               <span class="font-medium">{{ user_name }}</span>
               {% if orcid_id.startswith('local:') %}
                 <span class="text-xs text-slate-500 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5">guest</span>
+              {% elif orcid_id.startswith('linkedin:') %}
+                <span class="text-xs text-[#0A66C2] bg-[#0A66C2]/10 border border-[#0A66C2]/20 rounded px-1.5 py-0.5">LinkedIn ✓</span>
               {% else %}
                 <span class="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-1.5 py-0.5">ORCID ✓</span>
               {% endif %}

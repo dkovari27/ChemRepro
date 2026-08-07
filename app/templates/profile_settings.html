@@ -15,15 +15,43 @@
   </div>
   {% endif %}
 
+  {% if linked %}
+  <div class="mb-4 bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-3 text-sm font-medium">
+    LinkedIn account linked successfully. You can now sign in with either provider.
+  </div>
+  {% endif %}
+
+  {% if link_error == "not_configured" %}
+  <div class="mb-4 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl px-4 py-3 text-sm font-medium">
+    LinkedIn is not configured in this environment. Use the DEV panel to link accounts locally.
+  </div>
+  {% endif %}
+
+  {% if link_error == "already_linked" %}
+  <div class="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm font-medium">
+    That LinkedIn account is already linked to a different ChemRepro user.
+  </div>
+  {% endif %}
+
+  {% if link_error == "orcid_already_linked" %}
+  <div class="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm font-medium">
+    That ORCID iD is already linked to a different ChemRepro user.
+  </div>
+  {% endif %}
+
   <form action="/profile/settings" method="post" class="space-y-4">
 
     <!-- Identity -->
     <div class="bg-white border border-slate-200 rounded-xl p-6">
       <h2 class="text-sm font-semibold text-slate-700 mb-4">Your identity</h2>
 
-      <!-- ORCID name (read-only) -->
+      <!-- Display name (read-only) -->
       <div class="mb-4">
+        {% if orcid_id.startswith("linkedin:") %}
+        <label class="block text-xs font-medium text-slate-500 mb-1">LinkedIn name <span class="text-slate-300">(from LinkedIn, cannot be changed here)</span></label>
+        {% else %}
         <label class="block text-xs font-medium text-slate-500 mb-1">ORCID name <span class="text-slate-300">(from ORCID, cannot be changed here)</span></label>
+        {% endif %}
         <p class="text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">{{ user.name or "–" }}</p>
       </div>
 
@@ -41,7 +69,7 @@
         {% else %}
         <input id="nickname" name="nickname" type="text" maxlength="60"
           value="{{ nickname_input or '' }}"
-          placeholder="Leave blank to use your ORCID name"
+          placeholder="Leave blank to use your {% if orcid_id.startswith('linkedin:') %}LinkedIn{% else %}ORCID{% endif %} name"
           class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/25 focus:border-brand/50 transition-colors {% if nickname_error == 'taken' %}border-red-300{% endif %}" />
         {% if nickname_error == "taken" %}
         <p class="text-xs text-red-500 mt-1">That nickname is already taken. Nicknames are case-insensitive, so "DanK" and "dank" count as the same.</p>
@@ -95,11 +123,56 @@
 
   </form>
 
-  <!-- Sign-in info -->
+  <!-- Linked accounts (not shown to guest / local accounts) -->
+  {% if not orcid_id.startswith("local:") %}
+  <div class="mt-4 bg-white border border-slate-200 rounded-xl p-6">
+    <h2 class="text-sm font-semibold text-slate-700 mb-1">Linked accounts</h2>
+    <p class="text-xs text-slate-400 mb-4">Link a second provider so you can sign in with either.</p>
+
+    {% if orcid_id.startswith("linkedin:") %}
+      <!-- LinkedIn-primary user: offer ORCID linking -->
+      {% if user.orcid_real %}
+      <div class="flex items-center gap-3">
+        <svg class="w-4 h-4 shrink-0" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg"><path fill="#A6CE39" d="M128 0C57.3 0 0 57.3 0 128s57.3 128 128 128 128-57.3 128-128S198.7 0 128 0z"/><path fill="#fff" d="M86.3 186.2H70.9V79.1h15.4v107.1zm2.4-129.4c0 5.5-4.5 10.1-10.1 10.1-5.6 0-10.1-4.6-10.1-10.1 0-5.6 4.5-10.1 10.1-10.1 5.6 0 10.1 4.5 10.1 10.1zM108.9 79.1h41.6c39.6 0 57 28.3 57 53.6 0 27.5-21.5 53.6-56.8 53.6h-41.8V79.1zm15.4 93.3h24.5c34.9 0 42.9-26.5 42.9-39.7 0-21.5-13.7-39.7-43.7-39.7h-23.7v79.4z"/></svg>
+        <span class="text-sm font-medium text-green-700">ORCID linked</span>
+        <span class="text-xs font-mono text-slate-400">{{ user.orcid_real }}</span>
+      </div>
+      {% else %}
+      <a href="/auth/link/orcid"
+         class="orcid-login-btn inline-flex items-center gap-2 border border-[#A6CE39] text-slate-700 rounded-lg px-4 py-2 text-sm font-medium hover:bg-[#A6CE39] hover:text-white transition-colors">
+        <span class="orcid-logo-std shrink-0"><svg class="w-4 h-4" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg"><path fill="#A6CE39" d="M128 0C57.3 0 0 57.3 0 128s57.3 128 128 128 128-57.3 128-128S198.7 0 128 0z"/><path fill="#fff" d="M86.3 186.2H70.9V79.1h15.4v107.1zm2.4-129.4c0 5.5-4.5 10.1-10.1 10.1-5.6 0-10.1-4.6-10.1-10.1 0-5.6 4.5-10.1 10.1-10.1 5.6 0 10.1 4.5 10.1 10.1zM108.9 79.1h41.6c39.6 0 57 28.3 57 53.6 0 27.5-21.5 53.6-56.8 53.6h-41.8V79.1zm15.4 93.3h24.5c34.9 0 42.9-26.5 42.9-39.7 0-21.5-13.7-39.7-43.7-39.7h-23.7v79.4z"/></svg></span>
+        <span class="orcid-logo-rev shrink-0"><svg class="w-4 h-4" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg"><path fill="#fff" d="M128 0C57.3 0 0 57.3 0 128s57.3 128 128 128 128-57.3 128-128S198.7 0 128 0z"/><path fill="#A6CE39" d="M86.3 186.2H70.9V79.1h15.4v107.1zm2.4-129.4c0 5.5-4.5 10.1-10.1 10.1-5.6 0-10.1-4.6-10.1-10.1 0-5.6 4.5-10.1 10.1-10.1 5.6 0 10.1 4.5 10.1 10.1zM108.9 79.1h41.6c39.6 0 57 28.3 57 53.6 0 27.5-21.5 53.6-56.8 53.6h-41.8V79.1zm15.4 93.3h24.5c34.9 0 42.9-26.5 42.9-39.7 0-21.5-13.7-39.7-43.7-39.7h-23.7v79.4z"/></svg></span>
+        Connect ORCID account
+      </a>
+      {% endif %}
+    {% else %}
+      <!-- ORCID-primary user: offer LinkedIn linking -->
+      {% if user.linkedin_id %}
+      <div class="flex items-center gap-3">
+        <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="#0A66C2"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+        <span class="text-sm font-medium text-green-700">LinkedIn linked</span>
+        <span class="text-xs text-slate-400">You can sign in with LinkedIn.</span>
+      </div>
+      {% else %}
+      <a href="/auth/link/linkedin"
+         class="linkedin-login-btn inline-flex items-center gap-2 border border-[#0A66C2] text-slate-700 rounded-lg px-4 py-2 text-sm font-medium hover:bg-[#0A66C2] hover:text-white transition-colors">
+        <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+        Connect LinkedIn account
+      </a>
+      {% endif %}
+    {% endif %}
+  </div>
+  {% endif %}{# /not local: #}
+
+  <!-- Sign-in provider info -->
   <div class="mt-4 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
     <p class="text-xs text-slate-400">
+      {% if orcid_id.startswith("linkedin:") %}
+      Signed in via LinkedIn
+      {% else %}
       Signed in via ORCID &middot;
       <span class="font-mono">{{ orcid_id }}</span>
+      {% endif %}
     </p>
   </div>
 
