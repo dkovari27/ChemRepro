@@ -3,6 +3,27 @@
 
 ---
 
+## 2026-08-10 | Push 7 | (pending)
+**Files changed (5):**
+- `app/models/rating.py` — added `linkedin_post_metadata` column (JSON, nullable); stores `{label, closing_id, rhythm_id, word_count, issues}` at generation time
+- `app/main.py` — migration for `linkedin_post_metadata` (SQLite TEXT + PostgreSQL JSON)
+- `app/services/linkedin_post.py` — full rewrite: 12 corrected outcome templates (5A/5B = major extension, 4A/4B = minor extension, 3A/3B = exact repro, 2A/2B = deviation, 1A/1B = did not work, EF, INC); `_select_template()` now handles all nd_star values 1-5 plus nd_failure_context; C1-C6 closing moves with valence constraint (C5/C6 free on 1A/1B/EF/INC, occasional on 2A-3B, never on 4A-5B); R1 floor for word_target < 110; automatic post validator with one auto-retry; `generate_linkedin_post()` returns `tuple[str, dict]` and does NOT update rotation state; new `update_rotation_on_publish()` called on Posted click only; `is_eligible_for_post()` removed
+- `app/routers/admin.py` — removed `_eligible` tuple and star-gate filter from both LinkedIn queries; `generate-linkedin-post` endpoint stores `linkedin_post_metadata`, returns specific error messages for observation_required/unknown_outcome; `linkedin-post-status` endpoint calls `update_rotation_on_publish` when status = "posted"; `or_` import removed
+- `app/templates/admin_dashboard.html` — section description updated; template label chip in card header; amber warning banner on 1A/1B cards; red validator issue list when issues remain after auto-retry
+
+**What changed (summary):**
+- All reviews now appear in the LinkedIn queue (no star gate); Daniel clicks Generate on any review
+- Correct star scale: 5 = major extension, 4 = minor extension, 3 = exact repro, 2 = deviation, 1 = did not work
+- Rotation state updates on publish (Posted click), not on generation; wasted generation clicks no longer consume rotation budget
+- Automatic validator catches em dashes, URL placement, hashtag count, banned phrases; auto-retries once; if still failing, shows issues on the card
+- 1A/1B cards flagged with amber caution banner
+
+**Deferred:**
+- Event templates (SR-C, SR-D, AR, MS50): manual-only process
+- `tag_history[5]` hashtag rotation (last_hooks and tag_history not yet implemented in code; low-priority)
+
+---
+
 ## 2026-08-10 | Push 6 | `ee0c404`
 **Files pushed (1):**
 - `app/services/linkedin_post.py` — proportional word target: post length now scales with review length (max 60% longer, floor 80, ceiling 180); `_GLOBAL_RULES_TMPL` parameterized with `{word_target}`; `_CHECKLIST` item 1 updated; `_build_prompt` accepts `word_target` kwarg; `generate_linkedin_post` computes target from `obs_word_count`

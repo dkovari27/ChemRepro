@@ -8,7 +8,7 @@ from app.utils.design import register_globals
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func, or_
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -228,35 +228,25 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     users_map = {u.orcid_id: u for u in db.query(User).all()}
     api_keys = db.query(ApiKey).order_by(ApiKey.created_at.desc()).all()
 
-    # Eligibility condition: nd_star >= 3, not extension_failed or inconclusive
-    _eligible = (
-        Rating.nd_star >= 3,
-        or_(
-            Rating.nd_failure_context.is_(None),
-            Rating.nd_failure_context.notin_(["extension_failed", "inconclusive"]),
-        ),
-        Rating.is_demo == False,  # noqa: E712
-    )
-
-    # Active drafts: eligible, have a draft, not yet posted/archived
+    # Active drafts: have a draft, not yet posted/archived, not demo
     reviews_with_draft = (
         db.query(Rating)
         .filter(
             Rating.linkedin_post_draft.isnot(None),
             Rating.linkedin_post_status.is_(None),
-            *_eligible,
+            Rating.is_demo == False,  # noqa: E712
         )
         .order_by(Rating.created_at.desc())
         .limit(10)
         .all()
     )
-    # Eligible reviews without a draft: shown so Daniel can trigger generation manually
+    # Reviews without a draft: Daniel can trigger generation manually on any review
     reviews_without_draft = (
         db.query(Rating)
         .filter(
             Rating.linkedin_post_draft.is_(None),
             Rating.linkedin_post_status.is_(None),
-            *_eligible,
+            Rating.is_demo == False,  # noqa: E712
         )
         .order_by(Rating.created_at.desc())
         .limit(20)
@@ -720,6 +710,17 @@ async def admin_set_linkedin_post_status(
     r = db.get(Rating, rating_id)
     if not r:
         return JSONResponse({"error": "not found"}, status_code=404)
+
+    if status == "posted" and r.linkedin_post_metadata:
+        # Update rotation state now that the post is actually being published
+        from app.services.linkedin_post import update_rotation_on_publish
+        meta = r.linkedin_post_metadata
+        update_rotation_on_publish(
+            label=meta.get("label", ""),
+            closing_id=meta.get("closing_id", ""),
+            rhythm_id=meta.get("rhythm_id", ""),
+        )
+
     r.linkedin_post_status = None if status == "restore" else status
     db.commit()
     return JSONResponse({"ok": True})
@@ -736,7 +737,7 @@ async def admin_generate_linkedin_post(rating_id: int, request: Request, db: Ses
         return JSONResponse({"error": "paper not found"}, status_code=404)
 
     from app.services.linkedin_post import generate_linkedin_post
-    draft = generate_linkedin_post(
+    draft, metadata = generate_linkedin_post(
         paper_title=paper.title or "",
         journal=paper.journal,
         year=paper.year,
@@ -747,8 +748,19 @@ async def admin_generate_linkedin_post(rating_id: int, request: Request, db: Ses
         career_stage=r.career_stage_snapshot,
     )
     if not draft:
-        return JSONResponse({"error": "generation failed — check ANTHROPIC_API_KEY"}, status_code=500)
+        error = metadata.get("error", "generation failed")
+        if error == "observation_required":
+            msg = "5-star and 4-star reviews require a written observation excerpt to generate a post."
+        elif error == "unknown_outcome":
+            msg = "Review has no recognised outcome (nd_star and nd_failure_context are both unset)."
+        elif error == "no_api_key":
+            msg = "ANTHROPIC_API_KEY not configured."
+        else:
+            msg = f"Generation failed ({error}). Check MOCK_SCORING or ANTHROPIC_API_KEY."
+        return JSONResponse({"error": msg}, status_code=422)
+
     r.linkedin_post_draft = draft
+    r.linkedin_post_metadata = metadata
     db.commit()
     return JSONResponse({"ok": True, "draft": draft})
 
