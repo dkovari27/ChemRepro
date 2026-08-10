@@ -3,7 +3,7 @@
 
 ---
 
-## 2026-08-11 | Push 8 | (pending)
+## 2026-08-11 | Push 8 | `44d8451`
 **Files changed (10):**
 - `app/models/banned_term.py` — new: admin-curated banned word/phrase table (term, added_by, created_at)
 - `app/models/submission_warning.py` — new: append-only evidence log for the repeated-violation warning system (orcid_id, doi, content_type, matched_term, content_snippet, created_at)
