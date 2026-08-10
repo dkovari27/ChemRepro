@@ -8,7 +8,7 @@ from app.utils.design import register_globals
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -228,24 +228,38 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     users_map = {u.orcid_id: u for u in db.query(User).all()}
     api_keys = db.query(ApiKey).order_by(ApiKey.created_at.desc()).all()
 
-    # Active drafts: have a draft and not yet marked posted/archived
+    # Eligibility condition: nd_star >= 3, not extension_failed or inconclusive
+    _eligible = (
+        Rating.nd_star >= 3,
+        or_(
+            Rating.nd_failure_context.is_(None),
+            Rating.nd_failure_context.notin_(["extension_failed", "inconclusive"]),
+        ),
+        Rating.is_demo == False,  # noqa: E712
+    )
+
+    # Active drafts: eligible, have a draft, not yet posted/archived
     reviews_with_draft = (
         db.query(Rating)
         .filter(
             Rating.linkedin_post_draft.isnot(None),
             Rating.linkedin_post_status.is_(None),
-            Rating.is_demo == False,  # noqa: E712
+            *_eligible,
         )
         .order_by(Rating.created_at.desc())
         .limit(10)
         .all()
     )
-    # Reviews without draft (most recent 5, for one-click generation)
+    # Eligible reviews without a draft: shown so Daniel can trigger generation manually
     reviews_without_draft = (
         db.query(Rating)
-        .filter(Rating.linkedin_post_draft.is_(None), Rating.is_demo == False)  # noqa: E712
+        .filter(
+            Rating.linkedin_post_draft.is_(None),
+            Rating.linkedin_post_status.is_(None),
+            *_eligible,
+        )
         .order_by(Rating.created_at.desc())
-        .limit(5)
+        .limit(20)
         .all()
     )
     # Posted and archived — shown in the summary columns below the draft area
