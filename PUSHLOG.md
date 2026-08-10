@@ -3,7 +3,7 @@
 
 ---
 
-## 2026-08-10 | Push 6 | (hash TBD)
+## 2026-08-10 | Push 6 | `ee0c404`
 **Files pushed (1):**
 - `app/services/linkedin_post.py` — proportional word target: post length now scales with review length (max 60% longer, floor 80, ceiling 180); `_GLOBAL_RULES_TMPL` parameterized with `{word_target}`; `_CHECKLIST` item 1 updated; `_build_prompt` accepts `word_target` kwarg; `generate_linkedin_post` computes target from `obs_word_count`
 
