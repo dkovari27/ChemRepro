@@ -28,6 +28,10 @@ class User(Base):
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     linkedin_id: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
     orcid_real: Mapped[str | None] = mapped_column(String(50), unique=True, nullable=True)
+    # Site-wide posting block, set automatically after 3 logged warnings on any
+    # one paper (see app.models.submission_warning.SubmissionWarning). Cleared
+    # only by an admin, from /admin/submission-warnings.
+    submission_blocked: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     verified_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

@@ -22,6 +22,8 @@ from app.models import collection as _collection_model       # noqa: F401
 from app.models import saved_paper as _saved_paper_model     # noqa: F401
 from app.models import api_key as _api_key_model             # noqa: F401
 from app.models import author_reply as _author_reply_model   # noqa: F401
+from app.models import banned_term as _banned_term_model     # noqa: F401
+from app.models import submission_warning as _warning_model  # noqa: F401
 from app.models.comment import CommentLike                   # noqa: F401
 from app.routers import auth, papers, api
 from app.routers import feedback as feedback_router
@@ -102,6 +104,8 @@ def _migrate():
                 conn.execute(text("ALTER TABLE users ADD COLUMN linkedin_id VARCHAR(255)"))
             if "orcid_real" not in user_cols3:
                 conn.execute(text("ALTER TABLE users ADD COLUMN orcid_real VARCHAR(50)"))
+            if "submission_blocked" not in user_cols3:
+                conn.execute(text("ALTER TABLE users ADD COLUMN submission_blocked BOOLEAN NOT NULL DEFAULT 0"))
             rating_cols6 = [row[1] for row in conn.execute(text("PRAGMA table_info(ratings)"))]
             if "linkedin_post_draft" not in rating_cols6:
                 conn.execute(text("ALTER TABLE ratings ADD COLUMN linkedin_post_draft TEXT"))
@@ -110,7 +114,7 @@ def _migrate():
             rating_cols7 = [row[1] for row in conn.execute(text("PRAGMA table_info(ratings)"))]
             if "linkedin_post_metadata" not in rating_cols7:
                 conn.execute(text("ALTER TABLE ratings ADD COLUMN linkedin_post_metadata TEXT"))
-            # collections and saved_papers are created by create_all above; no ALTER needed
+            # collections, saved_papers, banned_terms, and submission_warnings are created by create_all above; no ALTER needed
         else:
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS career_stage VARCHAR(60)"))
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS career_stage_set BOOLEAN NOT NULL DEFAULT FALSE"))
@@ -138,6 +142,7 @@ def _migrate():
             conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS source_url VARCHAR(1024)"))
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS linkedin_id VARCHAR(255) UNIQUE"))
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS orcid_real VARCHAR(50) UNIQUE"))
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS submission_blocked BOOLEAN NOT NULL DEFAULT FALSE"))
             conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS linkedin_post_draft TEXT"))
             conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS linkedin_post_status VARCHAR(20)"))
             conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS linkedin_post_metadata JSON"))
@@ -156,7 +161,7 @@ app.add_middleware(
     secret_key=settings.SECRET_KEY,
     session_cookie="chemrepro_session",
     max_age=60 * 60 * 24 * 7,
-    https_only=(settings.ORCID_ENV == "production"),
+    https_only=(settings.ORCID_ENV != "sandbox"),
     same_site="lax",
 )
 
@@ -182,14 +187,15 @@ register_globals(_templates)
 @app.get("/demo/colors", response_class=HTMLResponse)
 async def demo_colors(request: Request):
     from fastapi import HTTPException
-    if settings.ORCID_ENV == "production":
+    if settings.ORCID_ENV != "sandbox":
         raise HTTPException(status_code=403)
     return _templates.TemplateResponse("demo_colors.html", {"request": request})
 
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-    if request.url.path.startswith("/api/"):
+    wants_json = request.url.path.startswith("/api/") or "application/json" in request.headers.get("accept", "")
+    if wants_json:
         return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
     return _templates.TemplateResponse("error.html", {
         "request": request,

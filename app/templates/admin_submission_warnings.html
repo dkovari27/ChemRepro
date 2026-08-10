@@ -1,0 +1,116 @@
+{% extends design_base(request) %}
+{% block title %}Submission Warnings – Admin{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+
+  <div class="mb-6 flex items-center justify-between gap-4">
+    <div>
+      <h1 class="text-xl font-bold text-slate-800">Submission warnings</h1>
+      <p class="text-sm text-slate-400 mt-0.5">
+        Evidence log for the repeated-violation system. 3 logged warnings on the same paper
+        restricts that account from posting anywhere on ChemRepro until it's unblocked here.
+      </p>
+    </div>
+    <a href="/admin" class="text-xs text-slate-400 hover:text-brand transition-colors shrink-0">← Admin</a>
+  </div>
+
+  <!-- Blocked accounts -->
+  <div class="mb-8">
+    <h2 class="text-sm font-semibold text-slate-700 mb-3">
+      Blocked accounts {% if blocked_users %}<span class="text-slate-400 font-normal">({{ blocked_users|length }})</span>{% endif %}
+    </h2>
+
+    {% if blocked_users %}
+    <div class="flex flex-col gap-4">
+      {% for u in blocked_users %}
+      <div class="bg-white border border-red-200 rounded-xl p-5">
+        <div class="flex items-start justify-between gap-4 mb-3">
+          <div>
+            <p class="text-sm font-semibold text-slate-800">{{ u.name or u.nickname or u.orcid_id }}</p>
+            <p class="text-xs text-slate-400 font-mono mt-0.5">{{ u.orcid_id }}</p>
+          </div>
+          <form action="/admin/submission-warnings/{{ u.orcid_id }}/unblock" method="post"
+            data-confirm="Unblock {{ u.name or u.orcid_id }}? They will be able to post again immediately.">
+            <button type="submit"
+              class="shrink-0 bg-brand text-white rounded-lg px-4 py-2 text-xs font-medium hover:bg-brand-dark transition-colors">
+              Unblock
+            </button>
+          </form>
+        </div>
+
+        <ul class="divide-y divide-slate-100 border-t border-slate-100">
+          {% for w in blocked_evidence.get(u.orcid_id, []) %}
+          <li class="py-2.5">
+            <div class="flex items-center justify-between gap-3 mb-1">
+              <a href="/paper/{{ w.doi }}" target="_blank" class="text-xs font-mono text-brand hover:underline truncate">{{ w.doi }}</a>
+              <span class="text-xs text-slate-300 shrink-0">{{ w.created_at.strftime('%d %b %Y %H:%M') }}</span>
+            </div>
+            <p class="text-xs text-slate-500">
+              <span class="inline-block bg-red-50 text-red-500 rounded px-1.5 py-0.5 font-medium mr-1.5">{{ w.content_type }}</span>
+              matched "<span class="font-mono">{{ w.matched_term }}</span>"
+            </p>
+            <p class="text-xs text-slate-400 mt-1 italic">&ldquo;{{ w.content_snippet[:160] }}{% if w.content_snippet|length > 160 %}…{% endif %}&rdquo;</p>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white border border-slate-200 rounded-xl px-5 py-6 text-center">
+      <p class="text-sm text-slate-400">No accounts currently blocked.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Recent warnings across the site -->
+  <div>
+    <h2 class="text-sm font-semibold text-slate-700 mb-3">Recent warnings (last 100)</h2>
+    {% if recent_warnings %}
+    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden overflow-x-auto">
+      <table class="w-full text-xs">
+        <thead>
+          <tr class="border-b border-slate-100 text-slate-400 text-left">
+            <th class="px-4 py-2 font-medium">When</th>
+            <th class="px-4 py-2 font-medium">User</th>
+            <th class="px-4 py-2 font-medium">Paper</th>
+            <th class="px-4 py-2 font-medium">Type</th>
+            <th class="px-4 py-2 font-medium">Matched term</th>
+            <th class="px-4 py-2 font-medium">Snippet</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for w in recent_warnings %}
+          <tr>
+            <td class="px-4 py-2 text-slate-400 whitespace-nowrap">{{ w.created_at.strftime('%d %b %H:%M') }}</td>
+            <td class="px-4 py-2 font-mono text-slate-600 whitespace-nowrap">{{ w.orcid_id }}</td>
+            <td class="px-4 py-2 whitespace-nowrap"><a href="/paper/{{ w.doi }}" target="_blank" class="font-mono text-brand hover:underline">{{ w.doi[:24] }}</a></td>
+            <td class="px-4 py-2 text-slate-500">{{ w.content_type }}</td>
+            <td class="px-4 py-2 font-mono text-slate-500">{{ w.matched_term }}</td>
+            <td class="px-4 py-2 text-slate-400 max-w-xs truncate" title="{{ w.content_snippet }}">{{ w.content_snippet[:80] }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="bg-white border border-slate-200 rounded-xl px-5 py-6 text-center">
+      <p class="text-sm text-slate-400">No warnings logged yet.</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+<script>
+  // data-confirm instead of an inline onsubmit="...{{ name }}..." string: a
+  // self-chosen display name containing a single quote would otherwise close the
+  // JS string early once the browser HTML-decodes the attribute, letting a user
+  // who deliberately gets themselves blocked run arbitrary script in the admin's
+  // session the moment this page is opened. Reading it back out of the dataset
+  // avoids re-parsing it as code.
+  document.querySelectorAll('form[data-confirm]').forEach(f => {
+    f.addEventListener('submit', e => { if (!confirm(f.dataset.confirm)) e.preventDefault(); });
+  });
+</script>
+{% endblock %}

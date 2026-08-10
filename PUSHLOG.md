@@ -3,7 +3,33 @@
 
 ---
 
-## 2026-08-10 | Push 7 | (pending)
+## 2026-08-11 | Push 8 | (pending)
+**Files changed (10):**
+- `app/models/banned_term.py` — new: admin-curated banned word/phrase table (term, added_by, created_at)
+- `app/models/submission_warning.py` — new: append-only evidence log for the repeated-violation warning system (orcid_id, doi, content_type, matched_term, content_snippet, created_at)
+- `app/models/user.py` — added `submission_blocked` column, set once 3 warnings land on the same paper
+- `app/templates/admin_banned_words.html` — new: admin UI to add/remove banned terms
+- `app/templates/admin_submission_warnings.html` — new: admin UI listing blocked accounts (with unblock) and the last 100 warnings
+- `scripts/seed_banned_terms.py` — new: idempotent seed of ~59 profanity slang/misspelling terms into `banned_terms`
+- `app/main.py` — migrations for `submission_blocked`/new tables; `wants_json` now also checks `Accept: application/json` (needed for moderation.js's fetch-based submits to get JSON error bodies instead of an HTML error page); bundled: `ORCID_ENV == "production"` → `!= "sandbox"` semantics swap on session cookie/demo-route guards
+- `app/routers/admin.py` — banned-words CRUD routes; submission-warnings + unblock routes; bundled: timing-safe admin-login token compare (`hmac.compare_digest`)
+- `app/routers/papers.py` — all 14 review/comment/reply submit+edit endpoints now go through the shared `enforce_moderation()` gate instead of the old one-shot `is_clean()` check; bundled: duplicate-rating `IntegrityError` handling, score-parsing `ValueError` handling
+- `app/static/js/moderation.js` — fixed escalation bug (client-side word list was short-circuiting the server round-trip on repeat offenses, so warning 2 and the block never fired); singleton warning/block modal
+- `app/utils/moderation.py` — `enforce_moderation()`: central 3-warning escalation gate, reads the live `BannedTerm` list; `IntegrityError` guard so a bad-word submit against a bogus/stale `doi` degrades to the caller's normal 404 instead of a Postgres 500
+- `app/utils/ai_moderation.py` — Haiku moderation prompt now flags profanity/slurs in any Latin-script language and is fed the live banned-term list
+- `app/templates/admin_dashboard.html` — added Warnings nav link; fixed XSS in the user Edit/Delete buttons (`u.name`/`u.nickname`/`u.career_stage` were interpolated into an inline `onclick` JS string; a display name containing `'` could break out and run script in the admin's session, the existing `replace("'", "\'")` "fix" was a no-op since `\'` and `'` are the same Python string, switched to `data-*` attributes read via `.dataset` instead)
+- `requirements.txt` — added `Pillow>=11.0.0` (unrelated bundled dependency)
+
+**What changed (summary):**
+- Real 3-strike moderation: 1st/2nd bad-word submission on a paper shows a warning modal, the 3rd blocks the account site-wide until an admin unblocks it at `/admin/submission-warnings`
+- Admin-curated banned word list at `/admin/banned-words`, no code deploy needed to add a term; seeded with ~59 profanity slang/misspelling terms
+- Fixed a real bug where escalation silently never advanced past warning 1
+- Fixed an XSS in the admin dashboard's user-management buttons and in both new admin templates (found during this push's audit, not present before)
+- `TASKS.md`: added wildcard/fuzzy-matching note (future work) and an admin dashboard style-update note (future work)
+
+---
+
+## 2026-08-10 | Push 7 | `747b657`
 **Files changed (5):**
 - `app/models/rating.py` — added `linkedin_post_metadata` column (JSON, nullable); stores `{label, closing_id, rhythm_id, word_count, issues}` at generation time
 - `app/main.py` — migration for `linkedin_post_metadata` (SQLite TEXT + PostgreSQL JSON)

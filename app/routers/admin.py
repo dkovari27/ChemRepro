@@ -94,7 +94,7 @@ async def admin_login(
     db: Session = Depends(get_db),
     next: str = Query(""),
 ):
-    if token != settings.ADMIN_SECRET_TOKEN:
+    if not _hmac_module.compare_digest(token, settings.ADMIN_SECRET_TOKEN):
         raise HTTPException(status_code=403, detail="Invalid token")
     _start_admin_session(request, db)
     return RedirectResponse(_safe_next(next), status_code=303)
@@ -955,3 +955,106 @@ async def admin_add_suggestion(
             db.add(NameSuggestion(name=name_clean))
             db.commit()
     return RedirectResponse("/admin/name-votes", status_code=303)
+
+
+# ── Banned words / phrases ──────────────────────────────────────────────────
+# Checked alongside the hardcoded regex in app.utils.moderation.is_clean()
+# (blocks review/comment/message submission outright) and fed into the Haiku
+# moderation prompt in app.utils.ai_moderation._check_content() (background
+# check on submitted reviews/comments).
+
+@router.get("/banned-words", response_class=HTMLResponse)
+async def admin_banned_words(request: Request, db: Session = Depends(get_db)):
+    _require_admin(request)
+    from app.models.banned_term import BannedTerm
+    terms = db.query(BannedTerm).order_by(BannedTerm.created_at.desc()).all()
+    return templates.TemplateResponse("admin_banned_words.html", {
+        "request": request,
+        "terms": terms,
+        "user_name": request.session.get("user_name"),
+        "orcid_id": request.session.get("orcid_id"),
+        "site_version": "standard",
+        "switch_urls": {"standard": "/", "classic": "/classic/"},
+    })
+
+
+@router.post("/banned-words/add")
+async def admin_add_banned_word(
+    request: Request,
+    db: Session = Depends(get_db),
+    term: str = Form(""),
+):
+    _require_admin(request)
+    from app.models.banned_term import BannedTerm
+    term_clean = term.strip().lower()[:200]
+    if term_clean:
+        existing = db.query(BannedTerm).filter(
+            BannedTerm.term.ilike(term_clean)
+        ).first()
+        if not existing:
+            db.add(BannedTerm(
+                term=term_clean,
+                added_by=request.session.get("orcid_id"),
+            ))
+            db.commit()
+    return RedirectResponse("/admin/banned-words", status_code=303)
+
+
+@router.post("/banned-words/{term_id}/delete")
+async def admin_delete_banned_word(term_id: int, request: Request, db: Session = Depends(get_db)):
+    _require_admin(request)
+    from app.models.banned_term import BannedTerm
+    term = db.get(BannedTerm, term_id)
+    if term:
+        db.delete(term)
+        db.commit()
+    return RedirectResponse("/admin/banned-words", status_code=303)
+
+
+# ── Repeated-violation warnings (evidence log + site-wide blocks) ────────────
+# See app.models.submission_warning.SubmissionWarning and
+# app.utils.moderation.enforce_moderation() for how these get created.
+
+@router.get("/submission-warnings", response_class=HTMLResponse)
+async def admin_submission_warnings(request: Request, db: Session = Depends(get_db)):
+    _require_admin(request)
+    from app.models.submission_warning import SubmissionWarning
+
+    blocked_users = db.query(User).filter(User.submission_blocked.is_(True)).all()
+    blocked_evidence = {}
+    for u in blocked_users:
+        blocked_evidence[u.orcid_id] = (
+            db.query(SubmissionWarning)
+            .filter(SubmissionWarning.orcid_id == u.orcid_id)
+            .order_by(SubmissionWarning.created_at.desc())
+            .all()
+        )
+
+    recent_warnings = (
+        db.query(SubmissionWarning)
+        .order_by(SubmissionWarning.created_at.desc())
+        .limit(100)
+        .all()
+    )
+
+    return templates.TemplateResponse("admin_submission_warnings.html", {
+        "request": request,
+        "blocked_users": blocked_users,
+        "blocked_evidence": blocked_evidence,
+        "recent_warnings": recent_warnings,
+        "user_name": request.session.get("user_name"),
+        "orcid_id": request.session.get("orcid_id"),
+        "site_version": "standard",
+        "switch_urls": {"standard": "/", "classic": "/classic/"},
+    })
+
+
+@router.post("/submission-warnings/{orcid_id:path}/unblock")
+async def admin_unblock_user(orcid_id: str, request: Request, db: Session = Depends(get_db)):
+    _require_admin(request)
+    user = db.get(User, orcid_id)
+    if not user:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    user.submission_blocked = False
+    db.commit()
+    return RedirectResponse("/admin/submission-warnings", status_code=303)

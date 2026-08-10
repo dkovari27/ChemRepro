@@ -8,11 +8,12 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Qu
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import case, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app import prompts
 from app.config import settings
-from app.utils.moderation import is_clean as _is_clean
+from app.utils.moderation import enforce_moderation as _enforce_moderation
 from app.utils.ai_moderation import contains_misconduct_allegation, moderate_comment_bg, moderate_rating_bg
 from app.utils.email import notify_admin
 from app.database import get_db
@@ -641,9 +642,7 @@ async def submit_comment(
         return RedirectResponse(f"/auth/guest-setup?next={request.url.path}", status_code=303)
     if not content.strip():
         return RedirectResponse(f"/design-archive/standard/paper/{doi}", status_code=303)
-    if not _is_clean(content):
-        raise HTTPException(
-            status_code=422, detail="Content contains prohibited language.")
+    _enforce_moderation(db, orcid_id, doi, "comment", content)
 
     paper = db.get(Paper, doi)
     if not paper:
@@ -743,9 +742,7 @@ async def submit_rating(
     if coi_confirmed != "on":
         raise HTTPException(
             status_code=422, detail="You must confirm no conflict of interest")
-    if not _is_clean(reproducibility_observation, scope_observation, modification_details):
-        raise HTTPException(
-            status_code=422, detail="Content contains prohibited language.")
+    _enforce_moderation(db, orcid_id, doi, "review", reproducibility_observation, scope_observation, modification_details)
 
     existing = db.query(Rating).filter(
         Rating.doi == doi, Rating.orcid_id == orcid_id, Rating.scoring_mode == "standard"
@@ -874,8 +871,11 @@ async def edit_comment(
     content = content.strip()[:2000]
     if not content:
         return JSONResponse({"error": "content required"}, status_code=422)
-    if not _is_clean(content):
-        return JSONResponse({"error": "prohibited language"}, status_code=422)
+    try:
+        _enforce_moderation(db, orcid_id, doi, "comment", content)
+    except HTTPException as exc:
+        detail = exc.detail if isinstance(exc.detail, dict) else {"message": str(exc.detail)}
+        return JSONResponse({"error": "prohibited language", **detail}, status_code=exc.status_code)
 
     comment.content = content
     db.commit()
@@ -918,9 +918,7 @@ async def submit_reply(
     content = content.strip()[:2000]
     if not content:
         return RedirectResponse(f"/design-archive/standard/paper/{doi}", status_code=303)
-    if not _is_clean(content):
-        raise HTTPException(
-            status_code=422, detail="Content contains prohibited language.")
+    _enforce_moderation(db, orcid_id, doi, "reply", content)
 
     parent = db.get(Comment, parent_id)
     if not parent:
@@ -969,9 +967,7 @@ async def classic_submit_comment(
         return RedirectResponse(f"/auth/guest-setup?next=/classic/paper/{doi}", status_code=303)
     if not content.strip():
         return RedirectResponse(f"/classic/paper/{doi}", status_code=303)
-    if not _is_clean(content):
-        raise HTTPException(
-            status_code=422, detail="Content contains prohibited language.")
+    _enforce_moderation(db, orcid_id, doi, "comment", content)
 
     paper = db.get(Paper, doi)
     if not paper:
@@ -1020,9 +1016,7 @@ async def classic_submit_reply(
     content = content.strip()[:2000]
     if not content:
         return RedirectResponse(f"/classic/paper/{doi}", status_code=303)
-    if not _is_clean(content):
-        raise HTTPException(
-            status_code=422, detail="Content contains prohibited language.")
+    _enforce_moderation(db, orcid_id, doi, "reply", content)
 
     parent = db.get(Comment, parent_id)
     if not parent:
@@ -1132,7 +1126,7 @@ async def author_opt_out_all(token: str, request: Request, db: Session = Depends
 
 @router.get("/design-demo/scoring-ab", response_class=HTMLResponse)
 async def design_demo_scoring_ab(request: Request):
-    if settings.ORCID_ENV == "production":
+    if settings.ORCID_ENV != "sandbox":
         raise HTTPException(status_code=403)
     from app import prompts as _prompts
     return templates.TemplateResponse("design_demo_scoring_ab.html", {
@@ -1464,6 +1458,7 @@ async def classic_submit_rating(
     if coi_confirmed != "on":
         raise HTTPException(
             status_code=422, detail="Conflict of interest confirmation required")
+    _enforce_moderation(db, orcid_id, doi, "review", reproducibility_observation, scope_observation)
 
     existing = db.query(Rating).filter(
         Rating.doi == doi, Rating.orcid_id == orcid_id, Rating.scoring_mode == "classic"
@@ -1524,6 +1519,7 @@ async def edit_rating_submit(
     if not orcid_id:
         raise HTTPException(status_code=403)
     r = _own_rating_or_404(rating_id, orcid_id, db)
+    _enforce_moderation(db, orcid_id, doi, "review", reproducibility_observation, scope_observation, modification_details)
     if outcome:
         r.outcome = outcome
     r.reproducibility_observation = reproducibility_observation.strip()[
@@ -1560,8 +1556,12 @@ async def classic_edit_rating_submit(
     if not orcid_id:
         raise HTTPException(status_code=403)
     r = _own_rating_or_404(rating_id, orcid_id, db)
-    repro_int = int(reproducibility_score) if reproducibility_score else None
-    ext_int = int(generalisability_score) if generalisability_score else None
+    _enforce_moderation(db, orcid_id, doi, "review", reproducibility_observation, scope_observation)
+    try:
+        repro_int = int(reproducibility_score) if reproducibility_score else None
+        ext_int = int(generalisability_score) if generalisability_score else None
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Score must be a number")
     if repro_int is not None and not (1 <= repro_int <= 5):
         raise HTTPException(status_code=422)
     if ext_int is not None and not (1 <= ext_int <= 5):
@@ -1954,9 +1954,7 @@ async def nd_submit_comment(
         return RedirectResponse(f"/auth/guest-setup?next=/paper/{doi}", status_code=303)
     if not content.strip():
         return RedirectResponse(f"/paper/{doi}", status_code=303)
-    if not _is_clean(content):
-        raise HTTPException(
-            status_code=422, detail="Content contains prohibited language.")
+    _enforce_moderation(db, orcid_id, doi, "comment", content)
     paper = db.get(Paper, doi)
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
@@ -1993,9 +1991,7 @@ async def nd_submit_reply(
     content = content.strip()[:2000]
     if not content:
         return RedirectResponse(f"/paper/{doi}", status_code=303)
-    if not _is_clean(content):
-        raise HTTPException(
-            status_code=422, detail="Content contains prohibited language.")
+    _enforce_moderation(db, orcid_id, doi, "reply", content)
     parent = db.get(Comment, parent_id)
     if not parent:
         raise HTTPException(status_code=404, detail="Comment not found")
@@ -2100,9 +2096,7 @@ async def nd_submit_rating(
     if coi_confirmed != "on":
         raise HTTPException(
             status_code=422, detail="You must confirm no conflict of interest")
-    if not _is_clean(reproducibility_observation):
-        raise HTTPException(
-            status_code=422, detail="Content contains prohibited language.")
+    _enforce_moderation(db, orcid_id, doi, "review", reproducibility_observation)
 
     if nd_star == "null":
         star_int = None
@@ -2151,7 +2145,12 @@ async def nd_submit_rating(
         pending_admin_review=is_misconduct,
     )
     db.add(rating)
-    db.flush()
+    try:
+        db.flush()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409, detail="You have already rated this paper")
 
     if is_misconduct:
         from app.models.message import Message
@@ -2217,6 +2216,7 @@ async def nd_edit_rating_submit(
     if not orcid_id:
         raise HTTPException(status_code=403)
     r = _editable_rating_or_404(rating_id, orcid_id, db)
+    _enforce_moderation(db, orcid_id, doi, "review", reproducibility_observation)
 
     if nd_star == "null":
         star_int = None
@@ -2272,8 +2272,7 @@ async def nd_submit_author_reply(
     content = content.strip()[:2000]
     if not content:
         raise HTTPException(status_code=422, detail="Reply content is required")
-    if not _is_clean(content):
-        raise HTTPException(status_code=422, detail="Content contains prohibited language.")
+    _enforce_moderation(db, orcid_id, doi, "reply", content)
 
     r = db.get(Rating, rating_id)
     if not r or r.doi != doi:
@@ -2326,7 +2325,7 @@ async def terms(request: Request):
 
 @router.get("/design-demo/scoring", response_class=HTMLResponse)
 async def design_demo_scoring(request: Request):
-    if settings.ORCID_ENV == "production":
+    if settings.ORCID_ENV != "sandbox":
         raise HTTPException(status_code=403)
     return templates.TemplateResponse("design_demo_scoring.html", {
         "request": request,
@@ -2340,7 +2339,7 @@ async def design_demo_scoring(request: Request):
 
 @router.get("/design-demo", response_class=HTMLResponse)
 async def design_demo(request: Request, db: Session = Depends(get_db)):
-    if settings.ORCID_ENV == "production":
+    if settings.ORCID_ENV != "sandbox":
         raise HTTPException(status_code=403)
 
     DEMO_DOI = "10.0000/chemrepro.demo.2024"

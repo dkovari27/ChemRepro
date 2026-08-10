@@ -14,7 +14,12 @@
       <h1 class="text-2xl font-bold text-slate-800">Admin Dashboard</h1>
       <p class="text-sm text-slate-500 mt-0.5">ChemRepro god-mode. Handle with care.</p>
     </div>
-    <a href="/auth/logout" class="text-xs text-slate-400 hover:text-red-500 transition-colors">Log out</a>
+    <div class="flex items-center gap-4">
+      <a href="/admin/banned-words" class="text-xs text-slate-400 hover:text-brand transition-colors">Banned words</a>
+      <a href="/admin/submission-warnings" class="text-xs text-slate-400 hover:text-brand transition-colors">Warnings</a>
+      <a href="/admin/name-votes" class="text-xs text-slate-400 hover:text-brand transition-colors">Name votes</a>
+      <a href="/auth/logout" class="text-xs text-slate-400 hover:text-red-500 transition-colors">Log out</a>
+    </div>
   </div>
 
   <!-- Stats row -->
@@ -695,7 +700,9 @@
             <td class="px-4 py-2">
               <div class="flex gap-1">
                 <button
-                  onclick="openUserEdit('{{ u.orcid_id }}','{{ (u.name or '') | replace("'", "\'") }}','{{ (u.nickname or '') | replace("'", "\'") }}','{{ (u.career_stage or '') | replace("'", "\'") }}')"
+                  data-orcid="{{ u.orcid_id }}" data-name="{{ u.name or '' }}"
+                  data-nickname="{{ u.nickname or '' }}" data-career="{{ u.career_stage or '' }}"
+                  onclick="openUserEdit(this.dataset.orcid, this.dataset.name, this.dataset.nickname, this.dataset.career)"
                   class="text-xs px-2 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
                   Edit
                 </button>
@@ -705,7 +712,9 @@
                   Ban
                 </button>
                 <button
-                  onclick="adminConfirmDelete('/admin/users/{{ u.orcid_id | urlencode }}/delete','user-row-{{ loop.index }}','user {{ u.name or u.orcid_id[:14] }}')"
+                  data-url="/admin/users/{{ u.orcid_id | urlencode }}/delete" data-row="user-row-{{ loop.index }}"
+                  data-label="user {{ u.name or u.orcid_id[:14] }}"
+                  onclick="adminConfirmDelete(this.dataset.url, this.dataset.row, this.dataset.label)"
                   class="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
                   Delete
                 </button>

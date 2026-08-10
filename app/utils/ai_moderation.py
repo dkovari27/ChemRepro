@@ -25,6 +25,17 @@ def _check_content(text: str) -> bool:
     if not settings.ANTHROPIC_API_KEY or not text.strip():
         return True
     try:
+        from app.utils.moderation import get_banned_terms
+
+        banned_note = ""
+        banned_terms = get_banned_terms()
+        if banned_terms:
+            banned_note = (
+                "\nThe platform also maintains an admin-curated list of specifically banned "
+                "words/phrases. Flag the text if it contains any of these, in any form, "
+                "spelling variant, or language: " + ", ".join(banned_terms) + "\n"
+            )
+
         client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
         msg = client.messages.create(
             model="claude-haiku-4-5-20251001",
@@ -34,9 +45,13 @@ def _check_content(text: str) -> bool:
                 "content": (
                     "You are a content moderator for a scientific chemistry paper review platform.\n"
                     "Assess whether the following text is abusive, harassing, defamatory, "
-                    "or likely to create legal liability for the platform.\n"
+                    "or likely to create legal liability for the platform. Also flag it if it "
+                    "contains profanity, slurs, or other bad language in ANY language, not just "
+                    "English, including but not limited to French, German, Spanish, Italian, "
+                    "Portuguese, and other Latin-script languages.\n"
                     "Scientific criticism, negative assessments, and factual claims about "
                     "research quality are ALWAYS allowed and must never be flagged.\n"
+                    + banned_note +
                     "Reply with exactly one word: SAFE or FLAG\n\n"
                     f"Text:\n{text[:1500]}"
                 ),
