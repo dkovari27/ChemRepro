@@ -279,11 +279,11 @@ def _select_template(nd_star: int, has_observation: bool, state: dict) -> str:
 # Prompt assembly
 # ─────────────────────────────────────────────────────────────────────────────
 
-_GLOBAL_RULES = """\
+_GLOBAL_RULES_TMPL = """\
 ## Global rules (always apply)
 
 Format:
-- 150 to 200 words, excluding the URL line and hashtags.
+- {word_target} words (stay within 15 of this number), excluding the URL line and hashtags.
 - Third person, from ChemRepro's institutional voice. Never "I", never "we tried".
 - No em dashes. Use commas, semicolons or colons instead.
 - Blank line, then the paper URL alone on its own line.
@@ -306,7 +306,7 @@ If career_stage is empty: omit silently. Never write "an anonymous reviewer"; us
 _CHECKLIST = """\
 ## Pre-publish checklist (verify before returning)
 
-1. Word count 150-200, excluding URL and hashtags?
+1. Word count close to the target stated in the global rules (±15 words), excluding URL and hashtags?
 2. Zero em dashes?
 3. No number, adjective or phrase that maps to a star rating?
 4. Reviewer unidentified beyond career_stage?
@@ -331,6 +331,7 @@ def _build_prompt(
     observation: str | None,
     career_stage: str | None,
     site_url: str,
+    word_target: int = 120,
 ) -> str:
     template_name, template_text = _TEMPLATES[label]
     closing_name, closing_desc = _CLOSING_MOVES[closing_id]
@@ -343,9 +344,10 @@ def _build_prompt(
     )
     obs_snippet = (observation or "").strip()[:600]
     reviewer_info = f"Career stage: {career_stage}" if career_stage else "Career stage: (not provided)"
+    global_rules = _GLOBAL_RULES_TMPL.format(word_target=word_target)
 
     return (
-        f"{_GLOBAL_RULES}\n\n"
+        f"{global_rules}\n\n"
         f"---\n\n"
         f"## Structural template: {template_name}\n\n"
         f"{template_text}\n\n"
@@ -395,10 +397,20 @@ def generate_linkedin_post(
 
     state = _load_state()
 
-    has_obs = bool((observation or "").strip())
+    obs_text = (observation or "").strip()
+    has_obs = bool(obs_text)
     label = _select_template(nd_star, has_obs, state)
     closing_id = _select_closing(state)
     rhythm_id = _select_rhythm(state)
+
+    # Scale post length to review length: max 60% longer, floor 80, ceiling 180.
+    # No observation: default to 100 words so the post is still meaningful.
+    obs_word_count = len(obs_text.split()) if obs_text else 0
+    word_target = (
+        max(80, min(180, int(obs_word_count * 1.6)))
+        if obs_word_count > 0
+        else 100
+    )
 
     prompt = _build_prompt(
         label=label,
@@ -411,6 +423,7 @@ def generate_linkedin_post(
         observation=observation,
         career_stage=career_stage,
         site_url=site_url,
+        word_target=word_target,
     )
 
     try:

@@ -3,6 +3,18 @@
 
 ---
 
+## 2026-08-10 | Push 6 | (hash TBD)
+**Files pushed (1):**
+- `app/services/linkedin_post.py` — proportional word target: post length now scales with review length (max 60% longer, floor 80, ceiling 180); `_GLOBAL_RULES_TMPL` parameterized with `{word_target}`; `_CHECKLIST` item 1 updated; `_build_prompt` accepts `word_target` kwarg; `generate_linkedin_post` computes target from `obs_word_count`
+
+**What changed:**
+- An 80-word review targets ~128-word post instead of 150-200; floor of 80 words applies to very short reviews; ceiling of 180 words applies to long ones; no-observation default is 100 words
+
+**Deferred:**
+- Nothing new
+
+---
+
 ## 2026-08-10 | Push 5 | `9e31af4`
 **Files pushed (4):**
 - `app/services/linkedin_post.py` — full rewrite: 10-template system (5A/5B/4A/4B/3A/3B active; 12A/12B/EF/INC dormant); `is_eligible_for_post()` helper (nd_star >= 3, excludes extension_failed/inconclusive); rotation state persisted to `linkedin_rotation_state.json`; single-template prompt injection per spec section 6; closing move (C1-C4) and rhythm (R1/R2/R3) rotation with anti-repeat memory
