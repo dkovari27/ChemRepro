@@ -3,7 +3,7 @@
 
 ---
 
-## 2026-08-10 | Push 5 | (hash TBD)
+## 2026-08-10 | Push 5 | `9e31af4`
 **Files pushed (4):**
 - `app/services/linkedin_post.py` — full rewrite: 10-template system (5A/5B/4A/4B/3A/3B active; 12A/12B/EF/INC dormant); `is_eligible_for_post()` helper (nd_star >= 3, excludes extension_failed/inconclusive); rotation state persisted to `linkedin_rotation_state.json`; single-template prompt injection per spec section 6; closing move (C1-C4) and rhythm (R1/R2/R3) rotation with anti-repeat memory
 - `app/routers/papers.py` — removed auto-generation background task (`generate_linkedin_post_for_rating`) from `nd_submit_rating`; removed the import
