@@ -203,7 +203,9 @@
   </nav>
 
   <!-- ── Main content ────────────────────────────────────────────── -->
-  <main class="flex-1 max-w-5xl mx-auto w-full px-4 py-8">
+  <!-- main_class lets a page opt out of the site-wide max-w-5xl centering,
+       e.g. admin_base.html goes full-width so its sidebar can sit flush left. -->
+  <main class="flex-1 {% block main_class %}max-w-5xl mx-auto w-full px-4 py-8{% endblock %}">
     {% block content %}{% endblock %}
   </main>
 

@@ -34,6 +34,9 @@ Was: the banned-word list was a fixed regex baked into the code. Now: `BannedTer
 ### Content moderation: wildcard / fuzzy matching for curse words
 Added 2026-08-11: the banned-term matcher (`_custom_terms_re` in `app/utils/moderation.py`) only does literal whole-word matching. It won't catch spaced-out ("f u c k"), symbol-substituted ("f*ck", "sh!t"), or repeated-letter ("fuuuck") variants, only exact strings we've explicitly listed (see `scripts/seed_banned_terms.py` for the current ~59-term seed list). Worth revisiting with a proper fuzzy/wildcard matching approach (e.g. character-normalization before matching, or a Levenshtein-distance check against the base word list) if evasion becomes a real problem in practice.
 
+### Banned words admin page: alphabetical order
+`/admin/banned-words` currently lists terms newest-first (`BannedTerm.created_at.desc()` in `admin.py`'s `admin_banned_words` route). Switch to alphabetical (`BannedTerm.term.asc()`, same ordering `get_banned_terms()` already uses internally) so a long list is easy to scan/check for duplicates.
+
 ### Admin dashboard: style update
 The admin dashboard has grown a lot of sections (reviews, comments, reports, LinkedIn drafts, users, banned words, submission warnings, name votes) with inconsistent card/table styling picked up piecemeal over many pushes. Worth a dedicated pass to unify the visual design once the feature set settles down.
 

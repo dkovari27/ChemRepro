@@ -1,0 +1,111 @@
+{% extends "admin_base.html" %}
+{% block title %}API Keys – Admin{% endblock %}
+
+{% block admin_content %}
+<div class="max-w-3xl">
+
+  <div class="mb-6">
+    <h1 class="text-xl font-bold text-slate-800">API keys</h1>
+    <p class="text-sm text-slate-400 mt-0.5">Issue and revoke keys for vetted API contacts.</p>
+  </div>
+
+  <!-- Generate form -->
+  <div class="bg-white border border-slate-200 rounded-xl p-4 mb-6">
+    <p class="text-xs text-slate-500 mb-3">Generate a key for a vetted contact. The raw key is shown once.</p>
+    <div class="flex gap-2 flex-wrap">
+      <input id="ak-label" type="text" placeholder="Label (e.g. John Doe / ETH Zurich)"
+        class="flex-1 min-w-48 text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand/25" />
+      <input id="ak-email" type="email" placeholder="Contact email"
+        class="flex-1 min-w-48 text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand/25" />
+      <button onclick="generateApiKey()"
+        class="text-sm font-medium bg-brand text-white rounded-lg px-4 py-2 hover:bg-blue-700 transition-colors">
+        Generate key
+      </button>
+    </div>
+    <div id="ak-result" class="hidden mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs">
+      <p class="font-semibold text-amber-800 mb-1">Copy this key now, it will not be shown again:</p>
+      <code id="ak-result-value" class="block font-mono text-amber-900 break-all select-all"></code>
+    </div>
+  </div>
+
+  <!-- Existing keys table -->
+  {% if api_keys %}
+  <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50 text-xs text-slate-500 uppercase">
+        <tr>
+          <th class="px-4 py-2 text-center">Label</th>
+          <th class="px-4 py-2 text-center">Owner</th>
+          <th class="px-4 py-2 text-center">Created</th>
+          <th class="px-4 py-2 text-center">Last used</th>
+          <th class="px-4 py-2 text-center">Status</th>
+          <th class="px-4 py-2 text-center">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for k in api_keys %}
+        <tr id="ak-row-{{ k.id }}" class="{% if not k.is_active %}opacity-40{% endif %}">
+          <td class="px-4 py-2 font-medium text-slate-700 text-center">{{ k.label }}</td>
+          <td class="px-4 py-2 text-slate-500 text-center">{{ k.owner_email }}</td>
+          <td class="px-4 py-2 text-slate-400 text-xs text-center">{{ k.created_at.strftime('%Y-%m-%d') if k.created_at else '-' }}</td>
+          <td class="px-4 py-2 text-slate-400 text-xs text-center">{{ k.last_used.strftime('%Y-%m-%d') if k.last_used else 'never' }}</td>
+          <td class="px-4 py-2 text-center">
+            {% if k.is_active %}
+            <span class="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">Active</span>
+            {% else %}
+            <span class="text-xs bg-slate-100 text-slate-400 px-2 py-0.5 rounded-full font-medium">Revoked</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-2 text-center">
+            {% if k.is_active %}
+            <button onclick="adminAction('/admin/api-keys/{{ k.id }}/revoke', 'ak-row-{{ k.id }}', false)"
+              class="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
+              Revoke
+            </button>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="bg-white border border-slate-200 rounded-xl px-5 py-8 text-center">
+    <p class="text-sm text-slate-400">No API keys yet.</p>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+async function generateApiKey() {
+  const label = document.getElementById('ak-label').value.trim();
+  const email = document.getElementById('ak-email').value.trim();
+  if (!label || !email) { alert('Enter both a label and email address.'); return; }
+  const resp = await fetch('/admin/api-keys/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ label, owner_email: email }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) { alert('Error: ' + data.error); return; }
+  document.getElementById('ak-result-value').textContent = data.key;
+  document.getElementById('ak-result').classList.remove('hidden');
+  document.getElementById('ak-label').value = '';
+  document.getElementById('ak-email').value = '';
+}
+
+// Same generic action helper used on the main dashboard, duplicated here since
+// this page is standalone and only needs the revoke action.
+async function adminAction(url, rowId, removeRow = true) {
+  try {
+    const resp = await fetch(url, { method: 'POST' });
+    if (!resp.ok) { alert('Action failed: ' + (await resp.json()).error); return; }
+    if (removeRow && rowId) {
+      const el = document.getElementById(rowId);
+      if (el) el.style.opacity = '0.3';
+    }
+  } catch (e) { alert('Network error'); }
+}
+</script>
+{% endblock %}

@@ -643,6 +643,12 @@ observed differences, never as intent.
 - Never quote more than one fragment of observation_excerpt, and never longer than 15 words. \
 Paraphrase the rest.
 - Do NOT reuse the example opening sentence from the template spec; generate a fresh entry point.
+- Never state any chemical detail, experimental condition, scope claim, or mechanistic point that \
+is not explicitly present in observation_excerpt or the paper metadata fields above (title, journal, \
+year). Do not draw on your own knowledge of the paper or the chemistry to fill gaps. If a detail \
+is not in the provided data, omit it or keep the sentence at the level of generality the template \
+allows. This rule applies even when you believe you know what the paper reports.\
+
 
 Attribution language: use "reported", "observed", "noted", "found", \
 "did not reproduce under the conditions tried". Avoid: "failed", "wrong", "false", "debunked", \
@@ -669,7 +675,9 @@ _CHECKLIST = """\
 intent to the authors?
 9. Quoted material from observation_excerpt under 15 words?
 10. Opening matches the template's stated mechanic and is NOT the example sentence from the spec?
-11. Closing move is the one specified?\
+11. Closing move is the one specified?
+12. Every chemical detail, condition, or scope claim in the post is traceable to observation_excerpt \
+or the paper metadata fields? (If yes: nothing was invented from background knowledge.)\
 """
 
 

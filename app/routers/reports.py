@@ -68,13 +68,17 @@ async def submit_report(
 
     content_author_orcid = None
     if flagged_as_defamatory:
+        try:
+            target_id_int = int(target_id)
+        except ValueError:
+            return JSONResponse({"error": "invalid target id"}, status_code=422)
         if target_type == "review":
-            r = db.get(Rating, int(target_id))
+            r = db.get(Rating, target_id_int)
             if r:
                 content_author_orcid = r.orcid_id
                 r.ai_flagged = True
         elif target_type == "comment":
-            c = db.get(Comment, int(target_id))
+            c = db.get(Comment, target_id_int)
             if c:
                 content_author_orcid = c.orcid_id
                 c.ai_flagged = True

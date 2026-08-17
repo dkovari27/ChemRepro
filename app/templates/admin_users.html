@@ -1,0 +1,162 @@
+{% extends "admin_base.html" %}
+{% block title %}Users – Admin{% endblock %}
+
+{% block admin_content %}
+<div>
+
+  <div class="mb-6">
+    <h1 class="text-xl font-bold text-slate-800">All users</h1>
+    <p class="text-sm text-slate-400 mt-0.5">{{ all_users | length }} registered user{{ 's' if all_users | length != 1 else '' }}.</p>
+  </div>
+
+  {% if all_users %}
+  <div class="bg-white border border-slate-200 rounded-xl overflow-hidden overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50 text-xs text-slate-500 uppercase">
+        <tr>
+          <th class="px-4 py-2 text-center">ORCID / ID</th>
+          <th class="px-4 py-2 text-center">Name</th>
+          <th class="px-4 py-2 text-center">Nickname</th>
+          <th class="px-4 py-2 text-center">Career stage</th>
+          <th class="px-4 py-2 text-center">Joined</th>
+          <th class="px-4 py-2 text-center">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for u in all_users %}
+        <tr id="user-row-{{ loop.index }}" class="hover:bg-slate-50">
+          <td class="px-4 py-2 font-mono text-xs text-slate-400">
+            {{ u.orcid_id[:20] }}
+            {% if u.orcid_id.startswith('AI-') %}
+            <span class="ml-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-50 text-indigo-600">AI</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-2 text-xs text-slate-700 text-center">{{ u.name or '-' }}</td>
+          <td class="px-4 py-2 text-xs text-slate-500 text-center">{{ u.nickname or '-' }}</td>
+          <td class="px-4 py-2 text-xs text-slate-400 text-center">{{ u.career_stage or '-' }}</td>
+          <td class="px-4 py-2 text-xs text-slate-400 text-center">
+            {{ u.verified_at.strftime('%d %b %Y') if u.verified_at else '-' }}
+          </td>
+          <td class="px-4 py-2">
+            <div class="flex gap-1 justify-center">
+              <button
+                data-orcid="{{ u.orcid_id }}" data-name="{{ u.name or '' }}"
+                data-nickname="{{ u.nickname or '' }}" data-career="{{ u.career_stage or '' }}"
+                onclick="openUserEdit(this.dataset.orcid, this.dataset.name, this.dataset.nickname, this.dataset.career)"
+                class="text-xs px-2 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
+                Edit
+              </button>
+              <button
+                onclick="adminAction('/admin/users/{{ u.orcid_id | urlencode }}/ban','',false)"
+                class="text-xs px-2 py-1 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors">
+                Ban
+              </button>
+              <button
+                data-url="/admin/users/{{ u.orcid_id | urlencode }}/delete" data-row="user-row-{{ loop.index }}"
+                data-label="user {{ u.name or u.orcid_id[:14] }}"
+                onclick="adminConfirmDelete(this.dataset.url, this.dataset.row, this.dataset.label)"
+                class="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
+                Delete
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="bg-white border border-slate-200 rounded-xl px-5 py-8 text-center">
+    <p class="text-sm text-slate-400">No users yet.</p>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- ── User Edit Modal ──────────────────────────────────────────────── -->
+<div id="user-edit-modal"
+  class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/40 backdrop-blur-sm">
+  <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
+    <h3 class="text-base font-semibold text-slate-800 mb-4">Edit user profile</h3>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs text-slate-500 mb-1">Name</label>
+        <input id="edit-name" type="text" maxlength="255"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30" />
+      </div>
+      <div>
+        <label class="block text-xs text-slate-500 mb-1">Nickname (public display name)</label>
+        <input id="edit-nickname" type="text" maxlength="60"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30" />
+      </div>
+      <div>
+        <label class="block text-xs text-slate-500 mb-1">Career stage</label>
+        <input id="edit-career" type="text" maxlength="60"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30" />
+      </div>
+    </div>
+    <div class="flex gap-2 mt-5">
+      <button onclick="submitUserEdit()"
+        class="flex-1 bg-brand text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-brand-dark transition-colors">
+        Save
+      </button>
+      <button onclick="closeUserEdit()"
+        class="flex-1 border border-slate-200 text-slate-600 rounded-lg px-4 py-2 text-sm hover:bg-slate-50 transition-colors">
+        Cancel
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+let _editOrcid = null;
+
+function openUserEdit(orcid, name, nickname, career) {
+  _editOrcid = orcid;
+  document.getElementById('edit-name').value = name;
+  document.getElementById('edit-nickname').value = nickname;
+  document.getElementById('edit-career').value = career;
+  document.getElementById('user-edit-modal').classList.remove('hidden');
+}
+
+function closeUserEdit() {
+  document.getElementById('user-edit-modal').classList.add('hidden');
+  _editOrcid = null;
+}
+
+async function submitUserEdit() {
+  if (!_editOrcid) return;
+  const payload = {
+    name: document.getElementById('edit-name').value.trim(),
+    nickname: document.getElementById('edit-nickname').value.trim(),
+    career_stage: document.getElementById('edit-career').value.trim(),
+  };
+  const resp = await fetch(`/admin/users/${encodeURIComponent(_editOrcid)}/edit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!resp.ok) { alert('Save failed: ' + (await resp.json()).error); return; }
+  closeUserEdit();
+  location.reload();
+}
+
+// Same generic helpers used on the main dashboard, duplicated here since this
+// page is standalone (see admin_api_keys.html for the same pattern).
+async function adminAction(url, rowId, removeRow = true) {
+  try {
+    const resp = await fetch(url, { method: 'POST' });
+    if (!resp.ok) { alert('Action failed: ' + (await resp.json()).error); return; }
+    if (removeRow && rowId) {
+      const el = document.getElementById(rowId);
+      if (el) el.style.opacity = '0.3';
+    }
+  } catch (e) { alert('Network error'); }
+}
+
+function adminConfirmDelete(url, rowId, label) {
+  if (!confirm(`Permanently delete ${label} and all their content? This cannot be undone.`)) return;
+  adminAction(url, rowId);
+}
+</script>
+{% endblock %}

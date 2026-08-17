@@ -155,6 +155,14 @@ def _get_nd_paper_scores(doi: str, db: Session) -> dict:
     }
 
 
+def _bump_view_count(paper: Paper, db: Session) -> None:
+    """Increment a paper's page-view counter. Called once per detail-page
+    render, across all three site versions (standard/classic/nd), after the
+    paper row has been fetched-or-created for the request."""
+    paper.view_count += 1
+    db.commit()
+
+
 def _get_paper_scores(doi: str, db: Session) -> dict:
     std_filter = [Rating.doi == doi, Rating.scoring_mode == "standard", Rating.ai_flagged == False]  # noqa: E712
     row = db.query(
@@ -310,6 +318,9 @@ async def search(request: Request, doi: str = "", db: Session = Depends(get_db))
         db.commit()
         db.refresh(paper)
 
+    paper.search_count += 1
+    db.commit()
+
     return RedirectResponse(f"/paper/{doi}", status_code=303)
 
 
@@ -436,6 +447,8 @@ async def paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
         if meta and meta.get("abstract"):
             paper.abstract = meta["abstract"]
             db.commit()
+
+    _bump_view_count(paper, db)
 
     scores = _get_paper_scores(doi, db)
 
@@ -1257,6 +1270,8 @@ async def classic_paper_page(doi: str, request: Request, db: Session = Depends(g
             paper.abstract = meta["abstract"]
             db.commit()
 
+    _bump_view_count(paper, db)
+
     # Classic dual scores
     repro_row = (
         db.query(func.avg(Rating.reproducibility_score).label("avg_repro"),
@@ -1724,6 +1739,8 @@ async def nd_paper_page(doi: str, request: Request, db: Session = Depends(get_db
             if meta.get("title") and ("<" in (paper.title or "") or "Electronic supplementary" in (paper.title or "")):
                 paper.title = meta["title"]
             db.commit()
+
+    _bump_view_count(paper, db)
 
     nd_scores = _get_nd_paper_scores(doi, db)
     show_thanks = request.query_params.get("submitted") == "1"

@@ -12,6 +12,20 @@ register_globals(templates)
 
 router = APIRouter(tags=["pledge"])
 
+
+def _safe_next(url: str) -> str:
+    """Allow only relative paths to prevent open-redirect abuse.
+
+    Rejects "//host" (protocol-relative) and "/\\host" too: browsers
+    normalise a leading backslash to a forward slash while parsing a URL,
+    so "/\\evil.com" would otherwise pass this check as a plain path and
+    still redirect off-site.
+    """
+    if url and url.startswith("/") and not url.startswith("//") and not url.startswith("/\\"):
+        return url
+    return "/"
+
+
 PLEDGE_STATEMENTS = [
     {
         "id": 1,
@@ -50,7 +64,7 @@ async def pledge_page(request: Request, next: str = "/"):
         "request": request,
         "orcid_id": orcid_id,
         "user_name": request.session.get("user_name"),
-        "next_url": next,
+        "next_url": _safe_next(next),
         "statements": PLEDGE_STATEMENTS,
         "total": len(PLEDGE_STATEMENTS),
     })
@@ -75,4 +89,4 @@ async def accept_pledge(
     if request.session.get("tour_pending"):
         return RedirectResponse("/demo", status_code=303)
 
-    return RedirectResponse(next_url or "/", status_code=303)
+    return RedirectResponse(_safe_next(next_url), status_code=303)

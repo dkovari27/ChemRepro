@@ -1,18 +1,15 @@
-{% extends design_base(request) %}
+{% extends "admin_base.html" %}
 {% block title %}Banned Words – Admin{% endblock %}
 
-{% block content %}
-<div class="max-w-2xl mx-auto">
+{% block admin_content %}
+<div class="max-w-2xl">
 
-  <div class="mb-6 flex items-center justify-between gap-4">
-    <div>
-      <h1 class="text-xl font-bold text-slate-800">Banned words &amp; phrases</h1>
-      <p class="text-sm text-slate-400 mt-0.5">
-        Checked instantly against every review, comment, and message, and passed to the
-        AI moderation check on new reviews.
-      </p>
-    </div>
-    <a href="/admin" class="text-xs text-slate-400 hover:text-brand transition-colors">← Admin</a>
+  <div class="mb-6">
+    <h1 class="text-xl font-bold text-slate-800">Banned words &amp; phrases</h1>
+    <p class="text-sm text-slate-400 mt-0.5">
+      Checked instantly against every review, comment, and message, and passed to the
+      AI moderation check on new reviews.
+    </p>
   </div>
 
   <!-- Add a term -->

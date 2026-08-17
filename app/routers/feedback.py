@@ -5,10 +5,10 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.config import settings
 from app.database import get_db
 from app.models.feedback import Feedback
 from app.models.name_suggestion import NameSuggestion, NameVote
+from app.routers.admin import _require_admin
 from app.utils.email import send_feedback_notification
 
 router = APIRouter(tags=["feedback"])
@@ -160,9 +160,7 @@ async def toggle_vote(
 
 @router.get("/admin/feedback", response_class=HTMLResponse)
 async def admin_feedback(request: Request, db: Session = Depends(get_db)):
-    if settings.ORCID_ENV == "production":
-        from fastapi import HTTPException
-        raise HTTPException(status_code=403)
+    _require_admin(request)
     responses = db.query(Feedback).order_by(Feedback.created_at.desc()).all()
     counts = {p: sum(1 for r in responses if r.preference == p) for p in VALID_PREFS}
     return templates.TemplateResponse("admin_feedback.html", {

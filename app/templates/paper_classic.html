@@ -202,7 +202,7 @@ Sign in with ORCID
       </div>
 
       {% else %}
-      <form action="/classic/paper/{{ paper.doi }}/rate" method="post" id="classic-form" data-moderate>
+      <form action="/classic/paper/{{ paper.doi }}/rate" method="post" id="classic-form" data-moderate data-content-label="review">
 
         {# ── Reproducibility stars (amber) ── #}
         <div class="mb-5">
@@ -526,7 +526,7 @@ Sign in with ORCID
               {# Reply-to-comment form #}
               {% if orcid_id %}
               <div id="creply-{{ c.id }}" class="hidden mt-2">
-                <form action="/classic/paper/{{ paper.doi }}/comment/{{ c.id }}/reply" method="post">
+                <form action="/classic/paper/{{ paper.doi }}/comment/{{ c.id }}/reply" method="post" data-moderate data-content-label="reply">
                   <textarea name="content" rows="3" maxlength="2000" required spellcheck="true" data-img-paste
                     placeholder="Reply to {{ c.user.name if c.user else 'this comment' }}..."
                     class="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand resize-none"></textarea>
@@ -662,7 +662,7 @@ Sign in with ORCID
 
         {% if orcid_id %}
         <div id="reply-{{ r.id }}" class="hidden mt-3 pt-3 border-t border-slate-100">
-          <form action="/classic/paper/{{ paper.doi }}/comment" method="post" data-moderate>
+          <form action="/classic/paper/{{ paper.doi }}/comment" method="post" data-moderate data-content-label="comment">
             <input type="hidden" name="rating_id" value="{{ r.id }}" />
             <textarea name="content" rows="3" maxlength="2000" required data-img-paste
               placeholder="{{ prompts.COMMENT_PLACEHOLDER }}" spellcheck="true"

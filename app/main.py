@@ -114,6 +114,11 @@ def _migrate():
             rating_cols7 = [row[1] for row in conn.execute(text("PRAGMA table_info(ratings)"))]
             if "linkedin_post_metadata" not in rating_cols7:
                 conn.execute(text("ALTER TABLE ratings ADD COLUMN linkedin_post_metadata TEXT"))
+            paper_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(papers)"))]
+            if "search_count" not in paper_cols:
+                conn.execute(text("ALTER TABLE papers ADD COLUMN search_count INTEGER NOT NULL DEFAULT 0"))
+            if "view_count" not in paper_cols:
+                conn.execute(text("ALTER TABLE papers ADD COLUMN view_count INTEGER NOT NULL DEFAULT 0"))
             # collections, saved_papers, banned_terms, and submission_warnings are created by create_all above; no ALTER needed
         else:
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS career_stage VARCHAR(60)"))
@@ -146,6 +151,8 @@ def _migrate():
             conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS linkedin_post_draft TEXT"))
             conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS linkedin_post_status VARCHAR(20)"))
             conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS linkedin_post_metadata JSON"))
+            conn.execute(text("ALTER TABLE papers ADD COLUMN IF NOT EXISTS search_count INTEGER NOT NULL DEFAULT 0"))
+            conn.execute(text("ALTER TABLE papers ADD COLUMN IF NOT EXISTS view_count INTEGER NOT NULL DEFAULT 0"))
         conn.commit()
 
 _migrate()

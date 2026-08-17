@@ -426,9 +426,9 @@ async def linkedin_callback(
 
 @router.get("/dev-login/{user_index}")
 async def dev_login(user_index: int, request: Request, db: Session = Depends(get_db)):
-    """Dev-only fake login — disabled in production."""
-    if settings.ORCID_ENV == "production":
-        raise HTTPException(status_code=403, detail="Dev login is disabled in production")
+    """Dev-only fake login — enabled only when ORCID_ENV is explicitly "sandbox"."""
+    if settings.ORCID_ENV != "sandbox":
+        raise HTTPException(status_code=403, detail="Dev login is disabled outside sandbox")
     if user_index < 0 or user_index >= len(DEV_FAKE_USERS):
         raise HTTPException(status_code=404, detail="Invalid dev user index")
 
@@ -470,8 +470,8 @@ async def dev_link_accounts(
     db: Session = Depends(get_db),
 ):
     """Dev-only: directly link two fake accounts without going through OAuth."""
-    if settings.ORCID_ENV == "production":
-        raise HTTPException(status_code=403, detail="Dev link is disabled in production")
+    if settings.ORCID_ENV != "sandbox":
+        raise HTTPException(status_code=403, detail="Dev link is disabled outside sandbox")
 
     orcid_pk, _ = DEV_FAKE_USERS[orcid_idx]
     linkedin_pk, _ = DEV_FAKE_USERS[linkedin_idx]

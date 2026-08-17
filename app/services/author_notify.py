@@ -4,6 +4,7 @@ Sources tried in order: CrossRef → Europe PMC → PubMed.
 Opt-out is handled via HMAC-signed token using itsdangerous.
 """
 import hashlib
+import html
 import re
 
 import httpx
@@ -169,11 +170,14 @@ async def notify_author_if_possible(
         f"The ChemRepro team\n{base_url}"
     )
 
+    title_esc = html.escape(short_title)
+    review_url_esc = html.escape(review_url)
+
     body_html = f"""
     <p>Your paper has been reviewed on <a href="{base_url}">ChemRepro</a>, a community platform
     for reproducibility ratings in synthetic chemistry.</p>
-    <p><strong>Paper:</strong> {short_title}<br/>
-    <strong>Review:</strong> <a href="{review_url}">{review_url}</a></p>
+    <p><strong>Paper:</strong> {title_esc}<br/>
+    <strong>Review:</strong> <a href="{review_url_esc}">{review_url_esc}</a></p>
     <p>ChemRepro collects first-hand reproducibility experiences from practising chemists.
     You are welcome to read or respond to the review on the platform.</p>
     <p style="margin-top:16px">

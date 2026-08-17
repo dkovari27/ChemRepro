@@ -9,6 +9,14 @@ env/
 
 # Environment — never commit real secrets
 .env
+*.env
+
+# Sensitive local-only material — never commit
+ADMIN login.txt
+Website deployment data.txt
+Public_DB_URL.env
+Railway_Corporation_Data_Processing_Addendum*.pdf
+Legal part - Company/
 
 # Google Drive backup credentials
 Backup/token.json

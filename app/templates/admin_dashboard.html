@@ -1,26 +1,14 @@
-{% extends design_base(request) %}
+{% extends "admin_base.html" %}
 {% block title %}Admin Dashboard – ChemRepro{% endblock %}
 
-{% block content %}
+{% block admin_content %}
 <style>
   .admin-dash table th,
   .admin-dash table td { text-align: center; }
 </style>
-<div class="admin-dash max-w-6xl mx-auto px-4 py-8">
+<div class="admin-dash">
 
-  <!-- Header -->
-  <div class="flex items-center justify-between mb-8">
-    <div>
-      <h1 class="text-2xl font-bold text-slate-800">Admin Dashboard</h1>
-      <p class="text-sm text-slate-500 mt-0.5">ChemRepro god-mode. Handle with care.</p>
-    </div>
-    <div class="flex items-center gap-4">
-      <a href="/admin/banned-words" class="text-xs text-slate-400 hover:text-brand transition-colors">Banned words</a>
-      <a href="/admin/submission-warnings" class="text-xs text-slate-400 hover:text-brand transition-colors">Warnings</a>
-      <a href="/admin/name-votes" class="text-xs text-slate-400 hover:text-brand transition-colors">Name votes</a>
-      <a href="/auth/logout" class="text-xs text-slate-400 hover:text-red-500 transition-colors">Log out</a>
-    </div>
-  </div>
+  <h2 class="text-xl font-bold text-slate-800 mb-6">Dashboard</h2>
 
   <!-- Stats row -->
   <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-10">
@@ -667,137 +655,6 @@
     </div>
   </section>
 
-  <!-- ── ALL USERS ─────────────────────────────────────────────────── -->
-  <section class="mb-10">
-    <h2 class="text-base font-semibold text-slate-700 mb-3">All Users ({{ all_users | length }})</h2>
-    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
-      <table class="w-full text-sm">
-        <thead class="bg-slate-50 text-xs text-slate-500 uppercase">
-          <tr>
-            <th class="px-4 py-2 text-center">ORCID / ID</th>
-            <th class="px-4 py-2 text-center">Name</th>
-            <th class="px-4 py-2 text-center">Nickname</th>
-            <th class="px-4 py-2 text-center">Career stage</th>
-            <th class="px-4 py-2 text-center">Joined</th>
-            <th class="px-4 py-2 text-center">Actions</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100">
-          {% for u in all_users %}
-          <tr id="user-row-{{ loop.index }}" class="hover:bg-slate-50">
-            <td class="px-4 py-2 font-mono text-xs text-slate-400">
-              {{ u.orcid_id[:20] }}
-              {% if u.orcid_id.startswith('AI-') %}
-              <span class="ml-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-50 text-indigo-600">AI</span>
-              {% endif %}
-            </td>
-            <td class="px-4 py-2 text-xs text-slate-700">{{ u.name or '-' }}</td>
-            <td class="px-4 py-2 text-xs text-slate-500">{{ u.nickname or '-' }}</td>
-            <td class="px-4 py-2 text-xs text-slate-400">{{ u.career_stage or '-' }}</td>
-            <td class="px-4 py-2 text-xs text-slate-400">
-              {{ u.verified_at.strftime('%d %b %Y') if u.verified_at else '-' }}
-            </td>
-            <td class="px-4 py-2">
-              <div class="flex gap-1">
-                <button
-                  data-orcid="{{ u.orcid_id }}" data-name="{{ u.name or '' }}"
-                  data-nickname="{{ u.nickname or '' }}" data-career="{{ u.career_stage or '' }}"
-                  onclick="openUserEdit(this.dataset.orcid, this.dataset.name, this.dataset.nickname, this.dataset.career)"
-                  class="text-xs px-2 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
-                  Edit
-                </button>
-                <button
-                  onclick="adminAction('/admin/users/{{ u.orcid_id | urlencode }}/ban','',false)"
-                  class="text-xs px-2 py-1 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors">
-                  Ban
-                </button>
-                <button
-                  data-url="/admin/users/{{ u.orcid_id | urlencode }}/delete" data-row="user-row-{{ loop.index }}"
-                  data-label="user {{ u.name or u.orcid_id[:14] }}"
-                  onclick="adminConfirmDelete(this.dataset.url, this.dataset.row, this.dataset.label)"
-                  class="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
-                  Delete
-                </button>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  <!-- ── API KEYS ─────────────────────────────────────────────────────── -->
-  <section class="mb-10">
-    <h2 class="text-base font-semibold text-slate-700 mb-3 flex items-center gap-2">
-      <span class="w-2 h-2 rounded-full bg-indigo-500 inline-block"></span>
-      API Keys ({{ api_keys | length }})
-    </h2>
-
-    <!-- Generate form -->
-    <div class="bg-white border border-slate-200 rounded-xl p-4 mb-4">
-      <p class="text-xs text-slate-500 mb-3">Generate a key for a vetted contact. The raw key is shown once.</p>
-      <div class="flex gap-2 flex-wrap">
-        <input id="ak-label" type="text" placeholder="Label (e.g. John Doe / ETH Zurich)"
-          class="flex-1 min-w-48 text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand/25" />
-        <input id="ak-email" type="email" placeholder="Contact email"
-          class="flex-1 min-w-48 text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand/25" />
-        <button onclick="generateApiKey()"
-          class="text-sm font-medium bg-brand text-white rounded-lg px-4 py-2 hover:bg-blue-700 transition-colors">
-          Generate key
-        </button>
-      </div>
-      <div id="ak-result" class="hidden mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs">
-        <p class="font-semibold text-amber-800 mb-1">Copy this key now — it will not be shown again:</p>
-        <code id="ak-result-value" class="block font-mono text-amber-900 break-all select-all"></code>
-      </div>
-    </div>
-
-    <!-- Existing keys table -->
-    {% if api_keys %}
-    <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
-      <table class="w-full text-sm">
-        <thead class="bg-slate-50 text-xs text-slate-500 uppercase">
-          <tr>
-            <th class="px-4 py-2 text-center">Label</th>
-            <th class="px-4 py-2 text-center">Owner</th>
-            <th class="px-4 py-2 text-center">Created</th>
-            <th class="px-4 py-2 text-center">Last used</th>
-            <th class="px-4 py-2 text-center">Status</th>
-            <th class="px-4 py-2 text-center">Actions</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100">
-          {% for k in api_keys %}
-          <tr id="ak-row-{{ k.id }}" class="{% if not k.is_active %}opacity-40{% endif %}">
-            <td class="px-4 py-2 font-medium text-slate-700">{{ k.label }}</td>
-            <td class="px-4 py-2 text-slate-500">{{ k.owner_email }}</td>
-            <td class="px-4 py-2 text-slate-400 text-xs">{{ k.created_at.strftime('%Y-%m-%d') if k.created_at else '—' }}</td>
-            <td class="px-4 py-2 text-slate-400 text-xs">{{ k.last_used.strftime('%Y-%m-%d') if k.last_used else 'never' }}</td>
-            <td class="px-4 py-2">
-              {% if k.is_active %}
-              <span class="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">Active</span>
-              {% else %}
-              <span class="text-xs bg-slate-100 text-slate-400 px-2 py-0.5 rounded-full font-medium">Revoked</span>
-              {% endif %}
-            </td>
-            <td class="px-4 py-2">
-              {% if k.is_active %}
-              <button onclick="adminAction('/admin/api-keys/{{ k.id }}/revoke', 'ak-row-{{ k.id }}', false)"
-                class="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
-                Revoke
-              </button>
-              {% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <p class="text-sm text-slate-400">No API keys yet.</p>
-    {% endif %}
-  </section>
 
 </div>
 
@@ -829,92 +686,7 @@
   </div>
 </div>
 
-<!-- ── User Edit Modal ──────────────────────────────────────────────── -->
-<div id="user-edit-modal"
-  class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/40 backdrop-blur-sm">
-  <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
-    <h3 class="text-base font-semibold text-slate-800 mb-4">Edit user profile</h3>
-    <div class="space-y-3">
-      <div>
-        <label class="block text-xs text-slate-500 mb-1">Name</label>
-        <input id="edit-name" type="text" maxlength="255"
-          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30" />
-      </div>
-      <div>
-        <label class="block text-xs text-slate-500 mb-1">Nickname (public display name)</label>
-        <input id="edit-nickname" type="text" maxlength="60"
-          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30" />
-      </div>
-      <div>
-        <label class="block text-xs text-slate-500 mb-1">Career stage</label>
-        <input id="edit-career" type="text" maxlength="60"
-          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30" />
-      </div>
-    </div>
-    <div class="flex gap-2 mt-5">
-      <button onclick="submitUserEdit()"
-        class="flex-1 bg-brand text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-brand-dark transition-colors">
-        Save
-      </button>
-      <button onclick="closeUserEdit()"
-        class="flex-1 border border-slate-200 text-slate-600 rounded-lg px-4 py-2 text-sm hover:bg-slate-50 transition-colors">
-        Cancel
-      </button>
-    </div>
-  </div>
-</div>
-
 <script>
-let _editOrcid = null;
-
-function openUserEdit(orcid, name, nickname, career) {
-  _editOrcid = orcid;
-  document.getElementById('edit-name').value = name;
-  document.getElementById('edit-nickname').value = nickname;
-  document.getElementById('edit-career').value = career;
-  document.getElementById('user-edit-modal').classList.remove('hidden');
-}
-
-function closeUserEdit() {
-  document.getElementById('user-edit-modal').classList.add('hidden');
-  _editOrcid = null;
-}
-
-async function submitUserEdit() {
-  if (!_editOrcid) return;
-  const payload = {
-    name: document.getElementById('edit-name').value.trim(),
-    nickname: document.getElementById('edit-nickname').value.trim(),
-    career_stage: document.getElementById('edit-career').value.trim(),
-  };
-  const resp = await fetch(`/admin/users/${encodeURIComponent(_editOrcid)}/edit`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  if (!resp.ok) { alert('Save failed: ' + (await resp.json()).error); return; }
-  closeUserEdit();
-  location.reload();
-}
-
-async function generateApiKey() {
-  const label = document.getElementById('ak-label').value.trim();
-  const email = document.getElementById('ak-email').value.trim();
-  if (!label || !email) { alert('Enter both a label and email address.'); return; }
-  const resp = await fetch('/admin/api-keys/generate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ label, owner_email: email }),
-  });
-  const data = await resp.json();
-  if (!resp.ok) { alert('Error: ' + data.error); return; }
-  document.getElementById('ak-result-value').textContent = data.key;
-  document.getElementById('ak-result').classList.remove('hidden');
-  document.getElementById('ak-label').value = '';
-  document.getElementById('ak-email').value = '';
-}
-
-
 // ── View Content Modal ────────────────────────────────────────────────────
 function closeViewModal() {
   document.getElementById('view-modal').classList.add('hidden');

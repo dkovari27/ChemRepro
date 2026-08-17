@@ -1,15 +1,12 @@
-{% extends design_base(request) %}
+{% extends "admin_base.html" %}
 {% block title %}Name Votes – Admin{% endblock %}
 
-{% block content %}
-<div class="max-w-2xl mx-auto">
+{% block admin_content %}
+<div class="max-w-2xl">
 
-  <div class="mb-6 flex items-center justify-between gap-4">
-    <div>
-      <h1 class="text-xl font-bold text-slate-800">Name suggestions</h1>
-      <p class="text-sm text-slate-400 mt-0.5">Manage platform name candidates and individual votes.</p>
-    </div>
-    <a href="/admin" class="text-xs text-slate-400 hover:text-brand transition-colors">← Admin</a>
+  <div class="mb-6">
+    <h1 class="text-xl font-bold text-slate-800">Name suggestions</h1>
+    <p class="text-sm text-slate-400 mt-0.5">Manage platform name candidates and individual votes.</p>
   </div>
 
   <!-- Add suggestion -->
@@ -42,7 +39,7 @@
           </span>
         </div>
         <form action="/admin/name-suggestions/{{ s.id }}/delete" method="post"
-          onsubmit="return confirm('Delete {{ s.name }} and all its votes?')">
+          data-confirm="Delete {{ s.name }} and all its votes?">
           <button type="submit"
             class="text-xs text-red-400 hover:text-red-600 transition-colors font-medium">
             Delete suggestion
@@ -82,4 +79,14 @@
   {% endif %}
 
 </div>
+<script>
+  // data-confirm instead of an inline onsubmit="...{{ name }}..." string: a
+  // suggested name containing a single quote would otherwise close the JS
+  // string early once the browser HTML-decodes the attribute, letting
+  // arbitrary script run. Reading it back out of the dataset avoids
+  // re-parsing it as code.
+  document.querySelectorAll('form[data-confirm]').forEach(f => {
+    f.addEventListener('submit', e => { if (!confirm(f.dataset.confirm)) e.preventDefault(); });
+  });
+</script>
 {% endblock %}

@@ -15,7 +15,10 @@ def _md_attrs(tag: str, name: str, value: str) -> bool:
         return name in ("href", "title")
     if tag == "img":
         if name == "src":
-            return value.startswith("/images/") or value.startswith("https://")
+            # Restrict to ChemRepro's own upload path: external https:// sources
+            # were previously allowed here, which let a review embed a
+            # third-party tracking pixel that fires whenever the review is viewed.
+            return value.startswith("/images/")
         return name in ("alt", "title")
     return False
 

@@ -149,21 +149,6 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
         .all()
     )
 
-    recent_users = (
-        db.query(User)
-        .filter(User.orcid_id != ADMIN_ORCID)
-        .order_by(User.verified_at.desc())
-        .limit(30)
-        .all()
-    )
-
-    all_users = (
-        db.query(User)
-        .filter(User.orcid_id != ADMIN_ORCID)
-        .order_by(User.verified_at.desc())
-        .all()
-    )
-
     recent_comments = (
         db.query(Comment)
         .filter(Comment.ai_flagged == False)  # noqa: E712
@@ -226,7 +211,6 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
 
     papers_map = {p.doi: p for p in db.query(Paper).all()}
     users_map = {u.orcid_id: u for u in db.query(User).all()}
-    api_keys = db.query(ApiKey).order_by(ApiKey.created_at.desc()).all()
 
     # Active drafts: have a draft, not yet posted/archived, not demo
     reviews_with_draft = (
@@ -312,11 +296,8 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
         "ai_flagged_ratings": ai_flagged_ratings,
         "pending_reviews": pending_reviews,
         "pending_author_replies": pending_author_replies,
-        "recent_users": recent_users,
-        "all_users": all_users,
         "papers_map": papers_map,
         "users_map": users_map,
-        "api_keys": api_keys,
         "report_targets": report_targets,
         "reviews_with_draft": reviews_with_draft,
         "reviews_without_draft": reviews_without_draft,
@@ -511,6 +492,16 @@ async def admin_delete_paper(doi: str, request: Request, db: Session = Depends(g
 
 # ── API key management ────────────────────────────────────────────────────────
 
+@router.get("/api-keys", response_class=HTMLResponse)
+async def admin_api_keys_page(request: Request, db: Session = Depends(get_db)):
+    _require_admin(request)
+    api_keys = db.query(ApiKey).order_by(ApiKey.created_at.desc()).all()
+    return templates.TemplateResponse("admin_api_keys.html", {
+        **_base(request),
+        "api_keys": api_keys,
+    })
+
+
 @router.post("/api-keys/generate")
 async def admin_generate_api_key(request: Request, db: Session = Depends(get_db)):
     _require_admin(request)
@@ -540,6 +531,68 @@ async def admin_revoke_api_key(key_id: int, request: Request, db: Session = Depe
     key.is_active = False
     db.commit()
     return JSONResponse({"ok": True})
+
+
+# ── Users table (admin browse view) ───────────────────────────────────────────
+
+@router.get("/users", response_class=HTMLResponse)
+async def admin_users_page(request: Request, db: Session = Depends(get_db)):
+    _require_admin(request)
+    all_users = (
+        db.query(User)
+        .filter(User.orcid_id != ADMIN_ORCID)
+        .order_by(User.verified_at.desc())
+        .all()
+    )
+    return templates.TemplateResponse("admin_users.html", {
+        **_base(request),
+        "all_users": all_users,
+    })
+
+
+# ── Papers table (admin browse view) ──────────────────────────────────────────
+# A Paper row is created on ANY DOI lookup (search, citation resolution, etc.),
+# whether or not it ever gets a review, so most rows have zero reviews.
+# search_count/view_count were added 2026-08-11 and start at 0 for pre-existing
+# rows; there's no way to backfill lookups that happened before then.
+
+@router.get("/papers", response_class=HTMLResponse)
+async def admin_papers_page(request: Request, db: Session = Depends(get_db)):
+    _require_admin(request)
+    review_counts = dict(
+        db.query(Rating.doi, func.count(Rating.id)).group_by(Rating.doi).all()
+    )
+    comment_counts = dict(
+        db.query(Comment.doi, func.count(Comment.id)).group_by(Comment.doi).all()
+    )
+
+    sort = request.query_params.get("sort", "newest")
+    q = db.query(Paper)
+    if sort == "oldest":
+        q = q.order_by(Paper.fetched_at.asc())
+    elif sort == "most_searches":
+        q = q.order_by(Paper.search_count.desc())
+    elif sort == "most_views":
+        q = q.order_by(Paper.view_count.desc())
+    elif sort == "most_reviews":
+        # review_counts is computed in Python, not the DB, so sort here.
+        papers = q.all()
+        papers.sort(key=lambda p: review_counts.get(p.doi, 0), reverse=True)
+        return templates.TemplateResponse("admin_papers.html", {
+            **_base(request),
+            "papers": papers,
+            "review_counts": review_counts,
+            "comment_counts": comment_counts,
+        })
+    else:
+        q = q.order_by(Paper.fetched_at.desc())
+
+    return templates.TemplateResponse("admin_papers.html", {
+        **_base(request),
+        "papers": q.all(),
+        "review_counts": review_counts,
+        "comment_counts": comment_counts,
+    })
 
 
 # ── B21: approve or reject a pending-review rating ───────────────────────────

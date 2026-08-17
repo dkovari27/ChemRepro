@@ -1,0 +1,56 @@
+{% extends design_base(request) %}
+{% block title %}Admin – ChemRepro{% endblock %}
+
+{# Full-width: admin pages opt out of the site-wide max-w-5xl centering (see
+   base.html's main_class block) so the sidebar can sit flush against the left
+   edge instead of floating in the middle of a narrow centered column. #}
+{% block main_class %}w-full px-4 py-8{% endblock %}
+
+{#
+  Shared shell for every admin page: left sidebar nav + a content area.
+  Individual admin pages (admin_dashboard.html, admin_papers.html, etc.)
+  extend this template and fill {% block admin_content %} instead of
+  {% block content %} directly. Add a new page to `nav_items` below to
+  get it listed in the sidebar automatically.
+#}
+{% block content %}
+{% set nav_items = [
+  ('/admin/', 'Dashboard'),
+  ('/admin/users', 'Users'),
+  ('/admin/papers', 'Papers'),
+  ('/admin/api-keys', 'API Keys'),
+  ('/admin/banned-words', 'Banned Words'),
+  ('/admin/submission-warnings', 'Warnings'),
+  ('/admin/name-votes', 'Name Votes'),
+] %}
+<div class="flex flex-col lg:flex-row gap-6 lg:items-start">
+
+  <!-- Sidebar -->
+  <aside class="lg:w-52 shrink-0 lg:sticky lg:top-6">
+    <div class="mb-4 px-1">
+      <h1 class="text-lg font-bold text-slate-800">Admin</h1>
+      <p class="text-xs text-slate-400 mt-0.5">ChemRepro god-mode. Handle with care.</p>
+    </div>
+    <nav class="flex flex-row lg:flex-col gap-1 overflow-x-auto lg:overflow-visible -mx-1 px-1 pb-2 lg:pb-0">
+      {% for href, label in nav_items %}
+      {% set is_active = request.url.path == href or (href == '/admin/' and request.url.path == '/admin') %}
+      <a href="{{ href }}"
+        class="shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap
+          {{ 'bg-brand text-white' if is_active else 'text-slate-500 hover:bg-slate-100 hover:text-slate-700' }}">
+        {{ label }}
+      </a>
+      {% endfor %}
+    </nav>
+    <a href="/auth/logout"
+      class="block mt-3 px-3 py-2 text-xs text-slate-400 hover:text-red-500 transition-colors">
+      Log out
+    </a>
+  </aside>
+
+  <!-- Page content -->
+  <main class="flex-1 min-w-0">
+    {% block admin_content %}{% endblock %}
+  </main>
+
+</div>
+{% endblock %}

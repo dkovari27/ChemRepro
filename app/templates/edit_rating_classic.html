@@ -11,6 +11,7 @@
   </div>
 
   <form action="/classic/paper/{{ paper.doi }}/ratings/{{ rating.id }}/edit" method="post"
+        data-moderate data-content-label="review"
         class="bg-white border border-slate-200 rounded-xl p-6 space-y-6">
 
     {# ── Reproducibility stars (amber) ── #}

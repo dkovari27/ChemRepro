@@ -134,7 +134,7 @@
       </div>
 
       {% else %}
-      <form action="/classic/paper/{{ paper.doi }}/rate" method="post" id="classic-form" data-moderate>
+      <form action="/classic/paper/{{ paper.doi }}/rate" method="post" id="classic-form" data-moderate data-content-label="review">
 
         {# ── Reproducibility stars (amber) ── #}
         <div class="mb-5">
@@ -410,7 +410,7 @@
 
         {% if orcid_id %}
         <div id="reply-{{ r.id }}" class="hidden mt-3 pt-3 border-t border-slate-100">
-          <form action="/design-archive/standard/paper/{{ paper.doi }}/comment" method="post" data-moderate>
+          <form action="/design-archive/standard/paper/{{ paper.doi }}/comment" method="post" data-moderate data-content-label="comment">
             <input type="hidden" name="rating_id" value="{{ r.id }}" />
             <textarea name="content" rows="3" maxlength="2000" required
               placeholder="{{ prompts.COMMENT_PLACEHOLDER }}" spellcheck="true"

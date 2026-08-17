@@ -3,6 +3,48 @@
 
 ---
 
+## 2026-08-17 | Push 9 | `(pending)`
+**Files changed (26):**
+
+*Admin dashboard redesign:*
+- `app/templates/admin_base.html` — new: shared shell for every admin page (left sidebar nav, full-width layout)
+- `app/templates/admin_users.html` — new: `/admin/users`, split out of the dashboard (table, edit modal, Ban/Delete)
+- `app/templates/admin_papers.html` — new: `/admin/papers`, browse every looked-up paper with review/comment/search/view counts, client-side filter, sortable columns
+- `app/templates/admin_api_keys.html` — new: `/admin/api-keys`, split out of the dashboard
+- `app/templates/admin_dashboard.html` — now extends `admin_base.html`; Users and API Keys sections (and their modal/JS) removed
+- `app/templates/admin_banned_words.html`, `admin_submission_warnings.html` — converted to the `admin_base.html` shell, back-link header removed (sidebar nav replaces it)
+- `app/templates/admin_name_votes.html` — converted to the `admin_base.html` shell; XSS fix: delete-suggestion form's `onsubmit="return confirm('...{{ s.name }}...')"` (name interpolated into a JS string) switched to the `data-confirm` pattern
+- `app/templates/base.html` — `<main>` width is now an overridable `{% block main_class %}` so admin pages can opt out of the site-wide `max-w-5xl` centering
+- `app/models/paper.py`, `app/main.py` — `search_count`/`view_count` columns on `Paper` (SQLite + Postgres migration)
+- `app/routers/papers.py` — increments `search_count` in `/search`, `view_count` via a shared `_bump_view_count()` in all three paper-detail routes
+- `app/routers/admin.py` — `GET /admin/users`, `GET /admin/papers` (with `?sort=`), `GET /admin/api-keys`; dashboard route no longer queries `all_users`/`recent_users`/`api_keys`
+- `TASKS.md` — added banned-words alphabetical-order note (future work)
+
+*Security hardening (found sitting locally, audited and folded in this push — see PROJECT_STATE.md "Security Hardening" table):*
+- `app/routers/pledge.py` — open-redirect fix on `?next=`; audit found the original fix incomplete (didn't block `/\host`, which browsers normalise to `//host`), corrected before this push
+- `app/routers/auth.py` — dev-login/dev-link routes now require `ORCID_ENV == "sandbox"` exactly, matching the fail-closed convention used elsewhere
+- `app/routers/feedback.py` — `/admin/feedback` now uses the shared `_require_admin()` instead of an environment-only check that had no auth at all locally
+- `app/routers/reports.py` — non-numeric `target_id` now returns 422 instead of an unhandled 500
+- `app/services/author_notify.py` — HTML-escapes title/URL in the outbound author-notification email
+- `app/routers/images.py` — verifies uploaded bytes match the declared MIME type, guards against decompression bombs, adds `X-Content-Type-Options: nosniff`
+- `app/utils/design.py` — review markdown image-src allowlist restricted to `/images/`, closing an external tracking-pixel hole
+- `app/services/linkedin_post.py` — prompt now explicitly forbids stating chemical detail not present in the source data
+- `app/templates/edit_rating.html`, `edit_rating_classic.html`, `edit_rating_nd.html`, `guest_setup.html`, `paper.html`, `paper_classic.html`, `paper_classic_v1.html`, `paper_nd.html`, `paper_v1.html` — `data-content-label` added to every review/comment/reply/name form (moderation warning modal says "review"/"comment"/etc. instead of the generic fallback); Classic paper's comment-reply form also gained `data-moderate` (was falling through to a native full-page submit)
+- `.gitignore` — added `*.env` and explicit entries for known-sensitive local files (`Public_DB_URL.env`, `ADMIN login.txt`, etc.), which the exact-match `.env` entry didn't cover
+
+**What changed (summary):**
+- Admin dashboard restructured: Users, Papers, and API Keys each get their own sidebar-linked page instead of one long scrolling dashboard; admin pages are now full-width
+- New Papers page tracks per-paper search and view counts (accruing from today, no historical backfill)
+- A second, independently-written batch of security fixes was discovered uncommitted in the working tree during this push's audit, reviewed line-by-line, one gap fixed (pledge.py backslash bypass), and folded in
+
+**Key decisions:**
+- The security-fix batch had no record in `PROJECT_STATE.md`, `TASKS.md`, or session memory; audited from scratch rather than assumed safe before including
+
+**Deferred:**
+- Nothing new; `.pyc` files remain tracked in git despite matching `.gitignore` (pre-existing, harmless; cleanup with `git rm --cached` is a separate low-priority task)
+
+---
+
 ## 2026-08-11 | Push 8 | `44d8451`
 **Files changed (10):**
 - `app/models/banned_term.py` — new: admin-curated banned word/phrase table (term, added_by, created_at)
