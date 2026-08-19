@@ -40,6 +40,20 @@ Added 2026-08-11: the banned-term matcher (`_custom_terms_re` in `app/utils/mode
 ### Admin dashboard: style update
 The admin dashboard has grown a lot of sections (reviews, comments, reports, LinkedIn drafts, users, banned words, submission warnings, name votes) with inconsistent card/table styling picked up piecemeal over many pushes. Worth a dedicated pass to unify the visual design once the feature set settles down.
 
+### SEO and Google discoverability
+ChemRepro is not easily findable via Google at the moment. Things worth investigating and implementing:
+- `<meta name="description">` on every public page (especially paper pages and the homepage); currently absent
+- Structured data / JSON-LD: `ScholarlyArticle` or `Review` schema on paper pages so Google can show rich snippets
+- `sitemap.xml`: a dynamic endpoint that lists every `/paper/{doi}` URL with `<lastmod>` so Googlebot can crawl efficiently rather than relying on link discovery
+- `robots.txt`: ensure admin pages and other non-public routes are excluded, and that public pages are explicitly allowed
+- Canonical `<link rel="canonical">` tags on paper pages (three URL variants for the same paper: `/paper/`, `/classic/paper/`, `/nd/paper/`) to avoid duplicate-content dilution
+- Page titles: paper pages currently use the full DOI as the tab title, which is meaningless to search engines; should be `{paper title} | ChemRepro`
+- Open Graph / Twitter Card tags on paper pages so shares show a meaningful preview
+- Internal linking: paper pages don't link to each other or back to the homepage in a way Googlebot can follow efficiently
+- Google Search Console: register and verify the domain, submit the sitemap, monitor indexing status
+
+Priority order (rough): page titles and meta descriptions first (high impact, low effort), then sitemap.xml, then structured data, then canonical tags.
+
 ### Email system: domain addresses
 Now that Resend is in place and chemrepro.org is verified, set up proper domain email addresses:
 - `admin@chemrepro.org` or `d.kovari@chemrepro.org` for receiving admin notifications

@@ -41,12 +41,20 @@
       <div class="flex flex-wrap gap-2">
         {% for r in reviews_without_draft %}
         {% set pap = papers_map.get(r.doi) %}
-        <button
-          id="gen-btn-{{ r.id }}"
-          onclick="generateLinkedInDraft({{ r.id }})"
-          class="text-xs px-3 py-1.5 rounded-lg bg-white border border-amber-300 text-amber-700 hover:bg-amber-50 transition-colors font-medium">
-          Generate for #{{ r.id }}{% if pap and pap.title %}: {{ pap.title[:40] }}{% if pap.title|length > 40 %}…{% endif %}{% endif %}
-        </button>
+        <span class="inline-flex items-center gap-0 rounded-lg border border-amber-300 bg-white overflow-hidden">
+          <button
+            id="gen-btn-{{ r.id }}"
+            onclick="generateLinkedInDraft({{ r.id }})"
+            class="text-xs px-3 py-1.5 text-amber-700 hover:bg-amber-50 transition-colors font-medium">
+            Generate for #{{ r.id }}{% if pap and pap.title %}: {{ pap.title[:40] }}{% if pap.title|length > 40 %}…{% endif %}{% endif %}
+          </button>
+          <button
+            onclick="archiveWithoutDraft({{ r.id }}, this)"
+            title="Archive without generating"
+            class="px-2 py-1.5 text-amber-400 hover:text-red-500 hover:bg-red-50 transition-colors border-l border-amber-200 leading-none">
+            ×
+          </button>
+        </span>
         {% endfor %}
       </div>
     </div>
@@ -218,16 +226,23 @@
           Posted ({{ linkedin_posted | length }})
         </p>
         {% if linkedin_posted %}
-        <div class="flex flex-col gap-1.5">
+        <div class="flex flex-col gap-1.5" id="posted-list">
           {% for r in linkedin_posted %}
           {% set u = users_map.get(r.orcid_id) %}
           <button onclick="restoreLinkedInDraft({{ r.id }})"
             title="Click to restore to active drafts"
-            class="text-xs bg-slate-100 text-slate-700 border border-slate-200 rounded-lg px-3 py-1.5 font-medium hover:bg-slate-200 transition-colors text-left">
+            data-li-item
+            class="text-xs bg-slate-100 text-slate-700 border border-slate-200 rounded-lg px-3 py-1.5 font-medium hover:bg-slate-200 transition-colors text-left {% if loop.index > 5 %}hidden{% endif %}">
             #{{ r.id }}{% if u %} &middot; {{ u.nickname or u.name }}{% endif %} &middot; {{ r.created_at.strftime('%d %b %Y') }}
           </button>
           {% endfor %}
         </div>
+        {% if linkedin_posted | length > 5 %}
+        <button onclick="toggleLiList('posted-list', this)"
+          class="mt-2 text-xs text-slate-400 hover:text-brand transition-colors">
+          Show {{ linkedin_posted | length - 5 }} more
+        </button>
+        {% endif %}
         {% else %}
         <p class="text-xs text-slate-400">None yet.</p>
         {% endif %}
@@ -240,16 +255,23 @@
           Archived ({{ linkedin_archived | length }})
         </p>
         {% if linkedin_archived %}
-        <div class="flex flex-col gap-1.5">
+        <div class="flex flex-col gap-1.5" id="archived-list">
           {% for r in linkedin_archived %}
           {% set u = users_map.get(r.orcid_id) %}
           <button onclick="restoreLinkedInDraft({{ r.id }})"
             title="Click to restore to active drafts"
-            class="text-xs bg-slate-100 text-slate-700 border border-slate-200 rounded-lg px-3 py-1.5 font-medium hover:bg-slate-200 transition-colors text-left">
+            data-li-item
+            class="text-xs bg-slate-100 text-slate-700 border border-slate-200 rounded-lg px-3 py-1.5 font-medium hover:bg-slate-200 transition-colors text-left {% if loop.index > 5 %}hidden{% endif %}">
             #{{ r.id }}{% if u %} &middot; {{ u.nickname or u.name }}{% endif %} &middot; {{ r.created_at.strftime('%d %b %Y') }}
           </button>
           {% endfor %}
         </div>
+        {% if linkedin_archived | length > 5 %}
+        <button onclick="toggleLiList('archived-list', this)"
+          class="mt-2 text-xs text-slate-400 hover:text-brand transition-colors">
+          Show {{ linkedin_archived | length - 5 }} more
+        </button>
+        {% endif %}
         {% else %}
         <p class="text-xs text-slate-400">None yet.</p>
         {% endif %}
@@ -849,6 +871,45 @@ async function setLinkedInStatus(ratingId, status, checkbox) {
   } catch(e) {
     alert('Network error.');
     checkbox.checked = false;
+  }
+}
+
+async function archiveWithoutDraft(ratingId, btn) {
+  const pill = btn.closest('span');
+  if (pill) { pill.style.opacity = '0.4'; pill.style.pointerEvents = 'none'; }
+  try {
+    const fd = new FormData();
+    fd.append('status', 'archived');
+    const resp = await fetch(`/admin/reviews/${ratingId}/linkedin-post-status`, { method: 'POST', body: fd });
+    if (!resp.ok) {
+      if (pill) { pill.style.opacity = ''; pill.style.pointerEvents = ''; }
+      alert('Could not archive review.');
+      return;
+    }
+    window.location.reload();
+  } catch(e) {
+    if (pill) { pill.style.opacity = ''; pill.style.pointerEvents = ''; }
+    alert('Network error.');
+  }
+}
+
+function toggleLiList(listId, btn) {
+  const list = document.getElementById(listId);
+  if (!list) return;
+  const hidden = list.querySelectorAll('[data-li-item].hidden');
+  const visible = list.querySelectorAll('[data-li-item]:not(.hidden)');
+  const isExpanded = hidden.length === 0;
+  if (isExpanded) {
+    // Collapse: hide everything after the first 5
+    list.querySelectorAll('[data-li-item]').forEach((el, i) => {
+      el.classList.toggle('hidden', i >= 5);
+    });
+    const total = list.querySelectorAll('[data-li-item]').length;
+    btn.textContent = `Show ${total - 5} more`;
+  } else {
+    // Expand: show all
+    hidden.forEach(el => el.classList.remove('hidden'));
+    btn.textContent = 'Show less';
   }
 }
 
