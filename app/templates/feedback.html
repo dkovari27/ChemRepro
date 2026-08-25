@@ -45,6 +45,37 @@
       <input type="hidden" name="bug_doi" value="{{ bug_doi }}" />
       {% endif %}
 
+      <!-- Name + email — required for non-logged-in users -->
+      {% if not orcid_id %}
+      {% if request.query_params.get('error') == 'contact_required' %}
+      <div class="mb-4 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700">
+        Please fill in your name and email before submitting.
+      </div>
+      {% endif %}
+      <div class="mb-4 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-700">
+        You are not signed in. Providing your name and email lets us follow up on your feedback.
+        <a href="/auth/choose?next=/feedback" class="underline font-medium ml-1">Sign in instead</a>
+      </div>
+      <div class="mb-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">
+            Your name <span class="text-red-500">*</span>
+          </label>
+          <input type="text" name="submitter_name" required
+            placeholder="Dr. Jane Smith"
+            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">
+            Your email <span class="text-red-500">*</span>
+          </label>
+          <input type="email" name="submitter_email" required
+            placeholder="jane@example.com"
+            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand" />
+        </div>
+      </div>
+      {% endif %}
+
       <!-- Free-text comment -->
       <div class="mb-6">
         <textarea name="comment" rows="6" maxlength="2000"

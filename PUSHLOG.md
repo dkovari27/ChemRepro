@@ -3,6 +3,46 @@
 
 ---
 
+## 2026-08-25 | Push 11 | `(pending)`
+**Files changed (20):**
+
+*Search bar on paper pages:*
+- `app/templates/base.html` — `{% block global_search %}` is now empty by default; only paper templates opt in
+- `app/templates/paper_nd.html`, `paper.html`, `paper_classic.html`, `paper_v1.html`, `paper_classic_v1.html` — homepage-style DOI search bar above each paper page (white wrapper, brand-tinted input bubble, "Look up paper" button); `{% block main_class %}` sets `pt-0` so there is no gap between bar and content
+- `app/templates/admin_base.html` — explicit empty `{% block global_search %}` override; suppresses bar on all admin pages
+
+*Admin dashboard:*
+- `app/templates/admin_dashboard.html` — LinkedIn posted-flow panel moved from full-width to the right column only; right column restructured into three sub-divs (label+buttons, posted-flow, draft+caption) for individual padding control; rating column added to the recent-reviews table; LinkedIn icon links on Posted pills
+
+*Feedback improvements:*
+- `app/templates/feedback.html` — non-logged-in users must supply name and email (required fields); error notice for missing contact info; blue info banner with sign-in link
+- `app/routers/feedback.py` — validates name+email for anonymous submitters; stores `submitter_name`, `submitter_email`, `client_device`; passes submitter details to notification task
+- `app/templates/admin_feedback.html` — renders `submitter_name` (bold), `submitter_email` (mailto link), `client_device` (mono pill) per response
+- `app/utils/email.py` — `send_feedback_notification` shows "User: Name <email>" for non-logged-in submitters
+
+*Device tracking:*
+- `app/models/rating.py` — added `linkedin_post_url` (Text), `client_device` (VARCHAR 10) columns
+- `app/models/feedback.py` — added `submitter_name` (VARCHAR 255), `submitter_email` (VARCHAR 255), `client_device` (VARCHAR 10) columns
+- `app/main.py` — idempotent migrations for all new columns (SQLite PRAGMA guard + PostgreSQL IF NOT EXISTS)
+- `app/routers/papers.py` — device capture (mobile/desktop from User-Agent) on all 3 submit endpoints
+- `app/routers/admin.py` — saves `linkedin_post_url` when a post is marked as posted
+
+*Security:*
+- `scripts/import_reviews.py` — Railway proxy hostname replaced with placeholder in docstring example
+- `PROJECT_STATE.md` — Railway proxy hostname replaced with placeholder in scraper-import example
+
+**What changed (summary):**
+- Every paper page now has a persistent DOI search bar at the top; admin pages are unaffected
+- Non-logged-in feedback submitters must provide name and email; stored in DB and shown in admin view; notification email includes the contact info
+- Device type (mobile/desktop) captured on all rating and feedback submissions for analytics
+- LinkedIn admin: posted-flow panel scoped to right column only; URL stored when post is marked posted
+- Railway hostname scrubbed from two files before any future public repo move
+
+**Deferred:**
+- Git history still contains the original `.env` from the initial commit (commit `669ca60`); must rotate secrets before making the repo public (see security review notes from this session)
+
+---
+
 ## 2026-08-17 | Push 9 | `b8a1879`
 **Files changed (26):**
 

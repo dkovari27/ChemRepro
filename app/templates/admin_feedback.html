@@ -43,9 +43,21 @@
       {% else %}
       <p class="text-xs text-slate-300 italic">No comment</p>
       {% endif %}
-      {% if r.orcid_id %}
-      <p class="text-xs text-slate-400 mt-2">{{ r.orcid_id }}</p>
-      {% endif %}
+      <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+        {% if r.orcid_id %}
+        <span class="text-xs text-slate-400">{{ r.orcid_id }}</span>
+        {% elif r.submitter_name or r.submitter_email %}
+        <span class="text-xs text-slate-700 font-medium">{{ r.submitter_name or '' }}</span>
+        {% if r.submitter_email %}
+        <a href="mailto:{{ r.submitter_email }}" class="text-xs text-brand hover:underline">{{ r.submitter_email }}</a>
+        {% endif %}
+        {% else %}
+        <span class="text-xs text-slate-300 italic">anonymous</span>
+        {% endif %}
+        {% if r.client_device %}
+        <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">{{ r.client_device }}</span>
+        {% endif %}
+      </div>
     </div>
     {% endfor %}
   </div>

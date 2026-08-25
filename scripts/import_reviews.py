@@ -10,8 +10,8 @@ Usage:
   python scripts/import_reviews.py reviews.json --ai-name OrgSyn --dry-run
   python scripts/import_reviews.py reviews.json --ai-name OrgSyn
 
-  # Railway PostgreSQL:
-  set DATABASE_URL=postgresql://postgres:PASSWORD@acela.proxy.rlwy.net:17700/railway
+  # Railway PostgreSQL (replace with your own Railway proxy URL):
+  set DATABASE_URL=postgresql://postgres:YOUR-PASSWORD@YOUR-RAILWAY-HOST:PORT/railway
   python scripts/import_reviews.py reviews.json --ai-name OrgSyn
 
 Required packages: httpx sqlalchemy psycopg (for PostgreSQL only)

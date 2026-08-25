@@ -89,6 +89,12 @@ class Rating(Base):
     # JSON with {label, closing_id, rhythm_id, word_count, issues} set at generation time
     # read by the posted endpoint to update rotation state
     linkedin_post_metadata: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # URL of the actual published LinkedIn post (pasted by admin after posting)
+    linkedin_post_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Optional: the final text as it was actually posted (may differ from the draft if edited on LinkedIn)
+    linkedin_post_final: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # "mobile" or "desktop" — captured from User-Agent at submit time; backend-only, never shown publicly
+    client_device: Mapped[str | None] = mapped_column(String(10), nullable=True)
 
     ai_flagged: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")

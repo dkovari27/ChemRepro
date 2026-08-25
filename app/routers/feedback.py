@@ -99,16 +99,34 @@ async def submit_feedback(
     db: Session = Depends(get_db),
     preference: str = Form(""),
     comment: str = Form(""),
+    submitter_name: str = Form(""),
+    submitter_email: str = Form(""),
 ):
     orcid_id = request.session.get("orcid_id")
+
+    # Non-logged-in users must supply name + email
+    if not orcid_id:
+        if not submitter_name.strip() or not submitter_email.strip():
+            return RedirectResponse("/feedback?error=contact_required", status_code=303)
+
+    ua = request.headers.get("user-agent", "")
+    client_device = "mobile" if any(k in ua for k in ("Mobile", "Android", "iPhone")) else "desktop"
+
     trimmed_comment = comment.strip()[:2000] or None
     db.add(Feedback(
         preference="",
         comment=trimmed_comment,
         orcid_id=orcid_id,
+        submitter_name=submitter_name.strip()[:255] or None,
+        submitter_email=submitter_email.strip()[:255] or None,
+        client_device=client_device,
     ))
     db.commit()
-    background_tasks.add_task(send_feedback_notification, "", trimmed_comment, orcid_id)
+    background_tasks.add_task(
+        send_feedback_notification, "", trimmed_comment, orcid_id,
+        submitter_name.strip() or None,
+        submitter_email.strip() or None,
+    )
     return RedirectResponse("/feedback?submitted=1", status_code=303)
 
 

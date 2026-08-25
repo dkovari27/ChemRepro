@@ -42,7 +42,7 @@
 
 **How to run a scraper import (Railway):**
 ```
-set DATABASE_URL=postgresql://postgres:PASSWORD@acela.proxy.rlwy.net:17700/railway
+set DATABASE_URL=postgresql://postgres:YOUR-PASSWORD@YOUR-RAILWAY-HOST:PORT/railway
 python scripts/import_reviews.py reviews.json --ai-name JACSAU
 python scripts/resolve_citations.py --railway --ai-name JACSAU
 ```

@@ -12,6 +12,11 @@ class Feedback(Base):
     preference: Mapped[str] = mapped_column(String(20))   # standard | classic | both | unsure
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     orcid_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Name and email provided voluntarily by non-logged-in submitters
+    submitter_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    submitter_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # "mobile" or "desktop" — captured from User-Agent at submit time; backend-only
+    client_device: Mapped[str | None] = mapped_column(String(10), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

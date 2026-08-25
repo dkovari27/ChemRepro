@@ -770,6 +770,9 @@ async def submit_rating(
         raise HTTPException(
             status_code=422, detail="Reproducibility score must be 1–5")
 
+    _ua = request.headers.get("user-agent", "")
+    _client_device = "mobile" if any(k in _ua for k in ("Mobile", "Android", "iPhone")) else "desktop"
+
     rating = Rating(
         doi=doi,
         orcid_id=orcid_id,
@@ -780,6 +783,7 @@ async def submit_rating(
         scope_observation=scope_observation[:1000] or None,
         modification_details=modification_details[:1000] or None,
         scoring_mode=scoring_mode,
+        client_device=_client_device,
     )
     db.add(rating)
     db.flush()  # get rating.id before commit
@@ -1495,6 +1499,9 @@ async def classic_submit_rating(
         raise HTTPException(
             status_code=422, detail="Extension score must be 1–5")
 
+    _ua_c = request.headers.get("user-agent", "")
+    _dev_c = "mobile" if any(k in _ua_c for k in ("Mobile", "Android", "iPhone")) else "desktop"
+
     db.add(Rating(
         doi=doi,
         orcid_id=orcid_id,
@@ -1504,6 +1511,7 @@ async def classic_submit_rating(
             :1000] or None,
         generalisability_score=ext_int,
         scope_observation=scope_observation.strip()[:1000] or None,
+        client_device=_dev_c,
     ))
     db.commit()
     return RedirectResponse(f"/classic/paper/{doi}", status_code=303)
@@ -2151,6 +2159,9 @@ async def nd_submit_rating(
     obs_text = reproducibility_observation.strip()
     is_misconduct = contains_misconduct_allegation(obs_text)
 
+    ua = request.headers.get("user-agent", "")
+    client_device = "mobile" if any(k in ua for k in ("Mobile", "Android", "iPhone")) else "desktop"
+
     rating = Rating(
         doi=doi,
         orcid_id=orcid_id,
@@ -2160,6 +2171,7 @@ async def nd_submit_rating(
         reproducibility_observation=obs_text or None,
         career_stage_snapshot=career_stage_snapshot,
         pending_admin_review=is_misconduct,
+        client_device=client_device,
     )
     db.add(rating)
     try:

@@ -114,6 +114,20 @@ def _migrate():
             rating_cols7 = [row[1] for row in conn.execute(text("PRAGMA table_info(ratings)"))]
             if "linkedin_post_metadata" not in rating_cols7:
                 conn.execute(text("ALTER TABLE ratings ADD COLUMN linkedin_post_metadata TEXT"))
+            if "linkedin_post_url" not in rating_cols7:
+                conn.execute(text("ALTER TABLE ratings ADD COLUMN linkedin_post_url TEXT"))
+            if "linkedin_post_final" not in rating_cols7:
+                conn.execute(text("ALTER TABLE ratings ADD COLUMN linkedin_post_final TEXT"))
+            rating_cols8 = [row[1] for row in conn.execute(text("PRAGMA table_info(ratings)"))]
+            if "client_device" not in rating_cols8:
+                conn.execute(text("ALTER TABLE ratings ADD COLUMN client_device VARCHAR(10)"))
+            feedback_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(feedback)"))]
+            if "submitter_name" not in feedback_cols:
+                conn.execute(text("ALTER TABLE feedback ADD COLUMN submitter_name VARCHAR(255)"))
+            if "submitter_email" not in feedback_cols:
+                conn.execute(text("ALTER TABLE feedback ADD COLUMN submitter_email VARCHAR(255)"))
+            if "client_device" not in feedback_cols:
+                conn.execute(text("ALTER TABLE feedback ADD COLUMN client_device VARCHAR(10)"))
             paper_cols = [row[1] for row in conn.execute(text("PRAGMA table_info(papers)"))]
             if "search_count" not in paper_cols:
                 conn.execute(text("ALTER TABLE papers ADD COLUMN search_count INTEGER NOT NULL DEFAULT 0"))
@@ -151,6 +165,12 @@ def _migrate():
             conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS linkedin_post_draft TEXT"))
             conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS linkedin_post_status VARCHAR(20)"))
             conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS linkedin_post_metadata JSON"))
+            conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS linkedin_post_url TEXT"))
+            conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS linkedin_post_final TEXT"))
+            conn.execute(text("ALTER TABLE ratings ADD COLUMN IF NOT EXISTS client_device VARCHAR(10)"))
+            conn.execute(text("ALTER TABLE feedback ADD COLUMN IF NOT EXISTS submitter_name VARCHAR(255)"))
+            conn.execute(text("ALTER TABLE feedback ADD COLUMN IF NOT EXISTS submitter_email VARCHAR(255)"))
+            conn.execute(text("ALTER TABLE feedback ADD COLUMN IF NOT EXISTS client_device VARCHAR(10)"))
             conn.execute(text("ALTER TABLE papers ADD COLUMN IF NOT EXISTS search_count INTEGER NOT NULL DEFAULT 0"))
             conn.execute(text("ALTER TABLE papers ADD COLUMN IF NOT EXISTS view_count INTEGER NOT NULL DEFAULT 0"))
         conn.commit()

@@ -755,6 +755,8 @@ async def admin_set_linkedin_post_status(
     rating_id: int,
     request: Request,
     status: str = Form(""),
+    post_url: str = Form(""),
+    post_final: str = Form(""),
     db: Session = Depends(get_db),
 ):
     _require_admin(request)
@@ -775,6 +777,12 @@ async def admin_set_linkedin_post_status(
         )
 
     r.linkedin_post_status = None if status == "restore" else status
+    # Store URL and final text if provided (only when marking as posted; ignored on archive/restore)
+    if status == "posted":
+        if post_url.strip():
+            r.linkedin_post_url = post_url.strip()
+        if post_final.strip():
+            r.linkedin_post_final = post_final.strip()
     db.commit()
     return JSONResponse({"ok": True})
 

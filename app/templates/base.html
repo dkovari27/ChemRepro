@@ -202,6 +202,10 @@
     </div>
   </nav>
 
+  <!-- ── Global DOI search bar ─────────────────────────────────── -->
+  {# Off by default; only paper review pages override this block to show it. #}
+  {% block global_search %}{% endblock %}
+
   <!-- ── Main content ────────────────────────────────────────────── -->
   <!-- main_class lets a page opt out of the site-wide max-w-5xl centering,
        e.g. admin_base.html goes full-width so its sidebar can sit flush left. -->

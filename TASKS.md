@@ -13,6 +13,21 @@ This replaces the scattered memory files for project-specific state. The `.claud
 
 ---
 
+## HIGH PRIORITY
+
+### [ACTION REQUIRED] AI-curated review paper access: verify with Nicola before any grant application
+Before submitting any grant or funding application that references the AI-curated reviews (JACSAU, OrgSyn pipeline), confirm with Nicola that the source papers were accessible to him through the university system. This matters for academic integrity and IP: if a grant reviewer asks "how did you access these papers?", the answer must be "through a licensed institutional subscription", not "we scraped them or used a personal account". Do this check before any public grant filing, conference submission, or any document that formally cites this review corpus.
+
+### Feedback form: required contact info for non-logged-in submitters
+BUILT (Push 11): non-logged-in users are now required to provide name and email before submitting. Logged-in users (ORCID or LinkedIn) skip those fields. Both fields are stored on the `Feedback` model (`submitter_name`, `submitter_email`). Device tracking (`client_device`: "mobile" or "desktop") is also captured on every feedback submission and on every review submission; backend-only, never displayed publicly.
+
+### SEO and LinkedIn discoverability: improve ranking
+**Google:** page titles, meta descriptions, sitemap.xml, structured data (ScholarlyArticle/Review JSON-LD on paper pages), canonical tags across the three URL variants (/paper/, /classic/paper/, /nd/paper/), and registering on Google Search Console. Priority order: page titles and meta descriptions first (high impact, low effort), then sitemap.xml, then structured data, then canonical tags.
+
+**LinkedIn:** beyond individual posts, consider: (1) a dedicated ChemRepro LinkedIn company page so the platform has a searchable presence; (2) using the LinkedIn post URL tracking (now built) to build a content calendar/archive; (3) tagging relevant journals, authors, and institutions in posts where appropriate (increases reach significantly on LinkedIn); (4) using consistent hashtags (#ChemRepro #OrganicChemistry #Reproducibility) to build topic authority over time.
+
+---
+
 ## Future / Planned
 See PROJECT_STATE.md "Planned / Deferred" section for the full list.
 Notable items:
@@ -39,20 +54,6 @@ Added 2026-08-11: the banned-term matcher (`_custom_terms_re` in `app/utils/mode
 
 ### Admin dashboard: style update
 The admin dashboard has grown a lot of sections (reviews, comments, reports, LinkedIn drafts, users, banned words, submission warnings, name votes) with inconsistent card/table styling picked up piecemeal over many pushes. Worth a dedicated pass to unify the visual design once the feature set settles down.
-
-### SEO and Google discoverability
-ChemRepro is not easily findable via Google at the moment. Things worth investigating and implementing:
-- `<meta name="description">` on every public page (especially paper pages and the homepage); currently absent
-- Structured data / JSON-LD: `ScholarlyArticle` or `Review` schema on paper pages so Google can show rich snippets
-- `sitemap.xml`: a dynamic endpoint that lists every `/paper/{doi}` URL with `<lastmod>` so Googlebot can crawl efficiently rather than relying on link discovery
-- `robots.txt`: ensure admin pages and other non-public routes are excluded, and that public pages are explicitly allowed
-- Canonical `<link rel="canonical">` tags on paper pages (three URL variants for the same paper: `/paper/`, `/classic/paper/`, `/nd/paper/`) to avoid duplicate-content dilution
-- Page titles: paper pages currently use the full DOI as the tab title, which is meaningless to search engines; should be `{paper title} | ChemRepro`
-- Open Graph / Twitter Card tags on paper pages so shares show a meaningful preview
-- Internal linking: paper pages don't link to each other or back to the homepage in a way Googlebot can follow efficiently
-- Google Search Console: register and verify the domain, submit the sitemap, monitor indexing status
-
-Priority order (rough): page titles and meta descriptions first (high impact, low effort), then sitemap.xml, then structured data, then canonical tags.
 
 ### Email system: domain addresses
 Now that Resend is in place and chemrepro.org is verified, set up proper domain email addresses:

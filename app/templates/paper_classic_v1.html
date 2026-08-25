@@ -1,6 +1,24 @@
 ﻿{% extends design_base(request) %}
 {% block title %}{{ paper.title | truncate(60, true, '…') }} – Classic – ChemRepro{% endblock %}
 
+{% block global_search %}
+<div class="bg-white py-2">
+  <div class="max-w-2xl mx-auto px-4">
+    <form action="/search" method="get" class="flex gap-2">
+      <input type="text" name="doi"
+        placeholder="Paste a DOI – e.g. 10.1021/jacs.2c00001"
+        class="flex-1 bg-[#f2f7f5] border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/25 focus:border-brand/50 transition-colors placeholder:text-slate-400" />
+      <button type="submit"
+        class="bg-brand text-white rounded-xl px-5 py-3 text-sm font-medium hover:bg-brand-dark transition-colors whitespace-nowrap shadow-sm">
+        Look up paper
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block main_class %}max-w-5xl mx-auto w-full px-4 pt-0 pb-8{% endblock %}
+
 {% block content %}
 
 {# ── Paper header ─────────────────────────────────────────────────── #}
