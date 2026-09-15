@@ -68,8 +68,11 @@ scripts/fix_*.py
 scripts/patch_*.py
 scripts/migrate_*.py
 scripts/seed_*.py
-scripts/backup_*.py
+scripts/backup_setup_oauth.py
 seed_demo.py
+
+# Internal local files
+MISC/
 
 # Scraper data files (separate project)
 scripts/orgsyn_*.json
