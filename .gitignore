@@ -49,6 +49,31 @@ review_*.json
 LEGAL_REVIEW_REDLINE.md
 chemrepro_linkedin_templates.md
 INTERFACE_CHANGELOG.md
+SCRAPER_DATA_SPEC.md
+
+# Internal session and project management files (not for public)
+CLAUDE.md
+TASKS.md
+PUSHLOG.md
+PROJECT_STATE.md
+PRODUCT.md
+EDITING_GUIDE.txt
+start.bat
+
+# Audit snapshots (internal)
+audit/
+
+# One-time data fix, patch, migration, and seed scripts
+scripts/fix_*.py
+scripts/patch_*.py
+scripts/migrate_*.py
+scripts/seed_*.py
+scripts/backup_*.py
+seed_demo.py
+
+# Scraper data files (separate project)
+scripts/orgsyn_*.json
+scripts/*_batch*.json
 
 # Claude Code project config
 .claude/
