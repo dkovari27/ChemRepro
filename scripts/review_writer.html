@@ -1,0 +1,878 @@
+<title>ChemRepro Review Writer</title>
+<style>
+:root{
+  --bg:#f0f3f8;--surface:#fff;--surface-edit:#f7f9fc;
+  --border:#dde3ec;--border2:#c4cdd9;
+  --text:#1c2b3a;--muted:#6b7a8d;--xs:#9aaabb;
+  --brand:#1e3a8a;--brand-lt:#3b82f6;--brand-dim:#eff6ff;
+}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0d1117;--surface:#161b22;--surface-edit:#0d1117;
+  --border:#30363d;--border2:#484f58;
+  --text:#e6edf3;--muted:#8b949e;--xs:#6e7681;--brand-dim:#1c2d52;
+}}
+:root[data-theme="dark"]{--bg:#0d1117;--surface:#161b22;--surface-edit:#0d1117;--border:#30363d;--border2:#484f58;--text:#e6edf3;--muted:#8b949e;--xs:#6e7681;--brand-dim:#1c2d52}
+:root[data-theme="light"]{--bg:#f0f3f8;--surface:#fff;--surface-edit:#f7f9fc;--border:#dde3ec;--border2:#c4cdd9;--text:#1c2b3a;--muted:#6b7a8d;--xs:#9aaabb;--brand-dim:#eff6ff}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter','Segoe UI',system-ui,sans-serif;font-size:13px;line-height:1.6;background:var(--bg);color:var(--text);padding:24px 16px 80px}
+.page{max-width:760px;margin:0 auto}
+
+.site-hd{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:28px}
+.wordmark{font-size:15px;font-weight:700;color:var(--brand);letter-spacing:-.015em}
+.wordmark-sub{font-size:11px;color:var(--muted);margin-top:3px}
+.hd-btns{display:flex;flex-wrap:wrap;gap:6px}
+
+.btn{font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;border-radius:6px;padding:6px 13px;border:1px solid var(--border2);background:var(--surface);color:var(--text);transition:background .12s,opacity .12s;white-space:nowrap}
+.btn:hover{background:var(--surface-edit)}
+.btn-primary{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn-primary:hover{opacity:.86}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:20px}
+.card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border)}
+.paper-meta{flex:1;min-width:0}
+.paper-eyebrow{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--xs);margin-bottom:3px}
+
+.mode-pill{display:flex;border:1px solid var(--border2);border-radius:6px;overflow:hidden;flex-shrink:0}
+.mode-pill button{font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;padding:5px 12px;border:none;background:none;color:var(--muted);transition:background .12s,color .12s}
+.mode-pill button:first-child{border-right:1px solid var(--border2)}
+.mode-pill button.active{background:var(--brand);color:#fff}
+
+.panel-edit{border-left:3px solid var(--brand-lt);background:var(--surface-edit);padding:14px 16px;display:flex;flex-direction:column;gap:14px}
+.sec-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--xs);display:block;margin-bottom:5px}
+
+.star-sel{display:flex;flex-wrap:wrap;gap:5px}
+.stn{font-size:11px;font-weight:600;cursor:pointer;border-radius:999px;padding:3px 11px;border:1.5px solid var(--border2);background:var(--surface);color:var(--text);font-family:inherit;transition:all .12s;white-space:nowrap}
+.stn:hover{border-color:var(--brand-lt)}
+.stn.sel{outline:2px solid var(--brand);outline-offset:2px}
+
+.ctx-wrap{display:none;flex-direction:column;gap:6px;margin-top:8px;padding:10px 12px;background:var(--brand-dim);border-radius:6px}
+.ctx-wrap.show{display:flex}
+.ctx-opt{display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer;color:var(--text)}
+
+.ta{width:100%;font-family:'Inter','Segoe UI',system-ui,sans-serif;font-size:13px;line-height:1.65;color:var(--text);background:var(--surface);border:1px solid var(--border2);border-radius:6px;padding:8px 10px;resize:vertical;outline:none;transition:border-color .15s;min-height:92px}
+.ta:focus{border-color:var(--brand-lt)}
+.inp{width:100%;font-family:'Inter','Segoe UI',system-ui,sans-serif;font-size:13px;color:var(--text);background:var(--surface);border:1px solid var(--border2);border-radius:6px;padding:7px 10px;outline:none;transition:border-color .15s}
+.inp:focus{border-color:var(--brand-lt)}
+.inp-mono{font-family:ui-monospace,'Fira Code',monospace;font-size:12px}
+
+.opt-toggle{display:flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;font-family:inherit;font-size:11px;font-weight:600;color:var(--muted);padding:0}
+.opt-toggle:hover{color:var(--text)}
+.opt-arrow{display:inline-block;transition:transform .15s;font-size:9px}
+.opt-toggle.open .opt-arrow{transform:rotate(90deg)}
+.opt-body{display:none;flex-direction:column;gap:10px;margin-top:10px}
+.opt-body.show{display:flex}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+.panel-pv{padding:14px 16px}
+.star-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;border-radius:999px;padding:3px 11px;border:1.5px solid currentColor;margin-bottom:9px}
+.accent-bar{height:3px;border-radius:2px;margin-bottom:11px;opacity:.65}
+.obs-text{font-size:13px;line-height:1.72;white-space:pre-wrap;word-break:break-word}
+
+.card-foot{padding:8px 16px;border-top:1px solid var(--border);font-family:ui-monospace,'Fira Code',monospace;font-size:10px;color:var(--xs);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+
+.cli-panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:28px;display:flex;flex-direction:column;gap:12px}
+.cli-box{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:9px 12px;font-family:ui-monospace,'Fira Code',monospace;font-size:11px;color:var(--text);line-height:1.75;word-break:break-all;cursor:pointer;user-select:all}
+.cli-box:hover{border-color:var(--brand-lt)}
+.cli-group{display:flex;flex-direction:column;gap:3px}
+.cli-group+.cli-group{margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+.cli-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--brand-lt)}
+
+.empty{text-align:center;padding:48px 16px;color:var(--muted)}
+
+/* image strip */
+.img-strip{display:flex;flex-wrap:wrap;gap:7px;align-items:flex-start;margin-top:6px}
+.tw{position:relative;flex-shrink:0}
+.tw img{width:72px;height:72px;object-fit:cover;display:block;border:1px solid var(--border);border-radius:6px;cursor:zoom-in}
+.tw-del{position:absolute;top:2px;right:2px;width:16px;height:16px;background:rgba(0,0,0,.65);color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:10px;display:none;align-items:center;justify-content:center;padding:0;font-family:inherit;line-height:1}
+.tw:hover .tw-del{display:flex}
+.add-img{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:72px;height:72px;border:1.5px dashed var(--border2);border-radius:6px;cursor:pointer;font-size:18px;color:var(--muted);transition:border-color .15s,color .15s;flex-shrink:0;background:none}
+.add-img:hover{border-color:var(--brand-lt);color:var(--brand-lt)}
+.add-img span{font-size:10px;font-weight:600;font-family:'Inter','Segoe UI',system-ui,sans-serif}
+
+/* lightbox */
+.lb{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:800;align-items:center;justify-content:center}
+.lb.open{display:flex}
+.lb img{max-width:90vw;max-height:88vh;object-fit:contain;border-radius:4px}
+.lb-x{position:fixed;top:14px;right:18px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);color:#fff;padding:5px 14px;border-radius:5px;cursor:pointer;font-family:inherit;font-size:13px}
+
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);font-size:12px;font-weight:600;padding:8px 18px;border-radius:999px;box-shadow:0 4px 20px rgba(0,0,0,.22);z-index:600;pointer-events:none;opacity:0;transition:opacity .25s;white-space:nowrap;font-family:inherit;background:var(--brand);color:#fff}
+#toast.show{opacity:1}
+.err{font-size:11px;color:#dc2626;margin-left:10px}
+
+@media(max-width:520px){.card-head{flex-direction:column;gap:8px}.mode-pill{align-self:flex-start}.g2{grid-template-columns:1fr}}
+</style>
+
+<div class="page">
+
+  <!-- Header -->
+  <div class="site-hd">
+    <div>
+      <div class="wordmark">ChemRepro</div>
+      <div class="wordmark-sub" id="hd-sub">Review writer · 0 reviews</div>
+    </div>
+    <div class="hd-btns">
+      <label style="cursor:pointer">
+        <span class="btn" tabindex="0">Load saved</span>
+        <input type="file" id="imp-file" style="display:none" accept=".json">
+      </label>
+      <button class="btn" onclick="clearAll()">Clear all</button>
+      <button class="btn btn-primary" onclick="exportJSON()">Export JSON &darr;</button>
+    </div>
+  </div>
+
+  <!-- Add new review card -->
+  <div class="card">
+    <div class="card-head">
+      <div class="paper-meta">
+        <div class="paper-eyebrow">New review</div>
+        <div style="font-size:13px;font-weight:600;margin-top:2px">Fill in the fields, then click Add Review</div>
+      </div>
+    </div>
+    <div class="panel-edit">
+
+      <!-- DOI -->
+      <div>
+        <label class="sec-label" for="f-doi">DOI *</label>
+        <input class="inp inp-mono" id="f-doi" placeholder="10.1021/jacs.2c00001" autocomplete="off" spellcheck="false">
+      </div>
+
+      <!-- Outcome -->
+      <div>
+        <span class="sec-label">Outcome *</span>
+        <div class="star-sel" id="f-star-sel">
+          <button class="stn" onclick="fSelStar(5)">5: Major extension</button>
+          <button class="stn" onclick="fSelStar(4)">4: Minor extension</button>
+          <button class="stn" onclick="fSelStar(3)">3: Reproduced</button>
+          <button class="stn" onclick="fSelStar(2)">2: Deviation</button>
+          <button class="stn" onclick="fSelStar(1)">1: Did not work</button>
+          <button class="stn" onclick="fSelStar(null)">?: Extension failed / Inconclusive</button>
+        </div>
+
+        <!-- Context for null star -->
+        <div class="ctx-wrap" id="f-ctx-null">
+          <span class="sec-label" style="margin-bottom:4px">What happened? *</span>
+          <label class="ctx-opt"><input type="radio" name="f-ctx" value="inconclusive"> Inconclusive (outcome unknown or ambiguous)</label>
+          <label class="ctx-opt"><input type="radio" name="f-ctx" value="extension_failed"> Extension failed (extension attempted, did not work)</label>
+        </div>
+
+        <!-- Context for star = 1 -->
+        <div class="ctx-wrap" id="f-ctx-1">
+          <span class="sec-label" style="margin-bottom:4px">Failure context (optional)</span>
+          <label class="ctx-opt"><input type="radio" name="f-ctx1" value="" checked> Not specified</label>
+          <label class="ctx-opt"><input type="radio" name="f-ctx1" value="original_tested"> Original procedure was tested</label>
+          <label class="ctx-opt"><input type="radio" name="f-ctx1" value="extension_only"> Extension only (original not tested separately)</label>
+        </div>
+      </div>
+
+      <!-- Observation -->
+      <div>
+        <label class="sec-label" for="f-obs">Observation</label>
+        <textarea class="ta" id="f-obs" rows="5" placeholder="Describe the conditions, what was attempted, and the outcome..."></textarea>
+      </div>
+
+      <!-- Images -->
+      <div>
+        <span class="sec-label">Images</span>
+        <div class="img-strip" id="f-img-strip">
+          <label class="add-img" title="Add image">
+            <span style="font-size:20px">+</span>
+            <span>Add image</span>
+            <input type="file" accept="image/*" multiple style="display:none" onchange="fAddImages(this)">
+          </label>
+        </div>
+      </div>
+
+      <!-- Optional fields -->
+      <div>
+        <button class="opt-toggle" id="f-opt-btn" onclick="toggleOpt('f-opt-btn','f-opt-body')">
+          <span class="opt-arrow">&#9658;</span> Optional fields
+        </button>
+        <div class="opt-body" id="f-opt-body">
+          <div class="g2">
+            <div>
+              <label class="sec-label" for="f-profile">Reviewer profile *</label>
+              <input class="inp inp-mono" id="f-profile" placeholder="e.g. Lab-Berlin or 0009-0007-xxxx">
+            </div>
+            <div>
+              <label class="sec-label" for="f-nickname">Reviewer nickname</label>
+              <input class="inp" id="f-nickname" placeholder="Display name override">
+            </div>
+            <div>
+              <label class="sec-label" for="f-citing">Citing author</label>
+              <input class="inp" id="f-citing" placeholder="Author name">
+            </div>
+            <div>
+              <label class="sec-label" for="f-src-doi">Source DOI</label>
+              <input class="inp inp-mono" id="f-src-doi" placeholder="10.xxxx/...">
+            </div>
+          </div>
+          <div>
+            <label class="sec-label" for="f-src-url">Source URL</label>
+            <input class="inp" id="f-src-url" placeholder="https://...">
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center">
+        <button class="btn btn-primary" onclick="addReview()">Add Review</button>
+        <span class="err" id="f-err"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Profile + CLI panel -->
+  <div class="cli-panel">
+    <div>
+      <span class="sec-label">Default reviewer profile (for CLI command)</span>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input class="inp inp-mono" id="default-profile" placeholder="--ai-name MyLab  or  --orcid 0009-0007-xxxx-xxxx" style="flex:1;min-width:200px" oninput="updateCLI()">
+        <button class="btn btn-primary" onclick="exportJSON()">Export JSON &darr;</button>
+        <button class="btn" onclick="showJSON()">Copy / view JSON</button>
+      </div>
+    </div>
+    <div>
+      <span class="sec-label">Command to run after export</span>
+      <div class="cli-box" id="cli-box" title="Click to copy" onclick="copyCLI()">
+        python scripts/import_reviews.py reviews.json --ai-name <em style="opacity:.5">your-profile</em>
+      </div>
+    </div>
+  </div>
+
+  <!-- Review cards -->
+  <div id="cards"></div>
+  <div class="empty" id="empty-msg">
+    <div style="font-size:24px;margin-bottom:8px">&#9997;</div>
+    No reviews yet. Fill in the form above and click Add Review.
+  </div>
+</div>
+
+<div class="lb" id="lb" onclick="if(event.target===this)closeLb()">
+  <button class="lb-x" onclick="closeLb()">&#x2715; Close</button>
+  <img id="lb-img" src="" alt="">
+</div>
+<div id="toast"></div>
+
+<script>
+// ─── Star metadata ────────────────────────────────────────────────────────────
+const SM = {
+  5:{c:'#3b82f6',l:'Major extension'},
+  4:{c:'#0d9488',l:'Minor extension'},
+  3:{c:'#16a34a',l:'Reproduced as published'},
+  2:{c:'#ea580c',l:'Reproduced with deviation'},
+  1:{c:'#dc2626',l:'Did not work'},
+  null:{c:'#94a3b8',l:'Extension failed / Inconclusive'},
+};
+
+// ─── State ───────────────────────────────────────────────────────────────────
+let REVIEWS = [];
+let fStar = undefined; // undefined = unset in form
+let fImages = [];      // images attached to the add form (array of {uri})
+
+// ─── Form: star selection ─────────────────────────────────────────────────────
+function fSelStar(v) {
+  fStar = v;
+  const sel = document.querySelectorAll('#f-star-sel .stn');
+  const vals = [5,4,3,2,1,null];
+  sel.forEach((b,i) => b.classList.toggle('sel', vals[i] === v));
+  document.getElementById('f-ctx-null').classList.toggle('show', v === null);
+  document.getElementById('f-ctx-1').classList.toggle('show', v === 1);
+}
+
+// ─── Optional toggle ──────────────────────────────────────────────────────────
+function toggleOpt(btnId, bodyId) {
+  const btn = document.getElementById(btnId);
+  const body = document.getElementById(bodyId);
+  btn.classList.toggle('open');
+  body.classList.toggle('show');
+}
+
+// ─── Add review ───────────────────────────────────────────────────────────────
+function addReview() {
+  const doi  = document.getElementById('f-doi').value.trim();
+  const err  = document.getElementById('f-err');
+  err.textContent = '';
+
+  if (!doi)            { err.textContent = 'DOI is required.'; return; }
+  if (fStar === undefined) { err.textContent = 'Select an outcome.'; return; }
+
+  let ctx = null;
+  if (fStar === null) {
+    const r = document.querySelector('[name="f-ctx"]:checked');
+    if (!r) { err.textContent = 'Select a failure context.'; return; }
+    ctx = r.value;
+  } else if (fStar === 1) {
+    const r = document.querySelector('[name="f-ctx1"]:checked');
+    ctx = (r && r.value) ? r.value : null;
+  }
+
+  const review = {
+    id: Date.now() + Math.random(),
+    target_doi: doi,
+    nd_star: fStar,
+    nd_failure_context: ctx,
+    reproducibility_observation: document.getElementById('f-obs').value.trim() || null,
+    profile: document.getElementById('f-profile').value.trim() || null,
+    reviewer_nickname: document.getElementById('f-nickname').value.trim() || null,
+    citing_author: document.getElementById('f-citing').value.trim() || null,
+    source_doi: document.getElementById('f-src-doi').value.trim() || null,
+    source_url: document.getElementById('f-src-url').value.trim() || null,
+    images: [...fImages],
+    _mode: 'preview',
+  };
+
+  collectAllEdits(); // capture any in-progress edits before shifting indices
+  REVIEWS.unshift(review);
+  saveState();
+  renderAll();
+  resetForm();
+  toast('Review added');
+}
+
+function resetForm() {
+  ['f-doi','f-obs','f-profile','f-nickname','f-citing','f-src-doi','f-src-url']
+    .forEach(id => document.getElementById(id).value = '');
+  document.querySelectorAll('#f-star-sel .stn').forEach(b => b.classList.remove('sel'));
+  document.querySelectorAll('[name="f-ctx"],[name="f-ctx1"]').forEach(r => r.checked = false);
+  document.querySelector('[name="f-ctx1"][value=""]').checked = true;
+  document.getElementById('f-ctx-null').classList.remove('show');
+  document.getElementById('f-ctx-1').classList.remove('show');
+  fStar = undefined;
+  fImages = [];
+  renderFormImgStrip();
+}
+
+// ─── Collect in-progress edits from any open edit panels ─────────────────────
+function collectEdits(id) {
+  const ep = document.getElementById('ep-' + id);
+  if (!ep) return;
+  const r = REVIEWS.find(r => r.id === id);
+  if (!r) return;
+  const g = (sel) => { const el = ep.querySelector(sel); return el ? el.value.trim() : null; };
+  r.target_doi = g('[data-f="doi"]') || r.target_doi;
+  r.reproducibility_observation = g('[data-f="obs"]') || null;
+  r.profile = g('[data-f="profile"]') || null;
+  r.reviewer_nickname = g('[data-f="nickname"]') || null;
+  r.citing_author = g('[data-f="citing"]') || null;
+  r.source_doi = g('[data-f="src-doi"]') || null;
+  r.source_url = g('[data-f="src-url"]') || null;
+  // context radios
+  const ctxR = ep.querySelector('[name="ectx-'+id+'"]:checked');
+  const ctx1R = ep.querySelector('[name="ectx1-'+id+'"]:checked');
+  if (r.nd_star === null && ctxR) r.nd_failure_context = ctxR.value;
+  else if (r.nd_star === 1 && ctx1R) r.nd_failure_context = ctx1R.value || null;
+  else if (r.nd_star !== null && r.nd_star !== 1) r.nd_failure_context = null;
+}
+
+function collectAllEdits() {
+  REVIEWS.filter(r => r._mode === 'edit').forEach(r => collectEdits(r.id));
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+function renderAll() {
+  const el = document.getElementById('cards');
+  document.getElementById('empty-msg').style.display = REVIEWS.length ? 'none' : 'block';
+  document.getElementById('hd-sub').textContent =
+    'Review writer · ' + REVIEWS.length + ' review' + (REVIEWS.length !== 1 ? 's' : '');
+  el.innerHTML = REVIEWS.map(r => renderCard(r)).join('');
+  updateCLI();
+}
+
+function renderCard(r) {
+  const meta = SM[r.nd_star !== undefined ? r.nd_star : null] || SM[null];
+  const isEdit = r._mode === 'edit';
+  const profChip = r.profile
+    ? `<span style="font-family:ui-monospace,'Fira Code',monospace;font-size:10px;color:var(--brand-lt);margin-left:6px">&#8594;&nbsp;${escH(r.profile)}</span>` : '';
+
+  const headSnippet = r.reproducibility_observation
+    ? `<div style="font-size:12px;color:var(--muted);margin-top:4px;line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;max-height:2.9em">${escH(r.reproducibility_observation)}</div>`
+    : `<div style="font-size:11px;color:var(--xs);margin-top:4px;font-style:italic">No observation text</div>`;
+
+  return `<div class="card" id="card-${r.id}">
+    <div class="card-head">
+      <div class="paper-meta">
+        <div class="paper-eyebrow" style="font-family:ui-monospace,'Fira Code',monospace">${escH(r.target_doi)}${profChip}</div>
+        <div style="margin-top:5px">
+          <span class="star-badge" style="color:${meta.c};border-color:${meta.c};font-size:10px;padding:2px 9px">
+            ${r.nd_star === null ? '?' : r.nd_star}&starf;&ensp;${escH(meta.l)}${r.nd_failure_context ? ', ' + escH(r.nd_failure_context) : ''}
+          </span>
+        </div>
+        ${headSnippet}
+        ${(r.images && r.images.length) ? `<div style="margin-top:4px;font-size:10px;color:var(--muted)">&#128247; ${r.images.length} image${r.images.length!==1?'s':''}</div>` : ''}
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:7px;flex-shrink:0">
+        <div class="mode-pill">
+          <button class="${!isEdit ? 'active' : ''}" onclick="setMode(${r.id},'preview')">Preview</button>
+          <button class="${isEdit ? 'active' : ''}" onclick="setMode(${r.id},'edit')">Edit</button>
+        </div>
+        <button class="btn" style="font-size:10px;padding:4px 10px;color:#dc2626;border-color:#fca5a5" onclick="deleteReview(${r.id})">Remove</button>
+      </div>
+    </div>
+    ${isEdit ? editPanel(r) : previewPanel(r)}
+    <div class="card-foot">
+      <span>${escH(r.target_doi)}</span>
+      ${r.citing_author ? `<span>citing: ${escH(r.citing_author)}</span>` : ''}
+      ${r.source_doi ? `<span>source: ${escH(r.source_doi)}</span>` : ''}
+    </div>
+  </div>`;
+}
+
+function previewPanel(r) {
+  const meta = SM[r.nd_star !== undefined ? r.nd_star : null] || SM[null];
+  return `<div class="panel-pv">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px">
+      <span class="star-badge" style="color:${meta.c};border-color:${meta.c}">
+        ${r.nd_star === null ? '?' : r.nd_star}&starf;&ensp;${escH(meta.l)}
+      </span>
+      ${r.nd_failure_context ? `<span style="font-size:11px;color:var(--muted);font-style:italic">${escH(r.nd_failure_context)}</span>` : ''}
+    </div>
+    <div class="accent-bar" style="background:${meta.c};width:40px"></div>
+    <div class="obs-text">${r.reproducibility_observation ? escH(r.reproducibility_observation) : '<em style="color:var(--muted);font-size:12px">No observation text added.</em>'}</div>
+    ${r.reviewer_nickname ? `<div style="margin-top:10px;font-size:11px;color:var(--muted)">Reviewer: ${escH(r.reviewer_nickname)}</div>` : ''}
+    ${(r.images && r.images.length) ? `<div class="img-strip" style="margin-top:12px">${r.images.map((img,i) => `<div class="tw"><img src="${img.uri}" alt="Image ${i+1}" onclick="openLb('${img.uri}')"></div>`).join('')}</div>` : ''}
+  </div>`;
+}
+
+function editPanel(r) {
+  const id = r.id;
+  const starPills = [5,4,3,2,1,null].map(v => {
+    const lbl = v === null ? '? : Extension failed / Inconclusive' : v + ' : ' + escH(SM[v].l);
+    const sel = r.nd_star === v ? ' sel' : '';
+    return `<button class="stn${sel}" onclick="editStar(${id},${v === null ? 'null' : v})">${lbl}</button>`;
+  }).join('');
+
+  const ctxNullSel = v => r.nd_failure_context === v ? ' checked' : '';
+  const ctx1Sel = v => (r.nd_failure_context || '') === v ? ' checked' : '';
+
+  return `<div class="panel-edit" id="ep-${id}">
+    <div>
+      <label class="sec-label">DOI</label>
+      <input class="inp inp-mono" data-f="doi" value="${escH(r.target_doi)}" oninput="memField(${id},'target_doi',this.value)" spellcheck="false">
+    </div>
+    <div>
+      <span class="sec-label">Outcome</span>
+      <div class="star-sel">${starPills}</div>
+      <div class="ctx-wrap${r.nd_star === null ? ' show' : ''}" id="ectx-null-${id}">
+        <span class="sec-label" style="margin-bottom:2px">What happened? *</span>
+        <label class="ctx-opt"><input type="radio" name="ectx-${id}" value="inconclusive"${ctxNullSel('inconclusive')} onchange="memCtx(${id},this.value)"> Inconclusive</label>
+        <label class="ctx-opt"><input type="radio" name="ectx-${id}" value="extension_failed"${ctxNullSel('extension_failed')} onchange="memCtx(${id},this.value)"> Extension failed</label>
+      </div>
+      <div class="ctx-wrap${r.nd_star === 1 ? ' show' : ''}" id="ectx-1-${id}">
+        <span class="sec-label" style="margin-bottom:2px">Failure context</span>
+        <label class="ctx-opt"><input type="radio" name="ectx1-${id}" value=""${ctx1Sel('')} onchange="memCtx(${id},null)"> Not specified</label>
+        <label class="ctx-opt"><input type="radio" name="ectx1-${id}" value="original_tested"${ctx1Sel('original_tested')} onchange="memCtx(${id},this.value)"> Original tested</label>
+        <label class="ctx-opt"><input type="radio" name="ectx1-${id}" value="extension_only"${ctx1Sel('extension_only')} onchange="memCtx(${id},this.value)"> Extension only</label>
+      </div>
+    </div>
+    <div>
+      <label class="sec-label">Observation</label>
+      <textarea class="ta" data-f="obs" rows="6" oninput="memField(${id},'reproducibility_observation',this.value)">${escH(r.reproducibility_observation || '')}</textarea>
+    </div>
+    <div class="g2">
+      <div>
+        <label class="sec-label">Reviewer profile</label>
+        <input class="inp inp-mono" data-f="profile" value="${escH(r.profile || '')}" oninput="memField(${id},'profile',this.value)">
+      </div>
+      <div>
+        <label class="sec-label">Reviewer nickname</label>
+        <input class="inp" data-f="nickname" value="${escH(r.reviewer_nickname || '')}" oninput="memField(${id},'reviewer_nickname',this.value)">
+      </div>
+      <div>
+        <label class="sec-label">Citing author</label>
+        <input class="inp" data-f="citing" value="${escH(r.citing_author || '')}" oninput="memField(${id},'citing_author',this.value)">
+      </div>
+      <div>
+        <label class="sec-label">Source DOI</label>
+        <input class="inp inp-mono" data-f="src-doi" value="${escH(r.source_doi || '')}" oninput="memField(${id},'source_doi',this.value)" spellcheck="false">
+      </div>
+    </div>
+    <div>
+      <label class="sec-label">Source URL</label>
+      <input class="inp" data-f="src-url" value="${escH(r.source_url || '')}" oninput="memField(${id},'source_url',this.value)" spellcheck="false">
+    </div>
+    <div>
+      <span class="sec-label">Images</span>
+      <div class="img-strip" id="eimg-${id}">
+        ${(r.images||[]).map((img,i) => `<div class="tw"><img src="${img.uri}" alt="" onclick="openLb('${img.uri}')"><button class="tw-del" onclick="removeImg(${id},${i})">&#x2715;</button></div>`).join('')}
+        <label class="add-img" title="Add image">
+          <span style="font-size:20px">+</span>
+          <span>Add image</span>
+          <input type="file" accept="image/*" multiple style="display:none" onchange="addImgToReview(${id},this)">
+        </label>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end">
+      <button class="btn" onclick="setMode(${id},'preview')">Done editing</button>
+    </div>
+  </div>`;
+}
+
+// ─── Card actions ─────────────────────────────────────────────────────────────
+function setMode(id, mode) {
+  collectEdits(id);
+  const r = REVIEWS.find(r => r.id === id);
+  if (r) r._mode = mode;
+  saveState();
+  renderAll();
+}
+
+function editStar(id, v) {
+  collectEdits(id);
+  const r = REVIEWS.find(r => r.id === id);
+  if (!r) return;
+  r.nd_star = v;
+  if (v !== null && v !== 1) r.nd_failure_context = null;
+  saveState();
+  renderAll();
+}
+
+function memField(id, field, value) {
+  const r = REVIEWS.find(r => r.id === id);
+  if (r) r[field] = value.trim() || null;
+  saveState();
+  // no re-render; user edits live in place
+}
+
+function memCtx(id, value) {
+  const r = REVIEWS.find(r => r.id === id);
+  if (r) r.nd_failure_context = value || null;
+  saveState();
+}
+
+function deleteReview(id) {
+  const idx = REVIEWS.findIndex(r => r.id === id);
+  if (idx >= 0) REVIEWS.splice(idx, 1);
+  saveState();
+  renderAll();
+  toast('Review removed');
+}
+
+// ─── Export ───────────────────────────────────────────────────────────────────
+function exportJSON() {
+  if (!REVIEWS.length) { toast('No reviews to export'); return; }
+  const out = buildExportArray();
+
+  const date = new Date().toISOString().slice(0,10);
+  const blob = new Blob([JSON.stringify(out, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'cr_reviews_' + date + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('JSON exported');
+}
+
+// ─── CLI command display ──────────────────────────────────────────────────────
+function updateCLI() {
+  const raw = document.getElementById('default-profile').value.trim();
+  let defaultFlag;
+  if (!raw) {
+    defaultFlag = '--ai-name <em style="opacity:.45">your-profile</em>';
+  } else if (/^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/.test(raw)) {
+    defaultFlag = '--orcid ' + escH(raw);
+  } else {
+    defaultFlag = '--ai-name ' + escH(raw);
+  }
+
+  // Gather per-review profiles
+  const profiles = [...new Set(REVIEWS.map(r => r.profile).filter(Boolean))];
+  const unassigned = REVIEWS.filter(r => !r.profile).length;
+
+  const box = document.getElementById('cli-box');
+  if (!profiles.length) {
+    box.innerHTML = 'python scripts/import_reviews.py cr_reviews_YYYY-MM-DD.json ' + defaultFlag;
+    return;
+  }
+
+  let html = profiles.map(p => {
+    const n = REVIEWS.filter(r => r.profile === p).length;
+    return `<div class="cli-group">
+      <span class="cli-lbl">${escH(p)}: ${n} review${n!==1?'s':''}</span>
+      python scripts/import_reviews.py cr_reviews_YYYY-MM-DD.json --ai-name ${escH(p)}
+    </div>`;
+  }).join('');
+
+  if (unassigned) {
+    html += `<div class="cli-group">
+      <span class="cli-lbl" style="color:var(--muted)">${unassigned} review${unassigned!==1?'s':''} without profile; use default flag below</span>
+      python scripts/import_reviews.py cr_reviews_YYYY-MM-DD.json ${defaultFlag}
+    </div>`;
+  }
+  box.innerHTML = html;
+}
+
+function copyCLI() {
+  const text = document.getElementById('cli-box').innerText.trim();
+  try {
+    navigator.clipboard.writeText(text).then(() => toast('Copied to clipboard'));
+  } catch(e) {
+    toast('Select and copy manually');
+  }
+}
+
+// ─── Persistence ──────────────────────────────────────────────────────────────
+function saveState() {
+  try {
+    localStorage.setItem('crw_reviews', JSON.stringify(REVIEWS));
+    const p = document.getElementById('default-profile');
+    if (p) localStorage.setItem('crw_profile', p.value);
+  } catch(e) {}
+}
+
+function loadState() {
+  try {
+    const r = localStorage.getItem('crw_reviews');
+    if (r) REVIEWS = JSON.parse(r);
+    const p = localStorage.getItem('crw_profile');
+    if (p) document.getElementById('default-profile').value = p;
+  } catch(e) {}
+}
+
+document.getElementById('imp-file').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const fr = new FileReader();
+  fr.onload = function(ev) {
+    try {
+      let data = JSON.parse(ev.target.result);
+      if (!Array.isArray(data)) data = [data];
+      REVIEWS = data.map(r => ({
+        id: Date.now() + Math.random(),
+        target_doi: r.target_doi || r.doi || '',
+        nd_star: r.nd_star !== undefined ? r.nd_star : null,
+        nd_failure_context: r.nd_failure_context || null,
+        reproducibility_observation: r.reproducibility_observation || null,
+        reviewer_nickname: r.reviewer_nickname || null,
+        profile: r.profile || null,
+        citing_author: r.citing_author || null,
+        source_doi: r.source_doi || null,
+        source_url: r.source_url || null,
+        images: r.images || [],
+        _mode: 'preview',
+      }));
+      saveState();
+      renderAll();
+      toast('Loaded ' + REVIEWS.length + ' review' + (REVIEWS.length!==1?'s':''));
+    } catch(ex) {
+      toast('Could not parse file');
+    }
+    this.value = '';
+  };
+  fr.readAsText(file);
+});
+
+function clearAll() {
+  if (!REVIEWS.length) return;
+  if (!confirm('Remove all ' + REVIEWS.length + ' review' + (REVIEWS.length!==1?'s':'') + '?')) return;
+  REVIEWS = [];
+  saveState();
+  renderAll();
+  toast('Cleared');
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function escH(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+// ─── JSON modal ───────────────────────────────────────────────────────────────
+function buildExportArray() {
+  collectAllEdits();
+  return REVIEWS.map(r => {
+    const obj = { target_doi: r.target_doi, nd_star: r.nd_star };
+    if (r.nd_failure_context) obj.nd_failure_context = r.nd_failure_context;
+    if (r.reproducibility_observation) obj.reproducibility_observation = r.reproducibility_observation;
+    if (r.reviewer_nickname) obj.reviewer_nickname = r.reviewer_nickname;
+    if (r.citing_author) obj.citing_author = r.citing_author;
+    if (r.source_doi) obj.source_doi = r.source_doi;
+    if (r.source_url) obj.source_url = r.source_url;
+    if (r.images && r.images.length) obj.images = r.images;
+    return obj;
+  });
+}
+
+function showJSON() {
+  if (!REVIEWS.length) { toast('No reviews to export'); return; }
+  const json = JSON.stringify(buildExportArray(), null, 2);
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:900;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;width:100%;max-width:680px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border)">
+        <span style="font-size:13px;font-weight:700">JSON output (${REVIEWS.length} review${REVIEWS.length!==1?'s':''})</span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-primary" id="json-copy-btn" onclick="copyJSONText()">Copy all</button>
+          <button class="btn" onclick="this.closest('[style*=fixed]').remove()">Close</button>
+        </div>
+      </div>
+      <textarea id="json-modal-ta" readonly style="flex:1;font-family:ui-monospace,'Fira Code',monospace;font-size:11px;line-height:1.65;padding:14px;border:none;outline:none;resize:none;background:var(--bg);color:var(--text);overflow-y:auto">${escH(json)}</textarea>
+      <div style="padding:8px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)">Save this text as <code style="font-family:ui-monospace;background:var(--bg);padding:1px 5px;border-radius:3px">cr_reviews_YYYY-MM-DD.json</code> then run the CLI command above.</div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
+function copyJSONText() {
+  const ta = document.getElementById('json-modal-ta');
+  if (!ta) return;
+  try {
+    navigator.clipboard.writeText(ta.value).then(() => toast('JSON copied to clipboard'));
+  } catch(e) {
+    ta.select();
+    toast('Select all and copy (Ctrl+A, Ctrl+C)');
+  }
+}
+
+// ─── Image handling ───────────────────────────────────────────────────────────
+function openLb(uri) {
+  document.getElementById('lb-img').src = uri;
+  document.getElementById('lb').classList.add('open');
+}
+function closeLb() {
+  document.getElementById('lb').classList.remove('open');
+  document.getElementById('lb-img').src = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLb(); });
+
+function readFilesAsURI(files, cb) {
+  let remaining = files.length;
+  const uris = [];
+  Array.from(files).forEach((file, i) => {
+    const fr = new FileReader();
+    fr.onload = ev => {
+      uris[i] = { uri: ev.target.result };
+      if (--remaining === 0) cb(uris);
+    };
+    fr.readAsDataURL(file);
+  });
+}
+
+// Form image strip
+function fAddImages(input) {
+  if (!input.files.length) return;
+  readFilesAsURI(input.files, uris => {
+    fImages.push(...uris);
+    renderFormImgStrip();
+    input.value = '';
+  });
+}
+
+function renderFormImgStrip() {
+  const strip = document.getElementById('f-img-strip');
+  if (!strip) return;
+  const thumbs = fImages.map((img, i) =>
+    `<div class="tw">
+      <img src="${img.uri}" alt="" onclick="openLb('${img.uri.replace(/'/g,"\\'")}')">
+      <button class="tw-del" onclick="fRemoveImg(${i})">&#x2715;</button>
+    </div>`
+  ).join('');
+  strip.innerHTML = thumbs + `<label class="add-img" title="Add image">
+    <span style="font-size:20px">+</span>
+    <span>Add image</span>
+    <input type="file" accept="image/*" multiple style="display:none" onchange="fAddImages(this)">
+  </label>`;
+}
+
+function fRemoveImg(i) {
+  fImages.splice(i, 1);
+  renderFormImgStrip();
+}
+
+// Card image strip (edit mode) - updates DOM in place, no full re-render
+function addImgToReview(id, input) {
+  if (!input.files.length) return;
+  const r = REVIEWS.find(r => r.id === id);
+  if (!r) return;
+  readFilesAsURI(input.files, uris => {
+    if (!r.images) r.images = [];
+    r.images.push(...uris);
+    saveState();
+    renderCardImgStrip(id);
+    input.value = '';
+  });
+}
+
+function removeImg(id, idx) {
+  const r = REVIEWS.find(r => r.id === id);
+  if (!r || !r.images) return;
+  r.images.splice(idx, 1);
+  saveState();
+  renderCardImgStrip(id);
+}
+
+function renderCardImgStrip(id) {
+  const strip = document.getElementById('eimg-' + id);
+  if (!strip) return;
+  const r = REVIEWS.find(r => r.id === id);
+  if (!r) return;
+  const thumbs = (r.images || []).map((img, i) =>
+    `<div class="tw">
+      <img src="${img.uri}" alt="" onclick="openLb('${img.uri.replace(/'/g,"\\'")}')">
+      <button class="tw-del" onclick="removeImg(${id},${i})">&#x2715;</button>
+    </div>`
+  ).join('');
+  strip.innerHTML = thumbs + `<label class="add-img" title="Add image">
+    <span style="font-size:20px">+</span>
+    <span>Add image</span>
+    <input type="file" accept="image/*" multiple style="display:none" onchange="addImgToReview(${id},this)">
+  </label>`;
+}
+
+// ─── Paste-image into observation textarea ────────────────────────────────────
+document.addEventListener('paste', e => {
+  // Only act when focused on an observation textarea
+  const isFormObs  = e.target.id === 'f-obs';
+  const isCardObs  = e.target.matches('textarea[data-f="obs"]');
+  if (!isFormObs && !isCardObs) return;
+
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  let imgItem = null;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) { imgItem = item; break; }
+  }
+  if (!imgItem) return; // no image in clipboard; let normal text paste through
+
+  e.preventDefault();
+  const blob = imgItem.getAsFile();
+  const fr = new FileReader();
+
+  if (isFormObs) {
+    fr.onload = ev => {
+      fImages.push({ uri: ev.target.result });
+      renderFormImgStrip();
+      toast('Image pasted');
+    };
+  } else {
+    const ep = e.target.closest('[id^="ep-"]');
+    if (!ep) return;
+    const rid = parseFloat(ep.id.slice(3));
+    const r = REVIEWS.find(r => r.id === rid);
+    if (!r) return;
+    fr.onload = ev => {
+      if (!r.images) r.images = [];
+      r.images.push({ uri: ev.target.result });
+      saveState();
+      renderCardImgStrip(rid);
+      toast('Image pasted');
+    };
+  }
+  fr.readAsDataURL(blob);
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+loadState();
+renderAll();
+document.getElementById('default-profile').addEventListener('input', () => { saveState(); updateCLI(); });
+</script>

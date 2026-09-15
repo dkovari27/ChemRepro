@@ -40,3 +40,19 @@ server_out.log
 dist/
 build/
 *.egg-info/
+
+# Review JSON export files (local working files, not for the repo)
+cr_reviews_*.json
+review_*.json
+
+# Internal / private docs
+LEGAL_REVIEW_REDLINE.md
+chemrepro_linkedin_templates.md
+INTERFACE_CHANGELOG.md
+
+# Claude Code project config
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
