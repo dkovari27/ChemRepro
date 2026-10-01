@@ -36,7 +36,7 @@
 
 <!-- ── Search ────────────────────────────────────────────────────── -->
 <form action="/search" method="get" class="flex gap-2 max-w-2xl mx-auto mb-10">
-  <input type="text" name="doi" placeholder="Paste a DOI – e.g. 10.1021/jacs.2c00001"
+  <input type="text" name="doi" placeholder="Paste a DOI, paper link or title"
     class="flex-1 bg-[#f2f7f5] border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/25 focus:border-brand/50 transition-colors placeholder:text-slate-400"
     autofocus />
   <button type="submit"
@@ -44,6 +44,28 @@
     Look up paper
   </button>
 </form>
+
+{% if search_results %}
+<div class="max-w-2xl mx-auto mb-10">
+  <p class="text-sm text-slate-500 mb-3">
+    No exact match for &ldquo;{{ search_query }}&rdquo;. Did you mean one of these?
+  </p>
+  <div class="flex flex-col gap-2">
+    {% for r in search_results %}
+    <a href="/search?doi={{ r.doi | urlencode }}"
+       class="block bg-white border border-slate-200 rounded-xl px-4 py-3 hover:border-brand/50 transition-colors">
+      <p class="font-semibold text-[#111c17] text-sm leading-snug mb-0.5">{{ r.title }}</p>
+      <p class="text-xs text-slate-500 truncate">{{ r.authors[:4] | join(', ') }}{% if r.authors | length > 4 %}, et al.{% endif %}</p>
+      <p class="text-[11px] text-slate-400 truncate">
+        {{ r.journal or "–" }}{% if r.year %} · {{ r.year }}{% endif %}
+        <span class="font-mono ml-1">{{ r.doi }}</span>
+        {% if r.in_db %}<span class="ml-1 text-brand">on ChemRepro</span>{% endif %}
+      </p>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
 
 <!-- ── Paper card macro ──────────────────────────────────────────── -->
 {% macro paper_card(entry) %}
@@ -179,7 +201,7 @@
   {% endif %}
 </div>
 {% endif %}
-{% elif not my_papers %}
+{% elif not my_papers and not search_results and not error %}
 <div class="text-center text-slate-400 mt-16 text-sm">
   No papers rated yet. Be the first – look up a DOI above.
 </div>

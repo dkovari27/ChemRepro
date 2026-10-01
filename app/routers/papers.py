@@ -1,4 +1,5 @@
-﻿import json
+import json
+import re
 from datetime import datetime, timezone
 
 from app.utils.design import collect_doi_refs, index_tpl, paper_classic_tpl, paper_tpl, register_globals, render_md_refs
@@ -30,7 +31,10 @@ from app.models.rating import Rating
 from app.models.user import User
 from app.routers.auth import DEV_FAKE_USERS
 from app.services.author_notify import notify_author_if_possible
-from app.services.crossref import fetch_paper_metadata, is_valid_doi, normalise_doi, resolve_url_to_doi
+from app.services.crossref import (
+    fetch_paper_metadata, has_doi, is_url, is_valid_doi, normalise_doi,
+    resolve_url_to_doi, search_by_title,
+)
 
 router = APIRouter(tags=["papers"])
 templates = Jinja2Templates(directory="app/templates")
@@ -271,6 +275,44 @@ async def design_archive_standard(request: Request, db: Session = Depends(get_db
     })
 
 
+def _norm_title(s: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", s.lower()).strip()
+
+
+async def _find_by_title(query: str, db: Session) -> tuple[str | None, list[dict]]:
+    """Look up a paper by title. Returns (doi, []) on a single exact match,
+    otherwise (None, candidates) with papers already on ChemRepro listed first."""
+    norm = _norm_title(query)
+    if len(norm) < 4:
+        return None, []
+
+    like = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    local = db.query(Paper).filter(Paper.title.ilike(f"%{like}%", escape="\\")).limit(20).all()
+    exact = [p for p in local if _norm_title(p.title) == norm]
+    if len(exact) == 1:
+        return exact[0].doi, []
+
+    candidates = [
+        {"doi": p.doi, "title": p.title, "authors": json.loads(p.authors) if p.authors else [],
+         "journal": p.journal, "year": p.year, "in_db": True}
+        for p in (exact or local)[:5]
+    ]
+    seen = {c["doi"].lower() for c in candidates}
+    try:
+        remote = await search_by_title(query, rows=8)
+    except Exception:  # noqa: BLE001
+        remote = []
+    for r in remote:
+        if r["doi"].lower() not in seen:
+            candidates.append({**r, "in_db": False})
+            seen.add(r["doi"].lower())
+
+    exact_all = [c for c in candidates if _norm_title(c["title"]) == norm]
+    if len(exact_all) == 1:
+        return exact_all[0]["doi"], []
+    return None, candidates[:8]
+
+
 @router.get("/search", response_class=HTMLResponse)
 async def search(request: Request, doi: str = "", db: Session = Depends(get_db)):
     if not doi:
@@ -279,14 +321,14 @@ async def search(request: Request, doi: str = "", db: Session = Depends(get_db))
     if doi.strip().lower() == "demo":
         return RedirectResponse("/paper/demo", status_code=303)
 
-    # Some publisher URLs (PubMed, ScienceDirect) need an async API call to resolve to DOI
-    resolved = await resolve_url_to_doi(doi)
-    doi = resolved if resolved else normalise_doi(doi)
+    query = doi.strip()
 
-    if not is_valid_doi(doi):
+    def _search_page(error: str | None = None, results: list[dict] | None = None):
         return templates.TemplateResponse("index_nd.html", {
             "request": request,
-            "error": "That doesn't look like a valid DOI. Try: 10.xxxx/...",
+            "error": error,
+            "search_results": results or [],
+            "search_query": query,
             "my_papers": [],
             "community_papers": [],
             "user_name": request.session.get("user_name"),
@@ -297,22 +339,30 @@ async def search(request: Request, doi: str = "", db: Session = Depends(get_db))
             **_nd_scoring_context(),
         })
 
+    # Some publisher URLs (PubMed, ScienceDirect) need an async API call to resolve to DOI
+    resolved = await resolve_url_to_doi(query)
+
+    if resolved or has_doi(query):
+        doi = resolved if resolved else normalise_doi(query)
+    elif is_url(query):
+        return _search_page(
+            "We couldn't find a DOI in that link. Try pasting the DOI or the paper title instead."
+        )
+    else:
+        doi, results = await _find_by_title(query, db)
+        if not doi:
+            if not results:
+                return _search_page(f"No paper found for “{query}”. Try the DOI or the exact title.")
+            return _search_page(results=results)
+
+    if not is_valid_doi(doi):
+        return _search_page("That doesn't look like a valid DOI. Try: 10.xxxx/...")
+
     paper = db.get(Paper, doi)
     if not paper:
         meta = await fetch_paper_metadata(doi)
         if not meta:
-            return templates.TemplateResponse("index_nd.html", {
-                "request": request,
-                "error": f"No paper found for DOI: {doi}",
-                "my_papers": [],
-                "community_papers": [],
-                "user_name": request.session.get("user_name"),
-                "orcid_id": request.session.get("orcid_id"),
-                "site_version": "new_design",
-                "switch_urls": {"standard": "/design-archive/standard/", "classic": "/classic/", "new_design": "/nd/"},
-                **_dev_context(),
-                **_nd_scoring_context(),
-            })
+            return _search_page(f"No paper found for DOI: {doi}")
         paper = Paper(**meta)
         db.add(paper)
         db.commit()

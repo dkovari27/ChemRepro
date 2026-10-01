@@ -35,6 +35,7 @@ from app.routers import admin as admin_router
 from app.routers import images as images_router
 from app.routers import library as library_router
 from app.routers import pledge as pledge_router
+from app.routers import citation as citation_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -206,6 +207,7 @@ app.include_router(admin_router.router)
 app.include_router(images_router.router)
 app.include_router(library_router.router)
 app.include_router(pledge_router.router)
+app.include_router(citation_router.router)
 
 _templates = Jinja2Templates(directory="app/templates")
 register_globals(_templates)

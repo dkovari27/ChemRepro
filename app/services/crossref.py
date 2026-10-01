@@ -1,5 +1,7 @@
 import json
 import re
+from urllib.parse import unquote
+
 import httpx
 
 DOI_PATTERN = re.compile(r"10\.\d{4,}/\S+")
@@ -44,12 +46,28 @@ def normalise_doi(raw: str) -> str:
     # doi.org links, doi:/DOI: prefixes, pasted article pages, etc.)
     # Covers: ACS, Wiley, Springer, Thieme, Taylor & Francis, Science, PNAS, Elsevier
     # direct doi links, chemrxiv, etc.
+    from_url = bool(re.match(r'^https?://', s, re.IGNORECASE))
+    if from_url:
+        # Publisher links carry tracking/query noise (?ref=pdf, #sec1) and may
+        # percent-encode the DOI slash; a bare pasted DOI is left untouched.
+        s = unquote(path_only)
     match = re.search(r'10\.\d{4,}/\S+', s)
     if match:
         doi = match.group(0)
+        if from_url and '/pdf' in s.lower() and doi.lower().endswith('.pdf'):
+            doi = doi[:-4]
     else:
         doi = s
     return doi.rstrip(".,;)")
+
+
+def has_doi(query: str) -> bool:
+    """True if the query contains something DOI-shaped."""
+    return bool(re.search(r'10\.\d{4,}/\S+', normalise_doi(query)))
+
+
+def is_url(query: str) -> bool:
+    return bool(re.match(r'^(https?://|www\.)', query.strip(), re.IGNORECASE))
 
 
 def is_valid_doi(doi: str) -> bool:
