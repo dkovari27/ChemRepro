@@ -145,9 +145,17 @@ async def callback(
     return _post_login_redirect(user, login_next)
 
 
+def _guest_disabled_redirect(next_url: str) -> RedirectResponse:
+    """Guest accounts are a local-development convenience only. In production
+    every account is ORCID or LinkedIn verified, so send visitors to log in."""
+    return RedirectResponse(f"/auth/choose?next={quote(next_url, safe='/')}", status_code=303)
+
+
 @router.get("/guest-setup")
 async def guest_setup_page(request: Request):
     next_url = _safe_next(request.query_params.get("next", "/"))
+    if settings.ORCID_ENV != "sandbox":
+        return _guest_disabled_redirect(next_url)
     return templates.TemplateResponse("guest_setup.html", {
         "request": request,
         "next_url": next_url,
@@ -162,8 +170,10 @@ async def guest_setup(
     next_url: str = Form(default="/"),
     reconnect_id: str = Form(default=""),
 ):
-    display_name = display_name.strip()[:80]
     next_url = _safe_next(next_url)
+    if settings.ORCID_ENV != "sandbox":
+        return _guest_disabled_redirect(next_url)
+    display_name = display_name.strip()[:80]
     if not display_name:
         return RedirectResponse(f"/auth/guest-setup?next={quote(next_url, safe='/')}", status_code=303)
 
