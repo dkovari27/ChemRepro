@@ -74,6 +74,16 @@ def is_valid_doi(doi: str) -> bool:
     return bool(DOI_PATTERN.fullmatch(doi))
 
 
+# Characters allowed in a DOI we are willing to store and print into pages.
+# Excludes quotes, backslash, whitespace, angle brackets, %, &, ?, #, ` and braces, so a stored DOI
+# can never break out of an HTML attribute or an inline JS string.
+_SAFE_DOI = re.compile(r"10\.\d{4,9}/[A-Za-z0-9._;()/:+,~!*=@$\[\]-]{1,200}")
+
+
+def is_safe_doi(doi: str) -> bool:
+    return bool(_SAFE_DOI.fullmatch(doi or ""))
+
+
 def looks_like_doi(query: str) -> bool:
     """Return True if the query looks like a DOI rather than a title."""
     q = normalise_doi(query)
@@ -140,8 +150,11 @@ async def _fetch_europepmc_abstract(doi: str) -> str | None:
 async def fetch_paper_metadata(doi: str) -> dict | None:
     """
     Query CrossRef for paper metadata. Returns a dict ready for Paper model
-    or None if not found.
+    or None if not found. DOIs with unsafe characters are treated as not found,
+    so no Paper row is ever created for them.
     """
+    if not is_safe_doi(doi):
+        return None
     url = CROSSREF_URL.format(doi=doi)
     async with httpx.AsyncClient(timeout=10.0) as client:
         resp = await client.get(url, headers={"User-Agent": "ChemRepro/1.0 (mailto:admin@chemrepro.io)"})

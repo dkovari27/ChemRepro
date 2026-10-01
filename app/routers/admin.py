@@ -23,6 +23,7 @@ from app.models.paper import Paper
 from app.models.paper_subscription import PaperSubscription
 from app.models.rating import Rating
 from app.models.report import Report
+from app.models.saved_paper import SavedPaper
 from app.models.user import User
 from app.models.user_follow import UserFollow
 
@@ -485,6 +486,7 @@ async def admin_delete_paper(doi: str, request: Request, db: Session = Depends(g
     db.query(Comment).filter(Comment.doi == doi).delete()
     db.query(Rating).filter(Rating.doi == doi).delete()
     db.query(PaperSubscription).filter(PaperSubscription.doi == doi).delete()
+    db.query(SavedPaper).filter(SavedPaper.doi == doi).delete()
     db.delete(paper)
     db.commit()
     return JSONResponse({"ok": True})

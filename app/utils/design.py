@@ -1,4 +1,5 @@
 import json
+from html import escape as html_escape
 import re
 import bleach
 import markdown as _md_lib
@@ -126,10 +127,11 @@ def _paper_mini_card(paper) -> str:
     meta = " &middot; ".join(meta_parts)
 
     title_esc = (paper.title or paper.doi).replace("<", "&lt;").replace(">", "&gt;")
-    doi_esc = paper.doi.replace("<", "&lt;").replace(">", "&gt;")
+    doi_esc = html_escape(paper.doi, quote=True)
+    doi_href = html_escape(paper.doi, quote=True)
 
     return (
-        f'<a href="/paper/{paper.doi}" class="paper-ref-card block no-underline group '
+        f'<a href="/paper/{doi_href}" class="paper-ref-card block no-underline group '
         f'bg-white border border-slate-200 rounded-xl px-4 py-2.5 mt-2 '
         f'hover:border-brand hover:shadow-sm transition-all">'
         f'<div class="flex items-start gap-2.5">'

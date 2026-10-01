@@ -44,3 +44,15 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+if settings.ORCID_ENV == "production":
+    _insecure = [
+        name for name, value, default in (
+            ("SECRET_KEY", settings.SECRET_KEY, "dev-secret-change-in-production"),
+            ("ADMIN_SECRET_TOKEN", settings.ADMIN_SECRET_TOKEN, "change-this-before-production"),
+        ) if not value or value == default
+    ]
+    if _insecure:
+        raise RuntimeError(
+            "Refusing to start in production with default or empty secrets: " + ", ".join(_insecure)
+        )

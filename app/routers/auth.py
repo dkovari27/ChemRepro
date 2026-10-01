@@ -1,7 +1,7 @@
 import secrets
 import uuid
 from datetime import datetime, timezone
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 import httpx
 from app.utils.design import register_globals
@@ -27,8 +27,9 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 def _post_login_redirect(user: User, next_url: str) -> RedirectResponse:
     """Central post-login redirect: intercepts for pledge if not yet accepted."""
+    next_url = _safe_next(next_url)
     if not getattr(user, "pledge_accepted", False):
-        return RedirectResponse(f"/pledge?next={next_url}", status_code=303)
+        return RedirectResponse(f"/pledge?next={quote(next_url, safe='/')}", status_code=303)
     return RedirectResponse(next_url, status_code=303)
 
 DEV_FAKE_USERS = [
@@ -42,7 +43,7 @@ DEV_FAKE_USERS = [
 
 def _safe_next(url: str) -> str:
     """Allow only relative paths to prevent open-redirect abuse."""
-    if url and url.startswith("/") and not url.startswith("//"):
+    if url and url.startswith("/") and not url.startswith("//") and not url.startswith("/\\"):
         return url
     return "/"
 
@@ -146,7 +147,7 @@ async def callback(
 
 @router.get("/guest-setup")
 async def guest_setup_page(request: Request):
-    next_url = request.query_params.get("next", "/")
+    next_url = _safe_next(request.query_params.get("next", "/"))
     return templates.TemplateResponse("guest_setup.html", {
         "request": request,
         "next_url": next_url,
@@ -162,8 +163,9 @@ async def guest_setup(
     reconnect_id: str = Form(default=""),
 ):
     display_name = display_name.strip()[:80]
+    next_url = _safe_next(next_url)
     if not display_name:
-        return RedirectResponse(f"/auth/guest-setup?next={next_url}", status_code=303)
+        return RedirectResponse(f"/auth/guest-setup?next={quote(next_url, safe='/')}", status_code=303)
 
     user = None
 
@@ -171,15 +173,8 @@ async def guest_setup(
     if reconnect_id.startswith("local:"):
         user = db.get(User, reconnect_id)
 
-    # ── Layer 2: name-based reconnect (fallback, unique-name only) ────────
-    if user is None:
-        matches = (
-            db.query(User)
-            .filter(User.orcid_id.like("local:%"), User.name == display_name)
-            .all()
-        )
-        if len(matches) == 1:
-            user = matches[0]
+    # No name-based fallback: display names are public (shown on reviews), so
+    # matching on them would let anyone log in as an existing guest.
 
     # ── Layer 3: create new guest ─────────────────────────────────────────
     if user is None:
