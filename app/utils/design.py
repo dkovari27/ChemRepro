@@ -220,3 +220,5 @@ def register_globals(templates_instance) -> None:
     templates_instance.env.filters["render_md"] = render_md
     templates_instance.env.filters["render_md_refs"] = render_md_refs
     templates_instance.env.filters["from_json"] = _from_json
+    from app.utils.seo import register_seo_globals
+    register_seo_globals(templates_instance)

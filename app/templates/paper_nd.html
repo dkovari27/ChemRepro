@@ -1,6 +1,20 @@
 {% extends design_base(request) %}
 {% block title %}{{ paper.title | truncate(60, true, '…') }} – ChemRepro{% endblock %}
 
+{% set _paper_url = site_base(request) ~ '/paper/' ~ paper.doi %}
+{% set _meta_desc %}{% if nd_scores.nd_rating_count > 0 %}{{ nd_scores.nd_rating_count }} peer review{{ 's' if nd_scores.nd_rating_count != 1 }} of the reproducibility of "{{ paper.title | truncate(110, true, '…') }}"{% if paper.journal %} ({{ paper.journal }}{% if paper.year %}, {{ paper.year }}{% endif %}){% endif %}{% if nd_scores.nd_avg_star %}. Average rating {{ nd_scores.nd_avg_star }}/5{% endif %}. See what chemists experienced in the lab.{% else %}Did this synthesis work? Peer reproducibility reviews for "{{ paper.title | truncate(120, true, '…') }}" on ChemRepro.{% endif %}{% endset %}
+{% block meta_description %}{{ _meta_desc | striptags | trim | forceescape }}{% endblock %}
+{% block robots %}{{ 'index,follow' if nd_scores.nd_rating_count > 0 and not request.url.query else 'noindex,follow' }}{% endblock %}
+{% block canonical %}{{ _paper_url }}{% endblock %}
+{% block og_type %}article{% endblock %}
+{% block og_title %}{{ paper.title | truncate(90, true, '…') }} | ChemRepro reviews{% endblock %}
+
+{% block head_extra %}
+{% if seo_jsonld %}
+<script type="application/ld+json">{{ seo_jsonld | tojson }}</script>
+{% endif %}
+{% endblock %}
+
 {% block global_search %}
 <div class="bg-white py-2">
   <div class="max-w-2xl mx-auto px-4">

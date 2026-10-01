@@ -1,6 +1,26 @@
 {% extends design_base(request) %}
 {% block title %}ChemRepro – Peer Ratings for Chemistry Papers{% endblock %}
 
+{% block meta_description %}Did that synthesis actually work? ChemRepro collects peer ratings from verified synthetic chemists on whether published reactions reproduce in the lab. Look up any paper by DOI, link or title.{% endblock %}
+
+{% block head_extra %}
+<script type="application/ld+json">{{ {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "ChemRepro",
+  "url": site_base(request) ~ "/",
+  "description": "Peer ratings from synthetic chemists on the reproducibility of published chemistry."
+} | tojson }}</script>
+<script type="application/ld+json">{{ {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "ChemRepro",
+  "url": site_base(request) ~ "/",
+  "logo": site_base(request) ~ "/static/logo.png",
+  "sameAs": ["https://www.linkedin.com/company/chemrepro/"]
+} | tojson }}</script>
+{% endblock %}
+
 {% block content %}
 
 <!-- Dev login banner -->

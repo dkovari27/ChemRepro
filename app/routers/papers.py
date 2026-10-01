@@ -2,6 +2,7 @@ import json
 import re
 from datetime import datetime, timezone
 
+from app.utils.seo import paper_jsonld
 from app.utils.design import collect_doi_refs, index_tpl, paper_classic_tpl, paper_tpl, register_globals, render_md_refs
 import math
 
@@ -1982,6 +1983,7 @@ async def nd_paper_page(doi: str, request: Request, db: Session = Depends(get_db
         "request": request,
         "paper": paper,
         "authors": authors,
+        "seo_jsonld": paper_jsonld(request, paper, authors, nd_scores),
         "nd_scores": nd_scores,
         "reviews": reviews,
         "standard_reviews": standard_reviews,
