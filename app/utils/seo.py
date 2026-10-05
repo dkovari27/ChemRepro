@@ -53,7 +53,7 @@ def register_seo_globals(templates_instance) -> None:
 
 
 def paper_jsonld(request: Request, paper, authors: list, scores: dict) -> dict | None:
-    """schema.org ScholarlyArticle (+ AggregateRating) for a reviewed paper.
+    """schema.org ScholarlyArticle for a reviewed paper (no rating markup).
 
     Returns None for papers with no reviews, which are served noindex.
     Individual reviews are deliberately left out of the markup.
@@ -75,13 +75,7 @@ def paper_jsonld(request: Request, paper, authors: list, scores: dict) -> dict |
         ld["datePublished"] = str(paper.year)
     if paper.journal:
         ld["isPartOf"] = {"@type": "Periodical", "name": paper.journal}
-    scored = sum(c for star, c in scores.get("nd_star_dist", {}).items() if star is not None)
-    if scores.get("nd_avg_star") and scored:
-        ld["aggregateRating"] = {
-            "@type": "AggregateRating",
-            "ratingValue": scores["nd_avg_star"],
-            "ratingCount": scored,
-            "bestRating": 5,
-            "worstRating": 1,
-        }
+    # No aggregateRating: Google's review snippets only accept a fixed list of
+    # item types (product, book, movie, ...), and a ScholarlyArticle parent is
+    # flagged "Invalid object type for field '<parent_node>'".
     return ld
