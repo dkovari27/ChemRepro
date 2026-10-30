@@ -13,7 +13,7 @@
     </div>
 
     <p class="text-sm text-slate-500 mb-6">
-      Read each statement and click <strong>I agree</strong> to advance. All five must be accepted before you can use ChemRepro.
+      Read each statement and click <strong>I agree</strong> to advance. All {{ total }} must be accepted before you can use ChemRepro.
     </p>
 
     <form id="pledge-form" action="/pledge/accept" method="post">
@@ -37,7 +37,7 @@
             <!-- Statement text -->
             <div class="flex-1 min-w-0">
               <p class="text-sm text-slate-700 leading-relaxed">{{ s.text }}</p>
-              {% if s.id == 5 %}
+              {% if s.id == 6 %}
               <p class="text-xs text-slate-400 mt-1">
                 <a href="/privacy" target="_blank" class="underline hover:text-brand">Privacy Policy</a>
                 &nbsp;·&nbsp;
@@ -88,7 +88,7 @@
       ChemRepro is built on trust. Reproducibility data is only valuable if it reflects honest, first-hand experience.
     </p>
     <p class="text-sm text-slate-500 mb-4 leading-relaxed">
-      We ask every new member to affirm five short commitments before participating. This is a one-time step; you won't be asked again.
+      We ask every new member to affirm {{ total }} short statements (including that you are at least 16) before participating. This is a one-time step; you won't be asked again.
     </p>
     <div class="border-t border-slate-200 pt-4 space-y-2">
       <div class="flex items-start gap-2">

@@ -15,6 +15,7 @@ from app.config import settings
 from app.database import get_db
 from app.models.api_key import ApiKey
 from app.models.author_reply import AuthorReply
+from app.models.collection import Collection
 from app.models.comment import Comment, CommentLike
 from app.models.like import Like
 from app.models.message import Message
@@ -26,6 +27,8 @@ from app.models.report import Report
 from app.models.saved_paper import SavedPaper
 from app.models.user import User
 from app.models.user_follow import UserFollow
+from app.routers.library import delete_entries
+from app.services import library_storage
 
 ADMIN_ORCID = "admin:chemrepro"
 
@@ -380,8 +383,14 @@ async def admin_delete_user(orcid_id: str, request: Request, db: Session = Depen
     ).delete()
     db.query(PaperSubscription).filter(PaperSubscription.orcid_id == orcid_id).delete()
     db.query(Report).filter(Report.reporter_orcid_id == orcid_id).delete()
+    # Personal library: saved papers (with their notes and files), then folders
+    stored_names = delete_entries(db, SavedPaper.orcid_id == orcid_id)
+    db.query(Collection).filter(Collection.orcid_id == orcid_id).update({"parent_id": None})
+    db.query(Collection).filter(Collection.orcid_id == orcid_id).delete()
     db.delete(user)
     db.commit()
+    for name in stored_names:
+        library_storage.delete_stored(name)
     return JSONResponse({"ok": True})
 
 
@@ -486,9 +495,11 @@ async def admin_delete_paper(doi: str, request: Request, db: Session = Depends(g
     db.query(Comment).filter(Comment.doi == doi).delete()
     db.query(Rating).filter(Rating.doi == doi).delete()
     db.query(PaperSubscription).filter(PaperSubscription.doi == doi).delete()
-    db.query(SavedPaper).filter(SavedPaper.doi == doi).delete()
+    stored_names = delete_entries(db, SavedPaper.doi == doi)
     db.delete(paper)
     db.commit()
+    for name in stored_names:
+        library_storage.delete_stored(name)
     return JSONResponse({"ok": True})
 
 

@@ -1,0 +1,22 @@
+{# Account sidebar: links between the signed-in user's own pages.
+   Used on My reviews, My library, Subscriptions, Inbox, Notifications, Settings.
+   Icons and labels come from _nav_icons.html, the same source as the user menu. #}
+{% from "_nav_icons.html" import nav_icon, ACCOUNT_PAGES %}
+{% set _path = request.url.path.rstrip('/') %}
+<nav aria-label="My account" class="flex flex-row md:flex-col gap-0.5 overflow-x-auto md:overflow-visible -mx-1 px-1 pb-1 md:pb-0">
+  <span class="hidden md:block text-[11px] font-semibold uppercase tracking-wider text-slate-400 px-2.5 pb-1.5">My account</span>
+  {% for href, label, icon in ACCOUNT_PAGES %}
+  {% set _active = _path == href or _path.startswith(href ~ '/') %}
+  <a href="{{ href }}" {% if _active %}aria-current="page"{% endif %}
+     class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-sm whitespace-nowrap transition-colors
+            {% if _active %}bg-blue-50 text-brand font-semibold{% else %}text-slate-600 hover:bg-slate-50 hover:text-brand{% endif %}">
+    {{ nav_icon(icon) }}
+    <span class="flex-1">{{ label }}</span>
+    {% if icon == "inbox" %}
+    <span data-inbox-badge class="hidden min-w-[1.1rem] h-[1.1rem] bg-brand text-white text-[10px] font-bold rounded-full items-center justify-center px-1 leading-none"></span>
+    {% elif icon == "notifications" %}
+    <span data-notif-badge class="hidden min-w-[1.1rem] h-[1.1rem] bg-red-500 text-white text-[10px] font-bold rounded-full items-center justify-center px-1 leading-none"></span>
+    {% endif %}
+  </a>
+  {% endfor %}
+</nav>

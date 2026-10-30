@@ -49,6 +49,11 @@ PLEDGE_STATEMENTS = [
     },
     {
         "id": 5,
+        "text": "I am at least 16 years old.",
+        "icon": "doc",
+    },
+    {
+        "id": 6,
         "text": "I have read and agree to ChemRepro's Privacy Policy and Terms of Service.",
         "icon": "doc",
     },

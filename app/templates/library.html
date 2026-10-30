@@ -1,11 +1,31 @@
 {% extends design_base(request) %}
 {% block title %}My Library – ChemRepro{% endblock %}
 
-{% block content %}
-<div class="flex gap-6 items-start">
+{% block head_extra %}
+<style>
+  /* Drag and drop: collections light up while a paper is being dragged */
+  body.lib-dragging [data-drop-col] { outline: 1px dashed rgba(30, 64, 175, 0.35); outline-offset: -2px; border-radius: 6px; }
+  [data-drop-col].drop-hover { background: rgba(30, 64, 175, 0.12) !important; outline: 2px solid #1e40af !important; outline-offset: -2px; border-radius: 6px; }
+  html.dark body.lib-dragging [data-drop-col] { outline-color: rgba(138, 176, 255, 0.4); }
+  html.dark [data-drop-col].drop-hover { background: rgba(138, 176, 255, 0.16) !important; outline-color: #8ab0ff !important; }
+  /* Move dialog: selected folder */
+  .move-row.move-selected { background: rgba(30, 64, 175, 0.08); box-shadow: inset 3px 0 0 #1e40af; }
+  .move-row.move-selected span.flex-1 { color: #1e40af; font-weight: 600; }
+  html.dark .move-row.move-selected { background: rgba(138, 176, 255, 0.14); box-shadow: inset 3px 0 0 #8ab0ff; }
+  html.dark .move-row.move-selected span.flex-1 { color: #8ab0ff; }
+  .move-row:has(input:focus-visible) { outline: 2px solid #1e40af; outline-offset: -2px; }
+</style>
+{% endblock %}
 
-  <!-- ═══════ LEFT SIDEBAR — collection tree ═══════ -->
-  <aside class="w-56 shrink-0 sticky top-20 self-start">
+{% block content %}
+<div class="flex flex-col md:flex-row gap-6 items-start">
+
+  <!-- ═══════ LEFT SIDEBAR: account links and collection tree ═══════ -->
+  <aside class="w-full md:w-56 shrink-0 md:sticky md:top-20 self-start">
+    <div class="mb-3">
+      {% include "_account_nav.html" %}
+    </div>
+    <div class="border-t border-slate-200 mb-3"></div>
     <div class="bg-white border border-slate-200 rounded-xl overflow-hidden">
 
       <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
@@ -16,7 +36,7 @@
         <!-- All papers -->
         <a href="/library"
            class="flex items-center justify-between px-4 py-2 transition-colors
-                  {% if active_col_id is none %}bg-brand/8 text-brand font-medium{% else %}text-slate-600 hover:bg-slate-50 hover:text-brand{% endif %}">
+                  {% if active_col_id is none %}bg-blue-50 text-brand font-medium{% else %}text-slate-600 hover:bg-slate-50 hover:text-brand{% endif %}">
           <span class="flex items-center gap-2">
             <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
@@ -27,9 +47,9 @@
         </a>
 
         <!-- Unsorted -->
-        <a href="/library?collection=0"
+        <a href="/library?collection=0" data-drop-col=""
            class="flex items-center justify-between px-4 py-2 transition-colors
-                  {% if active_col_id == 0 %}bg-brand/8 text-brand font-medium{% else %}text-slate-600 hover:bg-slate-50 hover:text-brand{% endif %}">
+                  {% if active_col_id == 0 %}bg-blue-50 text-brand font-medium{% else %}text-slate-600 hover:bg-slate-50 hover:text-brand{% endif %}">
           <span class="flex items-center gap-2">
             <svg class="w-3.5 h-3.5 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
@@ -44,8 +64,8 @@
 
         <!-- Collection tree (flat with depth-based indent) -->
         {% for col, depth in cols_flat %}
-        <div class="group flex items-center justify-between pr-2
-                    {% if active_col_id == col.id %}bg-brand/8{% else %}hover:bg-slate-50{% endif %}"
+        <div data-drop-col="{{ col.id }}" class="group flex items-center justify-between pr-2
+                    {% if active_col_id == col.id %}bg-blue-50{% else %}hover:bg-slate-50{% endif %}"
              style="padding-left: {{ 16 + depth * 14 }}px">
           <a href="/library?collection={{ col.id }}"
              class="flex-1 py-2 flex items-center gap-1.5 text-sm transition-colors
@@ -66,14 +86,14 @@
               </svg>
             </button>
             {% endif %}
-            <button onclick="renameCol({{ col.id }}, '{{ col.name | replace("'", "\\'") }}')"
+            <button onclick='renameCol({{ col.id }}, {{ col.name | tojson }})'
                     class="p-1 text-slate-400 hover:text-brand transition-colors rounded" title="Rename">
               <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
               </svg>
             </button>
-            <button onclick="deleteCol({{ col.id }}, '{{ col.name | replace("'", "\\'") }}')"
+            <button onclick='deleteCol({{ col.id }}, {{ col.name | tojson }})'
                     class="p-1 text-slate-400 hover:text-red-500 transition-colors rounded" title="Delete">
               <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
@@ -85,6 +105,16 @@
         {% endfor %}
 
       </nav>
+
+      <div class="px-4 py-3 border-t border-slate-100">
+        <div class="flex items-center justify-between text-[11px] text-slate-500 mb-1">
+          <span>Stored files</span>
+          <span id="usage-text">{{ (used_bytes / 1048576) | round(1) }} / {{ (quota_bytes / 1048576) | int }} MB</span>
+        </div>
+        <div class="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+          <div id="usage-bar" class="h-full bg-brand rounded-full" style="width: {{ [100, (used_bytes / quota_bytes * 100)] | min | round(1) }}%"></div>
+        </div>
+      </div>
 
       <!-- New root collection form toggle -->
       <div class="border-t border-slate-100 p-3">
@@ -148,6 +178,13 @@
       {% set p = sp.paper %}
       <div class="bg-white border border-slate-200 rounded-xl p-4 group" id="entry-{{ sp.id }}">
         <div class="flex items-start justify-between gap-3">
+          <button type="button" draggable="true" data-drag-entry="{{ sp.id }}"
+                  class="drag-handle shrink-0 -ml-1 mt-0.5 p-0.5 rounded text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing"
+                  title="Drag onto a collection on the left to move it" aria-label="Drag to move this paper to a collection">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/>
+            </svg>
+          </button>
           <div class="flex-1 min-w-0">
             <a href="/paper/{{ p.doi }}"
                class="text-sm font-semibold text-slate-800 hover:text-brand transition-colors leading-snug line-clamp-2">
@@ -167,14 +204,14 @@
 
           <!-- Actions -->
           <div class="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button onclick="openMove({{ sp.id }})"
+            <button onclick="openMove({{ sp.id }}, '{{ sp.collection_id or '' }}')"
                     class="text-xs text-slate-400 hover:text-brand transition-colors px-2 py-1 rounded border border-transparent hover:border-slate-200"
                     title="Move to collection">
               <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/>
               </svg>
             </button>
-            <button onclick="removeEntry({{ sp.id }}, '{{ p.doi | replace("'", "\\'") }}')"
+            <button onclick='removeEntry({{ sp.id }}, {{ p.doi | tojson }})'
                     class="text-xs text-slate-400 hover:text-red-500 transition-colors px-2 py-1 rounded border border-transparent hover:border-red-200"
                     title="Remove from library">
               <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -194,42 +231,8 @@
         </div>
         {% endif %}
 
-        <!-- Notes section -->
-        <div class="mt-3 notes-section" id="notes-{{ sp.id }}">
-          {% if sp.notes %}
-          <div class="text-xs text-slate-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 notes-display md-content" id="notes-display-{{ sp.id }}">{{ sp.notes | render_md | safe }}</div>
-          {% else %}
-          <div class="notes-display" id="notes-display-{{ sp.id }}"></div>
-          {% endif %}
-
-          <div class="notes-editor hidden mt-1" id="notes-editor-{{ sp.id }}">
-            <textarea
-              class="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
-              rows="3"
-              placeholder="Add a private note about this paper..."
-              data-img-paste
-              id="notes-ta-{{ sp.id }}">{{ sp.notes or '' }}</textarea>
-            <div class="flex items-center gap-2 mt-1.5">
-              <button onclick="saveNotes({{ sp.id }})"
-                      class="text-xs bg-brand text-white rounded-lg px-3 py-1.5 hover:bg-blue-700 transition-colors font-medium">
-                Save note
-              </button>
-              <button onclick="cancelNotes({{ sp.id }})"
-                      class="text-xs text-slate-500 hover:text-slate-700 transition-colors">
-                Cancel
-              </button>
-            </div>
-          </div>
-
-          <button onclick="editNotes({{ sp.id }})"
-                  class="notes-edit-btn mt-1.5 text-[11px] text-slate-400 hover:text-brand transition-colors flex items-center gap-1">
-            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-            {% if sp.notes %}Edit note{% else %}Add note{% endif %}
-          </button>
-        </div>
+        <!-- Notes + files (rendered by renderExtras) -->
+        <div class="mt-3" id="extras-{{ sp.id }}"></div>
       </div>
       {% endfor %}
     </div>
@@ -268,16 +271,27 @@
 
 <!-- ═══════ Move to collection modal ═══════ -->
 <div id="move-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onclick="if(event.target===this)closeMove()">
-  <div class="bg-white rounded-2xl shadow-xl p-6 w-80">
-    <h2 class="text-base font-bold text-slate-800 mb-4">Move to collection</h2>
-    <select id="move-select" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-brand">
-      <option value="">Unsorted</option>
+  <div class="bg-white rounded-2xl shadow-xl p-6 w-96 max-w-[calc(100vw-2rem)]">
+    <h2 class="text-base font-bold text-slate-800 mb-1">Move to collection</h2>
+    <p class="text-xs text-slate-400 mb-3">Notes and files move with the paper.</p>
+    <fieldset class="move-tree max-h-80 overflow-y-auto border border-slate-200 rounded-lg py-1.5 mb-4 text-sm">
+      <legend class="sr-only">Target collection</legend>
+      <label class="move-row flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-slate-50">
+        <input type="radio" name="move-target" value="" class="sr-only">
+        <svg class="w-3.5 h-3.5 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span class="flex-1 text-slate-600">Unsorted</span>
+        <span class="move-current hidden text-[11px] text-slate-400">current</span>
+      </label>
       {% for col, depth in cols_flat %}
-      <option value="{{ col.id }}" style="padding-left:{{ depth * 12 }}px">
-        {{ '  ' * depth }}{{ col.name }}
-      </option>
+      <label class="move-row flex items-center gap-2 pr-3 py-1.5 cursor-pointer hover:bg-slate-50" style="padding-left: {{ 12 + depth * 20 }}px">
+        <input type="radio" name="move-target" value="{{ col.id }}" class="sr-only">
+        {% if depth > 0 %}<span class="text-slate-300 font-mono text-xs leading-none" aria-hidden="true">└</span>{% endif %}
+        <svg class="w-3.5 h-3.5 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/></svg>
+        <span class="flex-1 truncate text-slate-700" title="{{ col.name }}">{{ col.name }}</span>
+        <span class="move-current hidden text-[11px] text-slate-400">current</span>
+      </label>
       {% endfor %}
-    </select>
+    </fieldset>
     <div class="flex gap-2">
       <button onclick="confirmMove()" class="flex-1 bg-brand text-white rounded-lg py-2 text-sm font-medium hover:bg-blue-700 transition-colors">Move</button>
       <button onclick="closeMove()" class="flex-1 border border-slate-200 text-slate-500 rounded-lg py-2 text-sm hover:bg-slate-50 transition-colors">Cancel</button>
@@ -320,70 +334,300 @@ async function deleteCol(id, name) {
   location.reload();
 }
 
-// ── Notes ─────────────────────────────────────────────────────────────────
-function editNotes(id) {
-  document.getElementById(`notes-display-${id}`).classList.add('hidden');
-  document.getElementById(`notes-editor-${id}`).classList.remove('hidden');
-  document.querySelector(`#notes-${id} .notes-edit-btn`).classList.add('hidden');
-  // Focus the contenteditable div that wireTextarea inserts (or fall back to the textarea)
-  const editor = document.getElementById(`notes-editor-${id}`);
-  const ce = editor.querySelector('[contenteditable]');
-  if (ce) { ce.focus(); } else { document.getElementById(`notes-ta-${id}`).focus(); }
-}
-function cancelNotes(id) {
-  document.getElementById(`notes-display-${id}`).classList.remove('hidden');
-  document.getElementById(`notes-editor-${id}`).classList.add('hidden');
-  document.querySelector(`#notes-${id} .notes-edit-btn`).classList.remove('hidden');
-}
-async function saveNotes(id) {
-  const text = document.getElementById(`notes-ta-${id}`).value;
-  const fd = new FormData();
-  fd.append('notes', text);
-  const resp = await fetch(`/library/entry/${id}/notes`, { method: 'POST', body: fd });
-  const data = await resp.json();
+// ── Notes and files ───────────────────────────────────────────────────────
+const LIB = {{ extras | tojson }};
+const QUOTA = {{ quota_bytes }};
+const MAX_FILE = {{ max_file_bytes }};
+let activeEntry = null;
 
-  const display = document.getElementById(`notes-display-${id}`);
-  if (text.trim()) {
-    display.innerHTML = data.rendered_html || '';
-    display.className = 'text-xs text-slate-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 notes-display md-content';
-  } else {
-    display.innerHTML = '';
-    display.className = 'notes-display';
-  }
-  const editBtn = document.querySelector(`#notes-${id} .notes-edit-btn`);
-  const lastTextNode = [...editBtn.childNodes].find(n => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
-  if (lastTextNode) lastTextNode.textContent = text.trim() ? ' Edit note' : ' Add note';
-  cancelNotes(id);
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text !== undefined) n.textContent = text;
+  return n;
 }
+function fmtSize(b) {
+  return b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB';
+}
+function setUsage(used) {
+  document.getElementById('usage-text').textContent = (used / 1048576).toFixed(1) + ' / ' + (QUOTA / 1048576) + ' MB';
+  document.getElementById('usage-bar').style.width = Math.min(100, used / QUOTA * 100) + '%';
+}
+function flash(id, msg) {
+  const box = document.querySelector(`#extras-${id} .extras-msg`);
+  if (!box) return;
+  box.textContent = msg;
+  box.classList.toggle('hidden', !msg);
+  if (msg) setTimeout(() => { box.classList.add('hidden'); }, 6000);
+}
+
+const BTN = 'text-[11px] text-slate-400 hover:text-brand transition-colors';
+
+function renderExtras(id) {
+  const host = document.getElementById(`extras-${id}`);
+  const data = LIB[id];
+  host.replaceChildren();
+
+  // Notes
+  data.notes.forEach(n => host.appendChild(renderNote(id, n)));
+
+  // Files
+  if (data.files.length) {
+    const grid = el('div', 'flex flex-wrap gap-2 mt-2');
+    data.files.forEach(f => grid.appendChild(renderFile(id, f)));
+    host.appendChild(grid);
+  }
+
+  // Actions
+  const bar = el('div', 'flex items-center flex-wrap gap-x-4 gap-y-1 mt-2');
+  const addNote = el('button', BTN, '+ Add note');
+  addNote.type = 'button';
+  addNote.onclick = () => openComposer(id, null);
+  const attach = el('button', BTN, '+ Attach PDF or image');
+  attach.type = 'button';
+  const input = document.createElement('input');
+  input.type = 'file'; input.multiple = true; input.className = 'hidden';
+  input.accept = '.pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg';
+  input.onchange = () => { uploadFiles(id, [...input.files]); input.value = ''; };
+  attach.onclick = () => input.click();
+  const hint = el('span', 'text-[11px] text-slate-300', 'or click this paper and press Ctrl+V to paste a screenshot');
+  bar.append(addNote, attach, input, hint);
+  host.appendChild(bar);
+
+  host.appendChild(el('p', 'extras-msg hidden mt-1 text-[11px] text-red-500'));
+}
+
+function renderNote(id, n) {
+  const wrap = el('div', 'text-xs text-slate-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mt-1.5');
+  const body = el('div', 'md-content');
+  body.innerHTML = n.html;
+  const row = el('div', 'flex gap-3 mt-1');
+  const edit = el('button', BTN, 'Edit'); edit.type = 'button';
+  edit.onclick = () => openComposer(id, n);
+  const del = el('button', BTN + ' hover:text-red-500', 'Delete'); del.type = 'button';
+  del.onclick = () => deleteNote(id, n.id);
+  row.append(edit, del);
+  wrap.append(body, row);
+  return wrap;
+}
+
+function openComposer(id, note) {
+  const host = document.getElementById(`extras-${id}`);
+  if (host.querySelector('.composer')) return;
+  const box = el('div', 'composer mt-1.5');
+  const ta = el('textarea', 'w-full text-xs border border-slate-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent');
+  ta.rows = 4; ta.maxLength = 20000;
+  ta.placeholder = 'Write a private note (Markdown supported)...';
+  ta.value = note ? note.body : '';
+  const row = el('div', 'flex items-center gap-2 mt-1.5');
+  const save = el('button', 'text-xs bg-brand text-white rounded-lg px-3 py-1.5 hover:bg-blue-700 transition-colors font-medium', 'Save note');
+  save.type = 'button';
+  save.onclick = () => saveNote(id, note, ta.value);
+  const cancel = el('button', 'text-xs text-slate-500 hover:text-slate-700 transition-colors', 'Cancel');
+  cancel.type = 'button';
+  cancel.onclick = () => box.remove();
+  row.append(save, cancel);
+  box.append(ta, row);
+  host.insertBefore(box, host.lastElementChild.previousElementSibling);
+  ta.focus();
+}
+
+async function saveNote(id, note, text) {
+  if (!text.trim()) { flash(id, 'The note is empty.'); return; }
+  const fd = new FormData();
+  fd.append('body', text);
+  const url = note ? `/library/note/${note.id}/edit` : `/library/entry/${id}/note`;
+  const resp = await fetch(url, { method: 'POST', body: fd });
+  const data = await resp.json();
+  if (!resp.ok) { flash(id, data.error || 'Could not save the note.'); return; }
+  if (note) {
+    const i = LIB[id].notes.findIndex(x => x.id === note.id);
+    LIB[id].notes[i] = data;
+  } else {
+    LIB[id].notes.push(data);
+  }
+  renderExtras(id);
+}
+
+async function deleteNote(id, noteId) {
+  if (!confirm('Delete this note?')) return;
+  const resp = await fetch(`/library/note/${noteId}/delete`, { method: 'POST' });
+  if (!resp.ok) { flash(id, 'Could not delete the note.'); return; }
+  LIB[id].notes = LIB[id].notes.filter(x => x.id !== noteId);
+  renderExtras(id);
+}
+
+function renderFile(id, f) {
+  const chip = el('div', 'relative group/file border border-slate-200 rounded-lg bg-white overflow-hidden');
+  const link = document.createElement('a');
+  link.href = f.url; link.target = '_blank'; link.rel = 'noopener';
+  if (f.kind === 'image') {
+    link.className = 'block';
+    const img = document.createElement('img');
+    img.src = f.url; img.alt = f.name; img.loading = 'lazy';
+    img.className = 'h-20 w-28 object-cover';
+    link.appendChild(img);
+  } else {
+    link.className = 'flex items-center gap-2 px-3 py-2 h-20 w-40 text-xs text-slate-600 hover:text-brand';
+    const badge = el('span', 'shrink-0 text-[10px] font-bold bg-red-50 text-red-600 border border-red-100 rounded px-1.5 py-0.5', 'PDF');
+    const label = el('span', 'min-w-0');
+    label.append(el('span', 'block truncate', f.name), el('span', 'block text-[10px] text-slate-400', fmtSize(f.size)));
+    link.append(badge, label);
+  }
+  link.title = f.name + ' (' + fmtSize(f.size) + ')';
+  const del = el('button', 'absolute top-0.5 right-0.5 hidden group-hover/file:block bg-white/90 border border-slate-200 text-slate-500 hover:text-red-500 rounded px-1 text-[11px] leading-4', '×');
+  del.type = 'button'; del.title = 'Delete file';
+  del.onclick = () => deleteFile(id, f.uuid, f.name);
+  chip.append(link, del);
+  return chip;
+}
+
+async function uploadFiles(id, files) {
+  for (const file of files) {
+    if (file.size > MAX_FILE) {
+      flash(id, 'Files can be at most ' + (MAX_FILE / 1048576) + ' MB.');
+      return;
+    }
+    flash(id, 'Uploading ' + file.name + '...');
+    const fd = new FormData();
+    fd.append('file', file, file.name || 'screenshot.png');
+    let resp, data;
+    try {
+      resp = await fetch(`/library/entry/${id}/files`, { method: 'POST', body: fd });
+      data = await resp.json();
+    } catch (e) {
+      flash(id, 'Upload failed. Check your connection and try again.');
+      return;
+    }
+    if (!resp.ok) { flash(id, data.error || 'Upload failed.'); return; }
+    LIB[id].files.push(data.file);
+    setUsage(data.used_bytes);
+    renderExtras(id);
+  }
+}
+
+async function deleteFile(id, uuid, name) {
+  if (!confirm('Delete "' + name + '"?')) return;
+  const resp = await fetch(`/library/file/${uuid}/delete`, { method: 'POST' });
+  if (!resp.ok) { flash(id, 'Could not delete the file.'); return; }
+  const data = await resp.json();
+  LIB[id].files = LIB[id].files.filter(x => x.uuid !== uuid);
+  setUsage(data.used_bytes);
+  renderExtras(id);
+}
+
+// Paste a screenshot or drop a file onto the paper you last clicked.
+document.querySelectorAll('[id^="entry-"]').forEach(card => {
+  const id = card.id.replace('entry-', '');
+  if (!LIB[id]) return;
+  card.addEventListener('click', () => {
+    if (activeEntry) activeEntry.classList.remove('ring-2', 'ring-brand/30');
+    activeEntry = card;
+    card.classList.add('ring-2', 'ring-brand/30');
+  });
+  card.addEventListener('dragover', e => { e.preventDefault(); });
+  card.addEventListener('drop', e => {
+    e.preventDefault();
+    const files = [...(e.dataTransfer ? e.dataTransfer.files : [])];
+    if (files.length) uploadFiles(id, files);
+  });
+});
+document.addEventListener('paste', e => {
+  if (!activeEntry || !e.clipboardData) return;
+  if (e.target.closest && e.target.closest('textarea, input, [contenteditable]')) return;
+  const files = [...e.clipboardData.files].filter(f => f.type.startsWith('image/'));
+  if (!files.length) return;
+  e.preventDefault();
+  uploadFiles(activeEntry.id.replace('entry-', ''), files);
+});
+Object.keys(LIB).forEach(renderExtras);
 
 // ── Move entry ────────────────────────────────────────────────────────────
 let _moveEntryId = null;
-function openMove(id) {
+function openMove(id, currentColId) {
   _moveEntryId = id;
+  document.querySelectorAll('input[name="move-target"]').forEach(r => {
+    const isCurrent = r.value === String(currentColId || '');
+    r.checked = isCurrent;
+    r.closest('.move-row').querySelector('.move-current').classList.toggle('hidden', !isCurrent);
+  });
+  markMoveSelection();
   document.getElementById('move-modal').classList.remove('hidden');
 }
+function markMoveSelection() {
+  document.querySelectorAll('input[name="move-target"]').forEach(r => {
+    r.closest('.move-row').classList.toggle('move-selected', r.checked);
+  });
+}
+document.querySelectorAll('input[name="move-target"]').forEach(r => r.addEventListener('change', markMoveSelection));
 function closeMove() {
   document.getElementById('move-modal').classList.add('hidden');
   _moveEntryId = null;
 }
-async function confirmMove() {
-  if (!_moveEntryId) return;
-  const colId = document.getElementById('move-select').value;
+async function moveEntryTo(entryId, colId) {
   const fd = new FormData();
   fd.append('collection_id', colId);
-  await fetch(`/library/entry/${_moveEntryId}/move`, { method: 'POST', body: fd });
+  const resp = await fetch(`/library/entry/${entryId}/move`, { method: 'POST', body: fd });
+  return resp.ok;
+}
+async function confirmMove() {
+  if (!_moveEntryId) return;
+  const picked = document.querySelector('input[name="move-target"]:checked');
+  if (!picked) return;
+  await moveEntryTo(_moveEntryId, picked.value);
   closeMove();
   location.reload();
 }
+
+// ── Drag a paper (by its grip) onto a collection in the sidebar ───────────
+const ENTRY_MIME = 'application/x-chemrepro-entry';
+document.querySelectorAll('[data-drag-entry]').forEach(handle => {
+  handle.addEventListener('dragstart', e => {
+    const card = document.getElementById('entry-' + handle.dataset.dragEntry);
+    e.dataTransfer.setData(ENTRY_MIME, handle.dataset.dragEntry);
+    e.dataTransfer.effectAllowed = 'move';
+    if (card) { e.dataTransfer.setDragImage(card, 20, 20); card.classList.add('opacity-50'); }
+    document.body.classList.add('lib-dragging');
+  });
+  handle.addEventListener('dragend', () => {
+    const card = document.getElementById('entry-' + handle.dataset.dragEntry);
+    if (card) card.classList.remove('opacity-50');
+    document.body.classList.remove('lib-dragging');
+    document.querySelectorAll('.drop-hover').forEach(el => el.classList.remove('drop-hover'));
+  });
+});
+document.querySelectorAll('[data-drop-col]').forEach(target => {
+  const isEntryDrag = e => e.dataTransfer && [...e.dataTransfer.types].includes(ENTRY_MIME);
+  target.addEventListener('dragover', e => {
+    if (!isEntryDrag(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    target.classList.add('drop-hover');
+  });
+  target.addEventListener('dragleave', e => {
+    if (!target.contains(e.relatedTarget)) target.classList.remove('drop-hover');
+  });
+  target.addEventListener('drop', async e => {
+    if (!isEntryDrag(e)) return;
+    e.preventDefault();
+    target.classList.remove('drop-hover');
+    const entryId = e.dataTransfer.getData(ENTRY_MIME);
+    if (entryId && await moveEntryTo(entryId, target.dataset.dropCol)) location.reload();
+  });
+});
 
 // ── Remove entry ──────────────────────────────────────────────────────────
 async function removeEntry(id, doi) {
   if (!confirm('Remove this paper from your library?')) return;
   const fd = new FormData();
   fd.append('doi', doi);
-  await fetch('/library/unsave', { method: 'POST', body: fd });
+  const resp = await fetch('/library/unsave', { method: 'POST', body: fd });
   const el = document.getElementById(`entry-${id}`);
   if (el) el.remove();
+  try {
+    const data = await resp.json();
+    if (typeof data.used_bytes === 'number') setUsage(data.used_bytes);
+  } catch (e) { /* page reload will show the right figure */ }
 }
 </script>
 {% endblock %}

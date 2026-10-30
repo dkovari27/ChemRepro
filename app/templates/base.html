@@ -17,13 +17,25 @@
   <meta name="twitter:title" content="{{ self.og_title() }}" />
   <meta name="twitter:description" content="{{ self.meta_description() }}" />
 
-  <!-- Inter Variable -->
-  <link rel="preconnect" href="https://rsms.me/" />
-  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+  <!-- Theme: apply the saved choice (or the OS setting) before first paint -->
+  <script>
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem('crTheme'); } catch (_) {}
+      if (t !== 'light' && t !== 'dark') {
+        t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      if (t === 'dark') document.documentElement.classList.add('dark');
+    })();
+  </script>
+
+  <!-- Inter Variable (self-hosted) + dark theme -->
+  <link rel="stylesheet" href="/static/css/theme.css?v=3" />
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
+      darkMode: 'class',
       theme: {
         extend: {
           fontFamily: {
@@ -101,7 +113,6 @@
     .orcid-login-btn:hover .orcid-logo-rev { display: inline-block; }
   </style>
 
-  <link rel="stylesheet" href="https://unpkg.com/easymde/dist/easymde.min.css" />
   {% block head_extra %}{% endblock %}
 </head>
 
@@ -113,12 +124,19 @@
 
       <!-- Wordmark -->
       <a href="/" class="flex items-center gap-2 text-brand font-bold text-[1.1rem] site-wordmark shrink-0">
-        <img src="/static/logo.png" alt="ChemRepro logo" class="h-7 w-auto" />
+        <img src="/static/logo.png" alt="ChemRepro logo" class="site-logo h-7 w-auto" />
         ChemRepro
       </a>
 
       <!-- Right controls -->
       <div class="ml-auto flex items-center gap-3 text-sm">
+        <button type="button" class="theme-toggle" onclick="toggleTheme()"
+                aria-label="Switch between light and dark mode" title="Light / dark mode">
+          <svg class="icon-moon w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
+          </svg>
+          <span class="icon-sun" aria-hidden="true">&#x2600;&#xFE0E;</span>
+        </button>
         <a href="/feedback" class="text-slate-400 hover:text-brand transition-colors text-xs hidden sm:block">Feedback</a>
         {% if is_local %}
         <button type="button" onclick="startTour()" class="text-slate-400 hover:text-brand transition-colors text-xs hidden sm:block">Take a tour</button>
@@ -144,51 +162,25 @@
 
             <div id="user-menu-dd"
                  class="hidden absolute right-0 top-10 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1.5 text-sm overflow-hidden">
-              <a href="/profile/my-reviews"
+              {% from "_nav_icons.html" import nav_icon, ACCOUNT_PAGES %}
+              {% for href, label, icon in ACCOUNT_PAGES %}
+              <a href="{{ href }}"
                  class="flex items-center gap-2.5 px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
-                <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-                </svg>
-                My reviews
-              </a>
-              <a href="/library"
-                 class="flex items-center gap-2.5 px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
-                <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-                </svg>
-                My collections
-              </a>
-              <a href="/profile/subscriptions"
-                 class="flex items-center gap-2.5 px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
-                <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                </svg>
-                My subscriptions
-              </a>
-              <a href="/profile/inbox"
-                 class="flex items-center gap-2.5 px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
-                <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                  <polyline points="22,6 12,13 2,6"/>
-                </svg>
-                Inbox
+                {{ nav_icon(icon) }}
+                {{ label }}
+                {% if icon == "inbox" %}
                 <span id="inbox-badge" class="hidden ml-auto min-w-[1.1rem] h-[1.1rem] bg-brand text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 leading-none"></span>
+                {% endif %}
               </a>
-              <a href="/profile/settings"
-                 class="flex items-center gap-2.5 px-4 py-2 text-slate-600 hover:bg-slate-50 hover:text-brand transition-colors">
-                <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                </svg>
-                Settings
-              </a>
+              {% endfor %}
               <div class="border-t border-slate-100 my-1"></div>
-              <a href="/auth/logout"
-                 class="flex items-center gap-2.5 px-4 py-2 text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors">
-                <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-                </svg>
-                Sign out
-              </a>
+              <form method="post" action="/auth/logout">
+                <button type="submit"
+                   class="w-full flex items-center gap-2.5 px-4 py-2 text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors">
+                  {{ nav_icon('signout') }}
+                  Sign out
+                </button>
+              </form>
             </div>
           </div>
 
@@ -242,6 +234,13 @@
     </div>
   </footer>
 
+  <script>
+    // ── Light / dark toggle (initial theme is set in <head>) ─────────
+    function toggleTheme() {
+      var dark = document.documentElement.classList.toggle('dark');
+      try { localStorage.setItem('crTheme', dark ? 'dark' : 'light'); } catch (_) {}
+    }
+  </script>
   <script src="/static/js/moderation.js"></script>
   <script src="/static/js/tour.js?v=2"></script>
   {% if request.session.get('tour_pending') and request.url.path in ['/', '/nd/', '/nd'] %}
@@ -251,7 +250,6 @@
   {% if start_tour is defined and start_tour %}
   <script>localStorage.removeItem('crTourDone'); localStorage.setItem('crTourStep', '0');</script>
   {% endif %}
-  <script src="https://unpkg.com/easymde/dist/easymde.min.js"></script>
 
   {% if orcid_id and orcid_id.startswith('local:') %}
   <script>
@@ -279,6 +277,9 @@
           const b = document.getElementById('notif-badge');
           b.textContent = unread > 9 ? '9+' : unread;
           b.classList.remove('hidden');
+          document.querySelectorAll('[data-notif-badge]').forEach(s => {
+            s.textContent = b.textContent; s.classList.remove('hidden'); s.classList.add('flex');
+          });
         }
       } catch (_) {}
     }
@@ -292,6 +293,9 @@
           b.textContent = unread > 9 ? '9+' : unread;
           b.classList.remove('hidden');
           b.classList.add('flex');
+          document.querySelectorAll('[data-inbox-badge]').forEach(s => {
+            s.textContent = b.textContent; s.classList.remove('hidden'); s.classList.add('flex');
+          });
         }
       } catch (_) {}
     }
@@ -510,10 +514,12 @@
           <span class="w-1.5 h-1.5 rounded-full shrink-0 bg-amber-300"></span>
           Link DanK-ORCID &harr; LinkedIn
         </a>
-        <a href="/auth/logout" class="flex items-center gap-2.5 px-3 py-2 text-xs text-slate-400 hover:bg-slate-50 transition-colors">
-          <span class="w-1.5 h-1.5 rounded-full shrink-0 bg-transparent border border-slate-300"></span>
-          Sign out
-        </a>
+        <form method="post" action="/auth/logout">
+          <button type="submit" class="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-400 hover:bg-slate-50 transition-colors">
+            <span class="w-1.5 h-1.5 rounded-full shrink-0 bg-transparent border border-slate-300"></span>
+            Sign out
+          </button>
+        </form>
       </div>
     </div>
     <button onclick="document.getElementById('dev-dd').classList.toggle('hidden')"

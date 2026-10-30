@@ -486,6 +486,8 @@ async def edit_rating_page(doi: str, rating_id: int, request: Request, db: Sessi
 async def paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
     paper = db.get(Paper, doi)
     if not paper:
+        if redirect := _case_variant_redirect(doi, "/design-archive/standard/paper/", db):
+            return redirect
         meta = await fetch_paper_metadata(doi)
         if not meta:
             raise HTTPException(status_code=404, detail="Paper not found")
@@ -1312,6 +1314,8 @@ async def classic_edit_rating_page(doi: str, rating_id: int, request: Request, d
 async def classic_paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
     paper = db.get(Paper, doi)
     if not paper:
+        if redirect := _case_variant_redirect(doi, "/classic/paper/", db):
+            return redirect
         meta = await fetch_paper_metadata(doi)
         if not meta:
             raise HTTPException(status_code=404, detail="Paper not found")
@@ -1779,10 +1783,19 @@ async def nd_edit_rating_page(doi: str, rating_id: int, request: Request, db: Se
 
 
 
+def _case_variant_redirect(doi: str, prefix: str, db: Session):
+    """DOIs are case-insensitive: send a different spelling of a stored DOI to
+    the stored one instead of creating a second Paper row for it."""
+    same = db.query(Paper).filter(func.lower(Paper.doi) == doi.lower()).first()
+    return RedirectResponse(f"{prefix}{same.doi}", status_code=301) if same else None
+
+
 @router.get("/paper/{doi:path}", response_class=HTMLResponse)
 async def nd_paper_page(doi: str, request: Request, db: Session = Depends(get_db)):
     paper = db.get(Paper, doi)
     if not paper:
+        if redirect := _case_variant_redirect(doi, "/paper/", db):
+            return redirect
         meta = await fetch_paper_metadata(doi)
         if not meta:
             raise HTTPException(status_code=404, detail="Paper not found")

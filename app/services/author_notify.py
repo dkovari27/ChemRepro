@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.models.author_notification import AuthorNotification
-from app.utils.email import send_generic_email
+from app.utils.email import send_generic_email, sender_footer
 
 _EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
 
@@ -157,6 +157,7 @@ async def notify_author_if_possible(
     opt_out_paper_url = f"{base_url}/notify/opt-out/{token}/paper"
     opt_out_all_url = f"{base_url}/notify/opt-out/{token}/all"
     short_title = paper_title[:100] + ("…" if len(paper_title) > 100 else "")
+    footer_text, footer_html = sender_footer(base_url)
 
     body_text = (
         f"Your paper has been reviewed on ChemRepro, a community platform for "
@@ -167,7 +168,8 @@ async def notify_author_if_possible(
         f"You are welcome to read or respond to the review on the platform.\n\n"
         f"Stop notifications for this paper only: {opt_out_paper_url}\n\n"
         f"Stop all emails from ChemRepro: {opt_out_all_url}\n\n"
-        f"The ChemRepro team\n{base_url}"
+        f"The ChemRepro team\n{base_url}\n\n"
+        f"{footer_text}"
     )
 
     title_esc = html.escape(short_title)
@@ -185,6 +187,7 @@ async def notify_author_if_possible(
       &nbsp;&nbsp;&nbsp;&nbsp;
       <a href="{opt_out_all_url}">Unsubscribe from all ChemRepro emails</a>
     </p>
+    {footer_html}
     """
 
     send_generic_email(

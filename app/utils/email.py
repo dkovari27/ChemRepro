@@ -1,3 +1,4 @@
+import html
 import logging
 
 import resend
@@ -19,6 +20,22 @@ def _resend_send(to: str, subject: str, body_text: str, body_html: str | None = 
     if body_html:
         params["html"] = body_html
     resend.Emails.send(params)
+
+
+def sender_footer(base_url: str) -> tuple[str, str]:
+    """Sender identification for the end of a notification email: (text, html).
+
+    Names the sender and a contact route; adds the postal address when
+    MAIL_POSTAL_ADDRESS is set.
+    """
+    base = base_url.rstrip("/")
+    address = settings.MAIL_POSTAL_ADDRESS.strip()
+    text = f"Sent by ChemRepro, {base}. Contact: {base}/feedback"
+    html_line = f'Sent by <a href="{html.escape(base)}">ChemRepro</a>. Contact: <a href="{html.escape(base)}/feedback">feedback form</a>'
+    if address:
+        text += f"\n{address}"
+        html_line += f"<br/>{html.escape(address)}"
+    return text, f'<p style="margin-top:24px;font-size:12px;color:#64748b">{html_line}</p>'
 
 
 def send_feedback_notification(

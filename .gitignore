@@ -84,3 +84,11 @@ scripts/*_batch*.json
 # OS
 .DS_Store
 Thumbs.db
+
+# Local library uploads (private user files)
+library_files/
+
+# Local credentials
+API key.txt
+# Playwright CLI output (may contain credentials)
+.playwright-cli/

@@ -23,12 +23,19 @@ class Settings(BaseSettings):
     ADMIN_SECRET_TOKEN: str = "change-this-before-production"
     SITE_URL: str = "http://127.0.0.1:8000"
 
+    # Private library uploads (PDFs, screenshots). On Railway, point this at a
+    # mounted Volume, e.g. /data/library, so files survive redeploys.
+    LIBRARY_DIR: str = "library_files"
+
     LINKEDIN_CLIENT_ID: str = ""
     LINKEDIN_CLIENT_SECRET: str = ""
     LINKEDIN_REDIRECT_URI: str = "http://localhost:8000/auth/linkedin/callback"
 
     RESEND_API_KEY: str = ""
     MAIL_FROM: str = "ChemRepro <noreply@chemrepro.org>"
+    # Postal address shown in the footer of outgoing bulk-style emails (author
+    # notifications). Leave empty until the non-profit has an address.
+    MAIL_POSTAL_ADDRESS: str = ""
 
     @property
     def orcid_base_url(self) -> str:

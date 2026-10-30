@@ -79,7 +79,7 @@
           <label class="block text-xs text-slate-600 mb-1">Private note (optional)</label>
           <textarea id="save-notes" rows="2" data-img-paste
                     class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs resize-none mb-3 focus:outline-none focus:ring-2 focus:ring-brand"
-                    placeholder="Notes for yourself…">{{ saved_entry.notes if saved_entry and saved_entry.notes else '' }}</textarea>
+                    placeholder="Notes for yourself…">{{ saved_entry.first_note_body if saved_entry else '' }}</textarea>
           <div class="flex gap-2">
             <button onclick="doSave('{{ paper.doi }}')"
                     class="flex-1 bg-brand text-white rounded-lg py-1.5 text-xs font-medium hover:bg-blue-700 transition-colors">

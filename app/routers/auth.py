@@ -261,7 +261,7 @@ async def submit_profile_setup(
     return _post_login_redirect(user, next_url) if user else RedirectResponse(next_url, status_code=303)
 
 
-@router.get("/profile-setup-skip")
+@router.post("/profile-setup-skip")
 async def skip_profile_setup(request: Request, db: Session = Depends(get_db)):
     orcid_id = request.session.get("orcid_id")
     next_url = request.session.pop("after_profile_setup", "/")
@@ -276,6 +276,13 @@ async def skip_profile_setup(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/logout")
+async def logout_link(request: Request):
+    # Signing out is a POST (a link on another site must not sign anyone out);
+    # an old bookmark or link just lands on the home page.
+    return RedirectResponse("/", status_code=303)
+
+
+@router.post("/logout")
 async def logout(request: Request):
     request.session.clear()
     # Redirect through a tiny page that clears guest localStorage before going home

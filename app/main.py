@@ -7,6 +7,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
 from app.utils.design import register_globals
+from app.utils.request_guards import BodySizeLimit, SameOriginCheck
 from sqlalchemy import text
 
 from app.database import Base, engine
@@ -20,6 +21,7 @@ from app.models import report as _report_model               # noqa: F401
 from app.models import image as _image_model                 # noqa: F401
 from app.models import collection as _collection_model       # noqa: F401
 from app.models import saved_paper as _saved_paper_model     # noqa: F401
+from app.models import library_item as _library_item_model   # noqa: F401
 from app.models import api_key as _api_key_model             # noqa: F401
 from app.models import author_reply as _author_reply_model   # noqa: F401
 from app.models import banned_term as _banned_term_model     # noqa: F401
@@ -179,6 +181,55 @@ def _migrate():
 
 _migrate()
 
+
+def _migrate_library_notes():
+    """Copy each legacy saved_papers.notes value into a library_notes row,
+    then clear the old column so the copy never repeats (idempotent)."""
+    from app.database import SessionLocal
+    from app.models.library_item import LibraryNote
+    from app.models.saved_paper import SavedPaper
+    db = SessionLocal()
+    try:
+        legacy = db.query(SavedPaper).filter(SavedPaper.notes.isnot(None)).all()
+        for sp in legacy:
+            body = (sp.notes or "").strip()
+            if body:
+                db.add(LibraryNote(saved_paper_id=sp.id, orcid_id=sp.orcid_id, body=body,
+                                   created_at=sp.created_at, updated_at=sp.created_at))
+            sp.notes = None
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+_migrate_library_notes()
+
+
+def _cleanup_library_orphans():
+    """Remove uploaded library files whose DB row is gone (a crash between the
+    commit and the file delete leaves them behind)."""
+    from app.database import SessionLocal
+    from app.models.library_item import LibraryFile
+    from app.services import library_storage
+    db = SessionLocal()
+    try:
+        known = {name for (name,) in db.query(LibraryFile.stored_name).all()}
+    finally:
+        db.close()
+    removed = library_storage.remove_orphans(known)
+    # One line in the Railway log to confirm uploads go to the mounted Volume.
+    folder = library_storage.storage_dir().resolve()
+    note = ""
+    if settings.ORCID_ENV == "production" and not settings.LIBRARY_DIR.startswith("/"):
+        note = "  WARNING: relative path, uploads will be lost on redeploy; set LIBRARY_DIR to a Volume path"
+    print(f"Library files: {folder} ({len(known)} files, {removed} orphans removed){note}", flush=True)
+
+
+_cleanup_library_orphans()
+
 app = FastAPI(
     title="ChemRepro",
     description="Community reproducibility ratings for synthetic chemistry papers.",
@@ -193,6 +244,8 @@ app.add_middleware(
     https_only=(settings.ORCID_ENV != "sandbox"),
     same_site="lax",
 )
+app.add_middleware(BodySizeLimit)
+app.add_middleware(SameOriginCheck)
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 

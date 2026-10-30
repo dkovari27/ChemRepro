@@ -42,10 +42,12 @@
       </a>
       {% endfor %}
     </nav>
-    <a href="/auth/logout"
-      class="block mt-3 px-3 py-2 text-xs text-slate-400 hover:text-red-500 transition-colors">
-      Log out
-    </a>
+    <form method="post" action="/auth/logout">
+      <button type="submit"
+        class="block w-full text-left mt-3 px-3 py-2 text-xs text-slate-400 hover:text-red-500 transition-colors">
+        Log out
+      </button>
+    </form>
   </aside>
 
   <!-- Page content -->

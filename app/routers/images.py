@@ -2,17 +2,21 @@ import io
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from fastapi.responses import Response, JSONResponse
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 from PIL.Image import DecompressionBombError
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.image import UploadedImage
+from app.models.user import User
 
 router = APIRouter(tags=["images"])
 
 _ALLOWED_MIME = {"image/png", "image/jpeg", "image/gif", "image/webp"}
 _MAX_BYTES = 5 * 1024 * 1024  # 5 MB
+_USER_QUOTA_BYTES = 20 * 1024 * 1024  # all review/comment images of one user (stored in Postgres)
+_MAX_SIDE = 1600  # px; larger images are scaled down on upload
 
 # Pillow's format names, keyed by the MIME types we accept.
 _MIME_TO_PIL_FORMAT = {
@@ -21,6 +25,22 @@ _MIME_TO_PIL_FORMAT = {
     "image/gif": "GIF",
     "image/webp": "WEBP",
 }
+
+
+def _shrink(data: bytes, mime: str) -> tuple[bytes, str]:
+    """Scale the image down to _MAX_SIDE px and re-encode it as WebP, so a 5 MB
+    screenshot is stored as a few hundred KB (images live in Postgres and count
+    against the per-user total). Animated GIFs keep only their first frame.
+    Keeps the original when re-encoding would not make it smaller."""
+    with Image.open(io.BytesIO(data)) as img:
+        img = ImageOps.exif_transpose(img)
+        img.thumbnail((_MAX_SIDE, _MAX_SIDE))
+        if img.mode not in ("RGB", "RGBA"):
+            img = img.convert("RGBA" if "transparency" in img.info or img.mode in ("LA", "PA") else "RGB")
+        out = io.BytesIO()
+        img.save(out, "WEBP", quality=85, method=4)
+    smaller = out.getvalue()
+    return (smaller, "image/webp") if len(smaller) < len(data) else (data, mime)
 
 
 @router.post("/upload/image")
@@ -37,7 +57,7 @@ async def upload_image(
     if mime not in _ALLOWED_MIME:
         return JSONResponse({"error": "unsupported file type"}, status_code=415)
 
-    data = await file.read()
+    data = await file.read(_MAX_BYTES + 1)
     if len(data) > _MAX_BYTES:
         return JSONResponse({"error": "file too large (max 5 MB)"}, status_code=413)
 
@@ -62,6 +82,18 @@ async def upload_image(
 
     if actual_format != _MIME_TO_PIL_FORMAT.get(mime):
         return JSONResponse({"error": "file content does not match declared type"}, status_code=415)
+
+    data, mime = _shrink(data, mime)
+
+    # Per-user total, checked under a lock on the user's row so parallel
+    # uploads can't both slip under it (PostgreSQL; SQLite serialises writes).
+    db.query(User).filter(User.orcid_id == orcid_id).with_for_update().first()
+    used = db.query(func.coalesce(func.sum(func.length(UploadedImage.data)), 0)).filter(
+        UploadedImage.uploader_orcid_id == orcid_id
+    ).scalar() or 0
+    if used + len(data) > _USER_QUOTA_BYTES:
+        db.rollback()
+        return JSONResponse({"error": "image upload limit reached for this account"}, status_code=413)
 
     img = UploadedImage(
         uploader_orcid_id=orcid_id,

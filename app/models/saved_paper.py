@@ -24,4 +24,17 @@ class SavedPaper(Base):
         "Collection", back_populates="saved_papers"
     )
 
+    library_notes: Mapped[list["LibraryNote"]] = relationship(  # noqa: F821
+        "LibraryNote", back_populates="saved_paper",
+        cascade="all, delete-orphan", order_by="LibraryNote.created_at",
+    )
+    library_files: Mapped[list["LibraryFile"]] = relationship(  # noqa: F821
+        "LibraryFile", back_populates="saved_paper",
+        cascade="all, delete-orphan", order_by="LibraryFile.created_at",
+    )
+
+    @property
+    def first_note_body(self) -> str:
+        return self.library_notes[0].body if self.library_notes else ""
+
     __table_args__ = (UniqueConstraint("orcid_id", "doi", name="uq_saved_paper"),)
