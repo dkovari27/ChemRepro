@@ -7,7 +7,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
 from app.utils.design import register_globals
-from app.utils.request_guards import BodySizeLimit, SameOriginCheck
+from app.utils.request_guards import BodySizeLimit, HeadAsGet, SameOriginCheck
 from sqlalchemy import text
 
 from app.database import Base, engine
@@ -42,7 +42,7 @@ from app.routers import seo as seo_router
 
 Base.metadata.create_all(bind=engine)
 
-# Column migrations — safe to run on every startup (no-op after first run)
+# Column migrations: safe to run on every startup (no-op after first run)
 def _migrate():
     with engine.connect() as conn:
         is_sqlite = str(engine.url).startswith("sqlite")
@@ -246,6 +246,7 @@ app.add_middleware(
 )
 app.add_middleware(BodySizeLimit)
 app.add_middleware(SameOriginCheck)
+app.add_middleware(HeadAsGet)  # added last = outermost, so every layer below sees a GET
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 

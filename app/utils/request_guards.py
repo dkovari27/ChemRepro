@@ -6,9 +6,15 @@ Request-level guards, applied to every route as ASGI middleware:
 - SameOriginCheck: CSRF defence. A browser always sends Origin (or Referer)
   with a cross-site POST; if it names another site, the request is refused.
   Scripts using an API key send neither header and are let through.
+- HeadAsGet: FastAPI GET routes answer HEAD with 405, so link checkers,
+  uptime monitors and status badges report the site as down. A HEAD request
+  is served as GET and only the headers are sent back. GET links that change
+  something (email opt-out and admin links, OAuth, logout) keep refusing HEAD,
+  because mail scanners check links with HEAD; view counters skip HEAD.
 """
 import json
 import re
+from contextvars import ContextVar
 from urllib.parse import urlsplit
 
 from app.config import settings
@@ -94,3 +100,39 @@ class SameOriginCheck:
                 if source_host not in _own_hosts(headers):
                     return await _send_json(send, 403, {"error": "Cross-site request refused."})
         await self.app(scope, receive, send)
+
+
+# True while a HEAD request is being served as GET (checked by the view counters).
+is_head_request: ContextVar[bool] = ContextVar("is_head_request", default=False)
+
+# GET links with side effects: a HEAD here must not trigger them.
+_NO_HEAD = re.compile(r"^/(notify/opt-out/|admin/(citation-approve|email-login|login/)|auth/)")
+
+
+class HeadAsGet:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or scope["method"] != "HEAD":
+            return await self.app(scope, receive, send)
+        path = scope["path"]
+        if path.startswith("/static/"):
+            # StaticFiles answers HEAD itself without reading the file.
+            return await self.app(scope, receive, send)
+        if _NO_HEAD.match(path):
+            return await _send_json(send, 405, {"error": "Method Not Allowed"})
+
+        # Headers (including Content-Length) stay as for GET; the body is dropped.
+        async def send_headers_only(message):
+            if message["type"] == "http.response.body":
+                if message.get("more_body", False):
+                    return
+                message = {"type": "http.response.body", "body": b""}
+            await send(message)
+
+        token = is_head_request.set(True)
+        try:
+            await self.app(dict(scope, method="GET"), receive, send_headers_only)
+        finally:
+            is_head_request.reset(token)

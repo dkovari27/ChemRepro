@@ -18,6 +18,7 @@ from app.config import settings
 from app.utils.moderation import enforce_moderation as _enforce_moderation
 from app.utils.ai_moderation import contains_misconduct_allegation, moderate_comment_bg, moderate_rating_bg
 from app.utils.email import notify_admin
+from app.utils.request_guards import is_head_request
 from app.database import get_db
 from app.models.author_notification import AuthorNotification
 from app.models.author_reply import AuthorReply
@@ -163,7 +164,10 @@ def _get_nd_paper_scores(doi: str, db: Session) -> dict:
 def _bump_view_count(paper: Paper, db: Session) -> None:
     """Increment a paper's page-view counter. Called once per detail-page
     render, across all three site versions (standard/classic/nd), after the
-    paper row has been fetched-or-created for the request."""
+    paper row has been fetched-or-created for the request. HEAD requests
+    (link checkers, badges) are not counted."""
+    if is_head_request.get():
+        return
     paper.view_count += 1
     db.commit()
 
@@ -369,8 +373,9 @@ async def search(request: Request, doi: str = "", db: Session = Depends(get_db))
         db.commit()
         db.refresh(paper)
 
-    paper.search_count += 1
-    db.commit()
+    if not is_head_request.get():
+        paper.search_count += 1
+        db.commit()
 
     return RedirectResponse(f"/paper/{doi}", status_code=303)
 
