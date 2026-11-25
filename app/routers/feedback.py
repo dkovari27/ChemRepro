@@ -1,5 +1,11 @@
+import logging
+import re
+import time
+from collections import deque
+from urllib.parse import quote
+
 from app.utils.design import register_globals
-from fastapi import APIRouter, BackgroundTasks, Depends, Form, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Path, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import IntegrityError
@@ -10,12 +16,49 @@ from app.models.feedback import Feedback
 from app.models.name_suggestion import NameSuggestion, NameVote
 from app.routers.admin import _require_admin
 from app.utils.email import send_feedback_notification
+from app.utils.moderation import is_clean
 
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["feedback"])
 templates = Jinja2Templates(directory="app/templates")
 register_globals(templates)
 
 VALID_PREFS = {"standard", "classic", "both", "unsure"}
+
+# Spam guards for the public feedback form (one server process, so memory is enough).
+RATE_LIMIT = 5             # submissions per IP ...
+RATE_WINDOW = 10 * 60      # ... per 10 minutes
+_recent: dict[str, deque] = {}
+
+
+def _client_ip(request: Request) -> str:
+    """Visitor IP. chemrepro.org runs behind Cloudflare, then Railway's proxy:
+    Cloudflare puts the real visitor IP in CF-Connecting-IP. Without it (direct
+    railway.app access, local) the last X-Forwarded-For entry, added by
+    Railway's proxy, is used. Someone calling the railway.app address directly
+    could fake CF-Connecting-IP; that only lets them dodge this limit."""
+    cf_ip = request.headers.get("cf-connecting-ip", "").strip()
+    if cf_ip:
+        return cf_ip
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded.strip():
+        return forwarded.split(",")[-1].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def _over_limit(ip: str) -> bool:
+    """Record one submission for this IP; True if it is over the limit."""
+    now = time.monotonic()
+    if len(_recent) > 10_000:
+        for key in [k for k, q in _recent.items() if not q or now - q[-1] > RATE_WINDOW]:
+            del _recent[key]
+    q = _recent.setdefault(ip, deque())
+    while q and now - q[0] > RATE_WINDOW:
+        q.popleft()
+    if len(q) >= RATE_LIMIT:
+        return True
+    q.append(now)
+    return False
 
 
 def _voter_id(request: Request) -> str | None:
@@ -46,10 +89,20 @@ def _get_suggestions(db: Session, voter_id: str) -> list[dict]:
     ]
 
 
+# Name suggestions are public and often written as one glued word ("ShitChem"),
+# which the whole-word blocklist misses. These roots are matched anywhere in the
+# name; words with innocent uses inside other words (ass, cock, dick) are left out.
+_GLUED_BAD_RE = re.compile(r"fuck|shit|cunt|nigg|fagg?ot|wank|twat|bitch|whore|slut|retard", re.IGNORECASE)
+
+
+def _name_allowed(name: str) -> bool:
+    return is_clean(name) and not _GLUED_BAD_RE.search(name)
+
+
 def _upsert_names(raw: str, voter_id: str, db: Session) -> None:
     for raw_name in raw.split(","):
         name = raw_name.strip()[:100]
-        if not name:
+        if not name or not _name_allowed(name):
             continue
         existing = db.query(NameSuggestion).filter(
             NameSuggestion.name.ilike(name)
@@ -101,13 +154,26 @@ async def submit_feedback(
     comment: str = Form(""),
     submitter_name: str = Form(""),
     submitter_email: str = Form(""),
+    website: str = Form(""),
+    bug_doi: str = Form(""),
 ):
+    ip = _client_ip(request)
+    # Honeypot: the "website" field is hidden from people, so only bots fill it.
+    # Pretend it worked so the bot learns nothing; save and send nothing.
+    if website.strip():
+        logger.warning("feedback honeypot hit from %s", ip)
+        return RedirectResponse("/feedback?submitted=1", status_code=303)
+
     orcid_id = request.session.get("orcid_id")
 
     # Non-logged-in users must supply name + email
     if not orcid_id:
         if not submitter_name.strip() or not submitter_email.strip():
             return RedirectResponse("/feedback?error=contact_required", status_code=303)
+
+    if _over_limit(ip):
+        doi_param = f"&doi={quote(bug_doi.strip()[:255], safe='')}" if bug_doi.strip() else ""
+        return RedirectResponse(f"/feedback?error=too_many{doi_param}", status_code=303)
 
     ua = request.headers.get("user-agent", "")
     client_device = "mobile" if any(k in ua for k in ("Mobile", "Android", "iPhone")) else "desktop"
@@ -123,7 +189,7 @@ async def submit_feedback(
     ))
     db.commit()
     background_tasks.add_task(
-        send_feedback_notification, "", trimmed_comment, orcid_id,
+        send_feedback_notification, trimmed_comment, orcid_id,
         submitter_name.strip() or None,
         submitter_email.strip() or None,
     )
@@ -191,3 +257,18 @@ async def admin_feedback(request: Request, db: Session = Depends(get_db)):
         "site_version": "standard",
         "switch_urls": {"standard": "/", "classic": "/classic/"},
     })
+
+
+@router.post("/admin/feedback/{feedback_id}/delete")
+async def admin_delete_feedback(
+    request: Request,
+    feedback_id: int = Path(ge=1, le=2147483647),
+    db: Session = Depends(get_db),
+):
+    _require_admin(request)
+    row = db.get(Feedback, feedback_id)
+    if not row:
+        raise HTTPException(404)
+    db.delete(row)
+    db.commit()
+    return RedirectResponse("/admin/feedback", status_code=303)

@@ -36,7 +36,13 @@
           {% else %}text-slate-500{% endif %}">
           {{ r.preference }}
         </span>
-        <span class="text-xs text-slate-400">{{ r.created_at.strftime('%d %b %Y %H:%M') }}</span>
+        <span class="flex items-center gap-3">
+          <span class="text-xs text-slate-400">{{ r.created_at.strftime('%d %b %Y %H:%M') }}</span>
+          <form action="/admin/feedback/{{ r.id }}/delete" method="post"
+                onsubmit="return confirm('Delete this feedback permanently?');">
+            <button type="submit" class="text-xs text-red-600 hover:underline">Delete</button>
+          </form>
+        </span>
       </div>
       {% if r.comment %}
       <p class="text-sm text-slate-700 leading-relaxed">{{ r.comment }}</p>

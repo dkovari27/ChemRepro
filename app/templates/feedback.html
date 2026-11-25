@@ -45,6 +45,18 @@
       <input type="hidden" name="bug_doi" value="{{ bug_doi }}" />
       {% endif %}
 
+      {% if request.query_params.get('error') == 'too_many' %}
+      <div class="mb-4 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700">
+        Too many messages in a short time. Please wait a few minutes and try again, or email us at chemrepro@gmail.com.
+      </div>
+      {% endif %}
+
+      <!-- Spam trap: hidden from people, bots fill it in and are ignored -->
+      <div aria-hidden="true" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden">
+        <label for="fb-website">Leave this field empty</label>
+        <input type="text" id="fb-website" name="website" tabindex="-1" autocomplete="off" value="" />
+      </div>
+
       <!-- Name + email — required for non-logged-in users -->
       {% if not orcid_id %}
       {% if request.query_params.get('error') == 'contact_required' %}

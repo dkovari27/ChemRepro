@@ -39,7 +39,6 @@ def sender_footer(base_url: str) -> tuple[str, str]:
 
 
 def send_feedback_notification(
-    preference: str,
     comment: str | None,
     orcid_id: str | None,
     submitter_name: str | None = None,
@@ -50,20 +49,23 @@ def send_feedback_notification(
     try:
         # For non-logged-in users, show the contact info they provided; otherwise show orcid_id
         if orcid_id:
-            user_line = f"User: {orcid_id}"
+            sender = orcid_id
+            user_line = f"From: signed-in user {orcid_id}"
         elif submitter_name or submitter_email:
-            user_line = f"User: {submitter_name or '(no name)'} <{submitter_email or 'no email'}>"
+            sender = submitter_name or submitter_email
+            user_line = f"From: {submitter_name or '(no name)'} <{submitter_email or 'no email'}>"
         else:
-            user_line = "User: anonymous"
+            sender = "anonymous"
+            user_line = "From: anonymous"
+        sender = " ".join(sender.split())[:60]  # one line, short, for the subject
         body = "\n".join([
-            f"Preference: {preference}",
             user_line,
             "",
             comment or "(no comment)",
         ])
         _resend_send(
             to=settings.FEEDBACK_NOTIFY_EMAIL,
-            subject=f"[ChemRepro] New feedback: {preference}",
+            subject=f"[ChemRepro] Feedback from {sender}",
             body_text=body,
         )
     except Exception as exc:
